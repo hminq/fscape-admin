@@ -1,16 +1,19 @@
-# React + Vite
+# FScape Admin Site
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Admin dashboard for **FScape** — a facility/room booking platform designed for students. This is the management interface where administrators can oversee bookings, manage users, and configure system settings.
 
-Currently, two official plugins are available:
+Built as part of my **Final Capstone Project** before graduation.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
 
-## React Compiler
+- **React 19** — UI framework (JSX)
+- **Vite 7** — Build tool
+- **React Router DOM** — Client-side routing
+- **Tailwind CSS 4** + **shadcn/ui** — Styling & UI components
+- **Radix UI** — Accessible component primitives
+- **Lucide React** — Icons
+- **ESLint 9** — Linting
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## License
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+This project is developed for academic purposes as a university capstone project.
