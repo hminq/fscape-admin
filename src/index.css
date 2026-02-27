@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --font-sans: "Carlito", sans-serif;
+    --font-sans: "Open Sans", sans-serif;
     --font-display: "Bebas Neue", sans-serif;
 }
 
