@@ -10,23 +10,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { useAuth } from "../contexts/AuthContext";
 
 const stats = [
-  { title: "Total Users", value: "1,234", icon: Users, trend: "+12%" },
-  { title: "Revenue", value: "$12,345", icon: DollarSign, trend: "+8.2%" },
-  { title: "Active Now", value: "42", icon: Activity, trend: "+3" },
-  { title: "Growth", value: "+12.5%", icon: TrendingUp, trend: "vs last month" },
+  { title: "Tổng người dùng", value: "1.234", icon: Users, trend: "+12%" },
+  { title: "Doanh thu", value: "12.345.000₫", icon: DollarSign, trend: "+8,2%" },
+  { title: "Đang hoạt động", value: "42", icon: Activity, trend: "+3" },
+  { title: "Tăng trưởng", value: "+12,5%", icon: TrendingUp, trend: "so với tháng trước" },
 ];
 
 const quickActions = [
   {
     icon: ClipboardList,
-    title: "Recent Activity",
-    description: "3 new user registrations today",
+    title: "Hoạt động gần đây",
+    description: "3 đăng ký mới hôm nay",
     color: "bg-amber-100 text-amber-700",
   },
   {
     icon: Bell,
-    title: "Notifications",
-    description: "2 pending approvals",
+    title: "Thông báo",
+    description: "2 yêu cầu chờ duyệt",
     color: "bg-blue-100 text-blue-700",
   },
 ];
@@ -40,10 +40,10 @@ export default function DashboardPage() {
       {/* Welcome header */}
       <div className="space-y-1 pt-4">
         <h1 className="text-4xl font-bold tracking-tight">
-          Welcome, {firstName}!
+          Xin chào, {firstName}!
         </h1>
         <p className="text-lg text-muted-foreground">
-          How can I help you today?
+          Hôm nay bạn cần gì?
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default function DashboardPage() {
       {/* Stat cards */}
       <div>
         <h2 className="mb-4 text-sm font-medium text-muted-foreground">
-          Overview
+          Tổng quan
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (

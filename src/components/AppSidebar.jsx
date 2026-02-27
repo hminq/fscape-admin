@@ -5,9 +5,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/users", icon: Users, label: "Users" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+  { to: "/", icon: LayoutDashboard, label: "Bảng điều khiển" },
+  { to: "/users", icon: Users, label: "Người dùng" },
+  { to: "/settings", icon: Settings, label: "Cài đặt" },
 ];
 
 export default function AppSidebar() {
@@ -62,7 +62,7 @@ export default function AppSidebar() {
           className="w-full justify-between text-sidebar-foreground/50 hover:text-sidebar-foreground"
           onClick={logout}
         >
-          Logout
+          Đăng xuất
           <LogOut className="size-4" />
         </Button>
       </div>

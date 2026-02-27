@@ -11,10 +11,10 @@ export function AuthProvider({ children }) {
 
   function login(email, password) {
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-      setUser({ email, name: "Admin", role: "Administrator" });
+      setUser({ email, name: "Quản trị viên", role: "Quản trị viên" });
       return { success: true };
     }
-    return { success: false, error: "Invalid email or password" };
+    return { success: false, error: "Email hoặc mật khẩu không đúng" };
   }
 
   function logout() {
