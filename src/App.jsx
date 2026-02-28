@@ -4,6 +4,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import BuildingsPage from "./pages/BuildingsPage";
+import RoomsPage from "./pages/RoomsPage";
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="buildings" element={<BuildingsPage />} />
+            <Route path="rooms" element={<RoomsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

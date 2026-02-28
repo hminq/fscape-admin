@@ -1,12 +1,15 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Building2, DoorOpen, Users, CreditCard, Settings, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Bảng điều khiển" },
-  { to: "/users", icon: Users, label: "Người dùng" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/buildings", icon: Building2, label: "Tòa nhà" },
+  { to: "/rooms", icon: DoorOpen, label: "Phòng" },
+  { to: "/users", icon: Users, label: "Sinh viên" },
+  { to: "/payments", icon: CreditCard, label: "Thanh toán" },
   { to: "/settings", icon: Settings, label: "Cài đặt" },
 ];
 
