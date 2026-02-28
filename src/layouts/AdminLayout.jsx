@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { ChevronDown, LogOut } from "lucide-react";
+import { LogOut, User, Mail, Shield } from "lucide-react";
 import AppSidebar from "../components/AppSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -32,22 +32,18 @@ export default function AdminLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-14 shrink-0 items-center justify-end border-b border-border bg-background px-6">
-          {/* User profile + dropdown */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-6">
+          {/* Greeting */}
+          <p className="text-sm text-muted-foreground">
+            Chào mừng, <span className="font-semibold text-foreground">{user?.name}</span>
+          </p>
+
+          {/* Avatar — click to open menu */}
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setUserMenuOpen((prev) => !prev)}
-              className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted"
+              className="rounded-lg transition-opacity hover:opacity-80"
             >
-              <div className="text-right">
-                <p className="text-sm font-semibold leading-tight">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">Admin</p>
-              </div>
-              <ChevronDown
-                className={`size-4 text-muted-foreground transition-transform duration-200 ${
-                  userMenuOpen ? "rotate-180" : ""
-                }`}
-              />
               <img
                 src={defaultUserImg}
                 alt={user?.name}
@@ -57,17 +53,52 @@ export default function AdminLayout() {
 
             {/* Dropdown panel */}
             {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-lg">
-                <button
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    logout();
-                  }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <LogOut className="size-4" />
-                  Đăng xuất
-                </button>
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-popover shadow-lg">
+                {/* User info card */}
+                <div className="flex items-center gap-3 px-4 py-4">
+                  <img
+                    src={defaultUserImg}
+                    alt={user?.name}
+                    className="size-11 rounded-lg object-cover shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
+                  </div>
+                </div>
+
+                {/* Info rows */}
+                <div className="border-t border-border px-4 py-3 space-y-2">
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Mail className="size-3.5 shrink-0" />
+                    <span className="truncate">{user?.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Shield className="size-3.5 shrink-0" />
+                    <span>{user?.role}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="border-t border-border p-1">
+                  <button
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                  >
+                    <User className="size-4" />
+                    Hồ sơ cá nhân
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+                  >
+                    <LogOut className="size-4" />
+                    Đăng xuất
+                  </button>
+                </div>
               </div>
             )}
           </div>
