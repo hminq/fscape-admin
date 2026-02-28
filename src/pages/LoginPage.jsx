@@ -5,23 +5,28 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent } from "../components/ui/card";
+import ContactDialog from "../components/ContactDialog";
 import fscapeLogo from "../assets/fscape-logo.svg";
 
+const DEMO_EMAIL = "admin@fscape.com";
+const DEMO_PASSWORD = "admin123";
+
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@fscape.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const [contactOpen, setContactOpen] = useState(false);
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    const result = login(email, password);
-    if (result.success) {
+    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      signIn({ email, name: "Nguyễn Hoàng Minh", role: "Quản trị viên" });
       navigate("/");
     } else {
-      setError(result.error);
+      setError("Email hoặc mật khẩu không đúng");
     }
   }
 
@@ -48,12 +53,13 @@ export default function LoginPage() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Gặp sự cố khi đăng nhập?{" "}
-            <a
-              href="mailto:support@fscape.com"
+            <button
+              type="button"
+              onClick={() => setContactOpen(true)}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
               Liên hệ.
-            </a>
+            </button>
           </p>
 
           {/* Form */}
@@ -63,7 +69,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Sử dụng email công ty"
+                placeholder="Nhập email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -102,6 +108,8 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      <ContactDialog open={contactOpen} onOpenChange={setContactOpen} />
     </div>
   );
 }

@@ -123,9 +123,6 @@ function BarChart({ data }) {
 }
 
 export default function DashboardPage() {
-  const today = new Date().toLocaleDateString("vi-VN", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -134,10 +131,6 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tổng quan</h1>
           <p className="text-sm text-muted-foreground">Chào mừng trở lại! Đây là tổng quan hoạt động của FScape</p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border rounded-lg px-3 py-2">
-          <CalendarDays className="size-4" />
-          <span>{today}</span>
         </div>
       </div>
 

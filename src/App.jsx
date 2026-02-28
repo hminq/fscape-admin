@@ -3,6 +3,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import LoginPage from "./pages/LoginPage";
+import ForbiddenPage from "./pages/ForbiddenPage";
 import DashboardPage from "./pages/DashboardPage";
 import LocationsPage from "./pages/LocationsPage";
 import UniversitiesPage from "./pages/UniversitiesPage";
@@ -14,6 +15,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/403" element={<ForbiddenPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
