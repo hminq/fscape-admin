@@ -3,18 +3,13 @@ import { Outlet } from "react-router-dom";
 import { ChevronDown, LogOut } from "lucide-react";
 import AppSidebar from "../components/AppSidebar";
 import { useAuth } from "../contexts/AuthContext";
+import defaultUserImg from "@/assets/default_user_img.jpg";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
-
-  const initials = user?.name
-    ?.split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase() || "A";
 
   // Outside click to close user menu
   useEffect(() => {
@@ -44,10 +39,7 @@ export default function AdminLayout() {
               onClick={() => setUserMenuOpen((prev) => !prev)}
               className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted"
             >
-              <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                {initials}
-              </div>
-              <div className="text-left">
+              <div className="text-right">
                 <p className="text-sm font-semibold leading-tight">{user?.name}</p>
                 <p className="text-xs text-muted-foreground">Admin</p>
               </div>
@@ -55,6 +47,11 @@ export default function AdminLayout() {
                 className={`size-4 text-muted-foreground transition-transform duration-200 ${
                   userMenuOpen ? "rotate-180" : ""
                 }`}
+              />
+              <img
+                src={defaultUserImg}
+                alt={user?.name}
+                className="size-9 rounded-lg object-cover"
               />
             </button>
 

@@ -43,7 +43,7 @@ export default function AppSidebar({ expanded, onToggle }) {
         <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
           <img src={fscapeLogo} alt="FScape" className="size-9" />
           {expanded && (
-            <span className="text-xl font-display tracking-wide text-sidebar-foreground leading-none translate-y-px">
+            <span className="text-2xl font-display tracking-wide text-sidebar-foreground leading-none translate-y-px">
               FSCAPE
             </span>
           )}
