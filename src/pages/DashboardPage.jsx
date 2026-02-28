@@ -1,7 +1,6 @@
 import {
   Home,
   Lock,
-  TrendingUp,
   Users,
   CalendarDays,
   Activity,
@@ -133,7 +132,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3 pt-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Tổng quan</h1>
           <p className="text-sm text-muted-foreground">Chào mừng trở lại! Đây là tổng quan hoạt động của FScape</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border rounded-lg px-3 py-2">

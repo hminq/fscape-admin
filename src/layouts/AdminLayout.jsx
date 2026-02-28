@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { LogOut, User, Mail, Shield } from "lucide-react";
+import { LogOut, User, Shield, CalendarDays } from "lucide-react";
 import AppSidebar from "../components/AppSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -25,18 +24,16 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <AppSidebar
-        expanded={sidebarExpanded}
-        onToggle={() => setSidebarExpanded((prev) => !prev)}
-      />
+      <AppSidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-6">
-          {/* Greeting */}
-          <p className="text-sm text-muted-foreground">
-            Chào mừng, <span className="font-semibold text-foreground">{user?.name}</span>
-          </p>
+        <header className="flex h-14 shrink-0 items-center justify-end gap-3 border-b border-border bg-background px-6">
+          {/* Date badge */}
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
+            <CalendarDays className="size-3.5" />
+            <span>{new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+          </div>
 
           {/* Avatar — click to open menu */}
           <div ref={menuRef} className="relative">
@@ -47,7 +44,7 @@ export default function AdminLayout() {
               <img
                 src={defaultUserImg}
                 alt={user?.name}
-                className="size-9 rounded-lg object-cover"
+                className="size-9 rounded-lg object-cover ring-1 ring-border"
               />
             </button>
 
@@ -59,20 +56,16 @@ export default function AdminLayout() {
                   <img
                     src={defaultUserImg}
                     alt={user?.name}
-                    className="size-11 rounded-lg object-cover shrink-0"
+                    className="size-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                   </div>
                 </div>
 
-                {/* Info rows */}
-                <div className="border-t border-border px-4 py-3 space-y-2">
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                    <Mail className="size-3.5 shrink-0" />
-                    <span className="truncate">{user?.email}</span>
-                  </div>
+                {/* Info row */}
+                <div className="border-t border-border px-4 py-3">
                   <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                     <Shield className="size-3.5 shrink-0" />
                     <span>{user?.role}</span>

@@ -1,107 +1,201 @@
-import { NavLink } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
   Building2,
   DoorOpen,
-  Wrench,
+  Package,
   FileText,
+  Receipt,
   MessageSquareMore,
   ScrollText,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/accounts", icon: Users, label: "Tài khoản" },
-  { to: "/buildings", icon: Building2, label: "Tòa nhà" },
-  { to: "/rooms", icon: DoorOpen, label: "Phòng" },
-  { to: "/facilities", icon: Wrench, label: "Tiện ích" },
-  { to: "/contracts", icon: FileText, label: "Hợp đồng" },
-  { to: "/requests", icon: MessageSquareMore, label: "Yêu cầu" },
-  { to: "/logs", icon: ScrollText, label: "Nhật ký" },
+  {
+    label: "Tổng quan",
+    icon: LayoutDashboard,
+    to: "/",
+  },
+  {
+    label: "Tài khoản",
+    icon: Users,
+    to: "/accounts",
+    children: [
+      { label: "Danh sách", to: "/accounts" },
+      { label: "Tạo tài khoản", to: "/accounts/create" },
+    ],
+  },
+  {
+    label: "Tòa nhà",
+    icon: Building2,
+    to: "/buildings",
+    children: [
+      { label: "Khu vực", to: "/locations" },
+      { label: "Trường đại học", to: "/universities" },
+      { label: "Danh sách", to: "/buildings" },
+      { label: "Tiện ích", to: "/buildings/facilities" },
+    ],
+  },
+  {
+    label: "Phòng",
+    icon: DoorOpen,
+    to: "/rooms",
+    children: [
+      { label: "Danh sách", to: "/rooms" },
+      { label: "Loại phòng", to: "/rooms/types" },
+    ],
+  },
+  {
+    label: "Tài sản",
+    icon: Package,
+    to: "/assets",
+    children: [
+      { label: "Danh sách", to: "/assets" },
+      { label: "Bảo trì", to: "/assets/maintenance" },
+    ],
+  },
+  {
+    label: "Hợp đồng",
+    icon: FileText,
+    to: "/contracts",
+    children: [
+      { label: "Danh sách", to: "/contracts" },
+      { label: "Mẫu hợp đồng", to: "/contracts/templates" },
+    ],
+  },
+  {
+    label: "Hóa đơn",
+    icon: Receipt,
+    to: "/invoices",
+    children: [
+      { label: "Danh sách", to: "/invoices" },
+      { label: "Tạo hóa đơn", to: "/invoices/create" },
+    ],
+  },
+  {
+    label: "Yêu cầu",
+    icon: MessageSquareMore,
+    to: "/requests",
+    children: [
+      { label: "Danh sách yêu cầu", to: "/requests" },
+      { label: "Tạo mới", to: "/requests/create" },
+    ],
+  },
+  {
+    label: "Nhật ký",
+    icon: ScrollText,
+    to: "/logs",
+    children: [
+      { label: "Hoạt động", to: "/logs" },
+      { label: "Hệ thống", to: "/logs/system" },
+    ],
+  },
 ];
 
-export default function AppSidebar({ expanded, onToggle }) {
+function SidebarItem({ item }) {
+  const location = useLocation();
+  const hasChildren = item.children && item.children.length > 0;
+  const isActive = location.pathname === item.to ||
+    item.children?.some((child) => location.pathname === child.to);
+  const [open, setOpen] = useState(isActive);
+
+  // Direct link — no children
+  if (!hasChildren) {
+    return (
+      <NavLink
+        to={item.to}
+        end
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+            isActive
+              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          )
+        }
+      >
+        <item.icon className="size-5 shrink-0" />
+        <span>{item.label}</span>
+      </NavLink>
+    );
+  }
+
+  // Collapsible group
   return (
-    <aside
-      className={cn(
-        "flex h-screen flex-col border-r border-sidebar-border bg-sidebar py-4 transition-all duration-300",
-        expanded ? "w-52" : "w-16"
-      )}
-    >
-      {/* Logo + toggle */}
+    <div>
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+          isActive
+            ? "font-medium text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/50 hover:text-sidebar-accent-foreground"
+        )}
+      >
+        <item.icon className="size-5 shrink-0" />
+        <span className="flex-1 text-left">{item.label}</span>
+        <ChevronDown
+          className={cn(
+            "size-3.5 transition-transform duration-200",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+        />
+      </button>
+
       <div
         className={cn(
-          "flex items-center mb-6",
-          expanded ? "justify-between px-4" : "justify-center"
+          "grid transition-[grid-template-rows] duration-200",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         )}
       >
+        <div className="overflow-hidden">
+          <div className="ml-8 border-l border-sidebar-border pl-3 py-1 space-y-0.5">
+            {item.children.map((child) => (
+              <NavLink
+                key={child.to}
+                to={child.to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    "block rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/40 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                {child.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AppSidebar() {
+  return (
+    <aside className="flex h-screen w-56 flex-col border-r border-sidebar-border bg-sidebar py-4">
+      {/* Logo */}
+      <div className="flex items-center px-4 mb-6">
         <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
           <img src={fscapeLogo} alt="FScape" className="size-9" />
-          {expanded && (
-            <span className="text-2xl font-display tracking-wide text-sidebar-foreground leading-none translate-y-px">
-              FSCAPE
-            </span>
-          )}
+          <span className="text-2xl font-display tracking-wide text-sidebar-foreground leading-none translate-y-px">
+            FSCAPE
+          </span>
         </NavLink>
-        {expanded && (
-          <button
-            onClick={onToggle}
-            className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
-          >
-            <PanelLeftClose className="size-4" />
-          </button>
-        )}
       </div>
 
-      {/* Collapse button when collapsed */}
-      {!expanded && (
-        <button
-          onClick={onToggle}
-          className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
-        >
-          <PanelLeftOpen className="size-5" />
-        </button>
-      )}
-
       {/* Navigation */}
-      <nav
-        className={cn(
-          "flex flex-1 flex-col gap-1",
-          expanded ? "px-3" : "items-center"
-        )}
-      >
+      <nav className="flex flex-1 flex-col gap-0.5 px-3 overflow-y-auto">
         {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            title={!expanded ? item.label : undefined}
-            className={({ isActive }) =>
-              cn(
-                "group relative flex items-center rounded-lg transition-colors",
-                expanded
-                  ? "gap-3 px-3 py-2.5 text-sm"
-                  : "size-10 justify-center",
-                isActive
-                  ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              )
-            }
-          >
-            <item.icon className="size-5 shrink-0" />
-            {expanded && <span>{item.label}</span>}
-            {/* Tooltip — only when collapsed */}
-            {!expanded && (
-              <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                {item.label}
-              </span>
-            )}
-          </NavLink>
+          <SidebarItem key={item.label} item={item} />
         ))}
       </nav>
     </aside>

@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
 
   function login(email, password) {
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-      setUser({ email, name: "Quản trị viên", role: "Quản trị viên" });
+      setUser({ email, name: "Nguyễn Hoàng Minh", role: "Quản trị viên" });
       return { success: true };
     }
     return { success: false, error: "Email hoặc mật khẩu không đúng" };
