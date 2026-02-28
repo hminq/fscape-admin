@@ -4,6 +4,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import LocationsPage from "./pages/LocationsPage";
+import UniversitiesPage from "./pages/UniversitiesPage";
 import BuildingsPage from "./pages/BuildingsPage";
 import RoomsPage from "./pages/RoomsPage";
 
@@ -15,6 +17,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="locations" element={<LocationsPage />} />
+            <Route path="universities" element={<UniversitiesPage />} />
             <Route path="buildings" element={<BuildingsPage />} />
             <Route path="rooms" element={<RoomsPage />} />
           </Route>
