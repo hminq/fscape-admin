@@ -3,18 +3,11 @@ import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext(null);
 
-const VALID_EMAIL = "admin@fscape.com";
-const VALID_PASSWORD = "admin123";
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
-  function login(email, password) {
-    if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-      setUser({ email, name: "Nguyễn Hoàng Minh", role: "Quản trị viên" });
-      return { success: true };
-    }
-    return { success: false, error: "Email hoặc mật khẩu không đúng" };
+  function signIn(userObj) {
+    setUser(userObj);
   }
 
   function logout() {
@@ -22,7 +15,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
