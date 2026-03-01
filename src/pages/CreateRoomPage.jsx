@@ -21,6 +21,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /* ── Constants ─────────────────────────────── */
 
@@ -99,10 +101,12 @@ function ImageUploader({ images, onChange }) {
                 onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => inputRef.current?.click()}
-                className={`flex flex-col items-center justify-center gap-3 h-44 rounded-lg border-2 border-dashed cursor-pointer transition-all duration-200 ${dragging
-                    ? "border-primary bg-primary/5 shadow-inner"
-                    : "border-border hover:border-primary/50 hover:bg-muted/40"
-                    }`}
+                className={cn(
+                    "flex flex-col items-center justify-center gap-3 h-44 rounded-lg border-2 border-dashed cursor-pointer transition-all duration-200",
+                    dragging
+                        ? "border-primary bg-primary/5 shadow-inner"
+                        : "border-border hover:border-primary/50 hover:bg-muted/40"
+                )}
             >
                 <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <Upload className="size-6" />
@@ -148,10 +152,14 @@ function ImageUploader({ images, onChange }) {
 
 function CheckboxItem({ label, checked, onChange }) {
     return (
-        <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all hover:shadow-sm ${checked ? "bg-primary/5 border-primary/30" : "bg-card border-border hover:border-primary/20"
-            }`}>
-            <div className={`size-5 rounded border flex items-center justify-center transition-colors ${checked ? "bg-primary border-primary text-primary-foreground" : "bg-transparent border-input"
-                }`}>
+        <label className={cn(
+            "flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all hover:shadow-sm",
+            checked ? "bg-primary/5 border-primary/30" : "bg-card border-border hover:border-primary/20"
+        )}>
+            <div className={cn(
+                "size-5 rounded border flex items-center justify-center transition-colors",
+                checked ? "bg-primary border-primary text-primary-foreground" : "bg-transparent border-input"
+            )}>
                 {checked && <X className="size-3 rotate-45" />}
             </div>
             <input
@@ -219,12 +227,32 @@ export default function CreateRoomPage() {
         }));
     };
 
-    const handleSave = async (isDraft = false) => {
+    const handleSave = async () => {
+        if (!form.name || !form.buildingId || !form.typeId) {
+            alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+            return;
+        }
+
         setSaving(true);
-        // Mimic API call
-        await new Promise((r) => setTimeout(r, 1500));
-        setSaving(false);
-        navigate("/rooms");
+        try {
+            const payload = {
+                room_number: form.name.trim(),
+                building_id: form.buildingId,
+                room_type_id: form.typeId,
+                floor: parseInt(form.floor) || 1,
+                status: form.status.toUpperCase(),
+                description: form.description.trim(),
+                // Add default images to match API structure if needed
+                thumbnail_url: form.images[0]?.url || null,
+            };
+
+            await api.post("/api/rooms", payload);
+            navigate("/rooms");
+        } catch (err) {
+            alert(err.message || "Đã xảy ra lỗi khi tạo phòng.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -241,12 +269,9 @@ export default function CreateRoomPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" onClick={() => handleSave(true)} disabled={saving} className="gap-2">
-                        <Save className="size-4" /> Lưu bản nháp
-                    </Button>
-                    <Button onClick={() => handleSave(false)} disabled={saving} className="gap-2 bg-primary hover:bg-primary/90 shadow-md">
+                    <Button onClick={handleSave} disabled={saving} className="gap-2 px-6 bg-primary hover:bg-primary/90 shadow-md">
                         {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                        Tạo phòng
+                        Xác nhận tạo phòng
                     </Button>
                 </div>
             </div>
@@ -469,7 +494,7 @@ export default function CreateRoomPage() {
                     <Button variant="ghost" onClick={() => navigate("/rooms")} disabled={saving} className="text-muted-foreground">
                         Hủy bỏ
                     </Button>
-                    <Button onClick={() => handleSave(false)} disabled={saving} className="px-8 shadow-md">
+                    <Button onClick={handleSave} disabled={saving} className="px-8 shadow-md">
                         {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Plus className="size-4 mr-2" />}
                         Xác nhận tạo phòng
                     </Button>

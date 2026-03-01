@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus, Search, Pencil, Trash2, MapPin, Eye,
   Building2, ArrowLeft, Layers, Loader2,
@@ -217,8 +218,8 @@ function BuildingDetail({ buildingId, onBack }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 mt-1">
-          <ArrowLeft className="size-4" /> Quay lại
+        <Button variant="outline" size="icon" onClick={onBack} className="mt-1 shadow-sm">
+          <ArrowLeft className="size-4" />
         </Button>
         <div>
           <div className="flex items-center gap-2.5 mb-1">
@@ -250,8 +251,6 @@ function BuildingDetail({ buildingId, onBack }) {
                 ["Khu vực", building.location?.name || "—"],
                 ["Địa chỉ", building.address],
                 ...(building.total_floors > 0 ? [["Số tầng", `${building.total_floors} tầng`]] : []),
-                ["Ngày tạo", fmt(building.created_at)],
-                ["Cập nhật", fmt(building.updated_at)],
               ].map(([label, value]) => (
                 <div key={label}>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -473,6 +472,7 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
 /* ── BuildingsPage ─────────────────────────── */
 
 export default function BuildingsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   /* data */
@@ -599,7 +599,7 @@ export default function BuildingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Tòa nhà</h1>
           <p className="text-sm text-muted-foreground">Quản lý tất cả các tòa nhà FScape</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setDialog({ mode: "add", data: null })}>
+        <Button className="gap-0.5" onClick={() => navigate("/buildings/create")}>
           <Plus className="size-4" /> Thêm tòa nhà
         </Button>
       </div>

@@ -108,6 +108,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                   </SelectContent>
                 </Select>
               </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                 <Button
@@ -234,6 +235,7 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
               </SelectContent>
             </Select>
           </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button
@@ -281,6 +283,7 @@ export default function LocationsPage() {
       if (filterActive === "active") params.set("is_active", "true");
       if (filterActive === "inactive") params.set("is_active", "false");
 
+
       const res = await api.get(`/api/locations?${params}`);
       setLocations(res.data || []);
       setTotal(res.total || 0);
@@ -312,6 +315,8 @@ export default function LocationsPage() {
   });
 
   const activeCount = locations.filter((l) => l.isActive).length;
+
+
 
   /* ─ CRUD ─ */
   const handleCreate = async (data) => {
@@ -368,6 +373,8 @@ export default function LocationsPage() {
     }
   };
 
+
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
@@ -410,6 +417,7 @@ export default function LocationsPage() {
             <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
           </div>
         </Card>
+
       </div>
 
       {/* Search + filter */}
@@ -439,6 +447,7 @@ export default function LocationsPage() {
             </Button>
           ))}
         </div>
+
       </div>
 
       {/* Table */}
@@ -513,6 +522,7 @@ export default function LocationsPage() {
                           {loc.isActive ? "Hoạt động" : "Không hoạt động"}
                         </span>
                       </TableCell>
+
                       <TableCell className="text-sm text-muted-foreground">
                         {fmt(loc.createdAt)}
                       </TableCell>

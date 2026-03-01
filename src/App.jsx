@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LocationsPage from "./pages/LocationsPage";
 import UniversitiesPage from "./pages/UniversitiesPage";
 import BuildingsPage from "./pages/BuildingsPage";
+import CreateBuildingPage from "./pages/CreateBuildingPage";
 import RoomsPage from "./pages/RoomsPage";
 import CreateRoomPage from "./pages/CreateRoomPage";
 import RoomTypesPage from "./pages/RoomTypesPage";
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="locations" element={<LocationsPage />} />
             <Route path="universities" element={<UniversitiesPage />} />
             <Route path="buildings" element={<BuildingsPage />} />
+            <Route path="buildings/create" element={<CreateBuildingPage />} />
             <Route path="rooms">
               <Route index element={<RoomsPage />} />
               <Route path=":id" element={<RoomDetailPage />} />

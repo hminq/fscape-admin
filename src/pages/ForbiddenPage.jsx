@@ -33,8 +33,8 @@ export default function ForbiddenPage() {
 
       {/* Actions */}
       <div className="flex items-center gap-3 mt-8">
-        <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
-          <ArrowLeft className="size-4" /> Quay lại
+        <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="rounded-full shadow-sm hover:translate-x-[-2px] transition-transform">
+          <ArrowLeft className="size-4" />
         </Button>
         <Button onClick={() => navigate("/")}>Về trang chủ</Button>
       </div>

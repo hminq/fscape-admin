@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, Search, Pencil, Trash2, Eye, X,
-  Home, DoorOpen, KeyRound, Wrench, ChevronRight
+  Home, DoorOpen, KeyRound, Wrench, ChevronRight, Loader2, MapPin, Layers
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,63 +26,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const INITIAL_ROOMS = [
-  { id: 1, roomNumber: "A-301", building: "FScape Hà Nội", status: "available", type: "Phòng đơn", area: 18, capacity: 1, floor: 3, price: 4500000, image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80" },
-  { id: 2, roomNumber: "B-205", building: "FScape FPT", status: "occupied", type: "Phòng đôi", area: 25, capacity: 2, floor: 2, price: 5200000, image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80" },
-  { id: 3, roomNumber: "C-102", building: "FScape TP.HCM", status: "occupied", type: "Studio", area: 35, capacity: 1, floor: 1, price: 6800000, image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=600&q=80" },
-  { id: 4, roomNumber: "A-405", building: "FScape Hà Nội", status: "available", type: "Phòng đơn", area: 20, capacity: 1, floor: 4, price: 4800000, image: "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80" },
-  { id: 5, roomNumber: "C-308", building: "FScape TP.HCM", status: "available", type: "Phòng đôi", area: 28, capacity: 2, floor: 3, price: 5500000, image: "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=600&q=80" },
-  { id: 6, roomNumber: "D-201", building: "FScape Đà Nẵng", status: "maintenance", type: "Ký túc xá", area: 22, capacity: 2, floor: 2, price: 4200000, image: "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=600&q=80" },
-];
+
 
 const STATUS_MAP = {
-  available: { label: "Còn trống", variant: "default" },
-  occupied: { label: "Đã thuê", variant: "secondary" },
-  maintenance: { label: "Bảo trì", variant: "outline" },
+  AVAILABLE: { label: "Còn trống", variant: "default", color: "bg-success/15 text-success" },
+  OCCUPIED: { label: "Đã thuê", variant: "secondary", color: "bg-muted text-muted-foreground" },
+  MAINTENANCE: { label: "Bảo trì", variant: "outline", color: "bg-amber-100 text-amber-600" },
 };
 
-const BUILDINGS = ["FScape Hà Nội", "FScape FPT", "FScape TP.HCM", "FScape Đà Nẵng"];
-const ROOM_TYPES = ["Phòng đơn", "Phòng đôi", "Studio", "Ký túc xá"];
-
-const fmtPrice = (p) => p.toLocaleString("vi-VN");
+const fmtPrice = (p) => {
+  if (!p) return "0";
+  return parseFloat(p).toLocaleString("vi-VN");
+};
 
 function RoomCard({ room, onEdit, onDelete, onView }) {
-  const cfg = STATUS_MAP[room.status];
+  const statusKey = room.status?.toUpperCase() || "AVAILABLE";
+  const cfg = STATUS_MAP[statusKey] || STATUS_MAP.AVAILABLE;
+  const imageUrl = room.images?.[0]?.image_url || room.thumbnail_url || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80";
+
   return (
     <Card
-      className="overflow-hidden transition-all hover:shadow-xl flex flex-col cursor-pointer group"
+      className="overflow-hidden transition-all hover:shadow-xl flex flex-col cursor-pointer group border-none shadow-sm"
       onClick={() => onView(room.id)}
     >
-      <div className="relative h-44 overflow-hidden shrink-0">
-        <img src={room.image} alt={room.roomNumber} className="w-full h-full object-cover transition-transform hover:scale-105" />
-        <Badge className="absolute top-3 right-3" variant={cfg.variant}>{cfg.label}</Badge>
+      <div className="relative h-48 overflow-hidden shrink-0">
+        <img src={imageUrl} alt={room.room_number} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Badge className={cn("absolute top-3 right-3 border-none", cfg.color)}>{cfg.label}</Badge>
       </div>
-      <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
+      <CardContent className="p-4 space-y-3.5 flex-1 flex flex-col">
         <div>
-          <p className="font-bold text-base">{room.roomNumber}</p>
-          <p className="text-xs font-semibold text-primary">{room.building}</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-bold text-lg tracking-tight">{room.room_number}</p>
+            <span className="text-[10px] font-bold uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded">Tầng {room.floor}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/5 w-fit px-2.5 py-1 rounded-md mb-2">
+            <MapPin className="size-3" />
+            {room.building?.name}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
-          {[
-            ["Loại:", room.type],
-            ["Diện tích:", `${room.area} m²`],
-            ["Sức chứa:", `${room.capacity} người`],
-            ["Tầng:", `Tầng ${room.floor}`],
-          ].map(([label, val]) => (
-            <div key={label} className="flex justify-between">
-              <span className="text-muted-foreground">{label}</span>
-              <span className="font-semibold">{val}</span>
-            </div>
-          ))}
+
+        <div className="grid grid-cols-2 gap-3 text-[12px]">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground flex items-center gap-1"><Layers className="size-3" /> Loại:</span>
+            <span className="font-semibold truncate">{room.room_type?.name}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground">Giá gốc:</span>
+            <span className="font-semibold text-primary">{fmtPrice(room.room_type?.base_price)} đ</span>
+          </div>
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-lg font-extrabold text-primary">{fmtPrice(room.price)} đ</span>
-          <span className="text-xs text-muted-foreground">/ tháng</span>
-        </div>
-        <div className="flex items-center gap-2 mt-auto pt-1">
+
+        <div className="flex items-center gap-2 mt-auto pt-2 border-t border-border/50">
           <Button
             size="sm"
-            className="flex-1 gap-1.5"
+            variant="secondary"
+            className="flex-1 gap-1.5 h-8 text-xs font-bold"
             onClick={(e) => {
               e.stopPropagation();
               onView(room.id);
@@ -88,10 +89,10 @@ function RoomCard({ room, onEdit, onDelete, onView }) {
           >
             <Eye className="size-3.5" /> Chi tiết
           </Button>
-          <Button size="icon" variant="outline" className="size-8" onClick={(e) => { e.stopPropagation(); onEdit(room); }}>
+          <Button size="icon" variant="outline" className="size-8 hover:bg-primary/5" onClick={(e) => { e.stopPropagation(); onEdit(room); }}>
             <Pencil className="size-3.5" />
           </Button>
-          <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); onDelete(room); }}>
+          <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive/10 border-destructive/20" onClick={(e) => { e.stopPropagation(); onDelete(room); }}>
             <Trash2 className="size-3.5" />
           </Button>
         </div>
@@ -100,132 +101,62 @@ function RoomCard({ room, onEdit, onDelete, onView }) {
   );
 }
 
-function RoomFormDialog({ open, onOpenChange, mode, initialData, onSave }) {
-  const empty = { roomNumber: "", building: "FScape Hà Nội", status: "available", type: "Phòng đơn", area: "", capacity: 1, floor: "", price: "", image: "" };
-  const [form, setForm] = useState(initialData || empty);
-  const [errors, setErrors] = useState({});
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  const validate = () => {
-    const e = {};
-    if (!form.roomNumber.trim()) e.roomNumber = true;
-    if (!form.floor || Number(form.floor) <= 0) e.floor = true;
-    if (!form.price || Number(form.price) <= 0) e.price = true;
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSave({ ...form, floor: Number(form.floor), price: Number(form.price), area: Number(form.area) || 0, capacity: Number(form.capacity) || 1 });
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{mode === "add" ? "Tạo phòng mới" : "Chỉnh sửa phòng"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Số phòng *</Label>
-              <Input value={form.roomNumber} onChange={(e) => set("roomNumber", e.target.value)} placeholder="VD: A-301" className={errors.roomNumber ? "border-destructive" : ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tòa nhà</Label>
-              <Select value={form.building} onValueChange={(v) => set("building", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{BUILDINGS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label>Loại phòng</Label>
-              <Select value={form.type} onValueChange={(v) => set("type", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{ROOM_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tầng *</Label>
-              <Input type="number" min="1" value={form.floor} onChange={(e) => set("floor", e.target.value)} className={errors.floor ? "border-destructive" : ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Trạng thái</Label>
-              <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Còn trống</SelectItem>
-                  <SelectItem value="occupied">Đã thuê</SelectItem>
-                  <SelectItem value="maintenance">Bảo trì</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label>Giá/tháng (đ) *</Label>
-              <Input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} className={errors.price ? "border-destructive" : ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Diện tích (m²)</Label>
-              <Input type="number" value={form.area} onChange={(e) => set("area", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sức chứa</Label>
-              <Input type="number" min="1" value={form.capacity} onChange={(e) => set("capacity", e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>URL ảnh</Label>
-            <Input value={form.image} onChange={(e) => set("image", e.target.value)} placeholder="https://..." />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit">{mode === "add" ? "Tạo phòng" : "Lưu thay đổi"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default function RoomsPage() {
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState(INITIAL_ROOMS);
-  const [dialog, setDialog] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 6;
+
   const [confirmDel, setConfirmDel] = useState(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [error, setError] = useState(null);
 
-  const total = rooms.length;
-  const available = rooms.filter((r) => r.status === "available").length;
-  const occupied = rooms.filter((r) => r.status === "occupied").length;
-  const maintenance = rooms.filter((r) => r.status === "maintenance").length;
+  const fetchRooms = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page, limit });
+      if (search.trim()) params.set("search", search.trim());
+      if (filter !== "all") params.set("status", filter.toUpperCase());
 
-  const filtered = rooms.filter((r) => {
-    const q = search.toLowerCase();
-    const matchSearch = r.roomNumber.toLowerCase().includes(q) || r.building.toLowerCase().includes(q) || r.type.toLowerCase().includes(q);
-    const matchFilter = filter === "all" || r.status === filter;
-    return matchSearch && matchFilter;
-  });
-
-  const handleSave = (data) => {
-    if (dialog.mode === "add") {
-      setRooms((prev) => [...prev, { ...data, id: Date.now() }]);
-    } else {
-      setRooms((prev) => prev.map((r) => (r.id === data.id ? data : r)));
+      const res = await api.get(`/api/rooms?${params}`);
+      setRooms(res.data || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+    } catch (err) {
+      setError("Không thể kết nối API. Vui lòng thử lại sau.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = () => {
-    setRooms((prev) => prev.filter((r) => r.id !== confirmDel.id));
-    setConfirmDel(null);
+  useEffect(() => {
+    fetchRooms();
+  }, [page, search, filter]);
+
+  const handleDelete = async () => {
+    setSaving(true);
+    try {
+      await api.delete(`/api/rooms/${confirmDel.id}`);
+      setConfirmDel(null);
+      fetchRooms();
+    } catch (err) {
+      alert("Lỗi khi xóa phòng: " + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const available = rooms.filter((r) => r.status?.toUpperCase() === "AVAILABLE").length;
+  const occupied = rooms.filter((r) => r.status?.toUpperCase() === "OCCUPIED").length;
+  const maintenance = rooms.filter((r) => r.status?.toUpperCase() === "MAINTENANCE").length;
 
   const summaryStats = [
     { label: "Tổng phòng", value: total, icon: Home, color: "bg-primary/10 text-primary" },
@@ -268,7 +199,7 @@ export default function RoomsPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input placeholder="Tìm theo mã phòng, tòa nhà, loại phòng..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Tìm theo mã phòng, tòa nhà..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
         <div className="flex gap-1.5">
           {[
@@ -277,7 +208,7 @@ export default function RoomsPage() {
             { key: "occupied", label: "Đã thuê" },
             { key: "maintenance", label: "Bảo trì" },
           ].map((f) => (
-            <Button key={f.key} size="sm" variant={filter === f.key ? "default" : "outline"} onClick={() => setFilter(f.key)}>
+            <Button key={f.key} size="sm" variant={filter === f.key ? "default" : "outline"} onClick={() => { setFilter(f.key); setPage(1); }}>
               {f.label}
             </Button>
           ))}
@@ -285,32 +216,60 @@ export default function RoomsPage() {
       </div>
 
       {/* Grid */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">Không tìm thấy phòng nào.</div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((r) => (
-            <RoomCard
-              key={r.id}
-              room={r}
-              onView={(id) => navigate(`/rooms/${id}`)}
-              onEdit={(r) => setDialog({ mode: "edit", data: { ...r } })}
-              onDelete={setConfirmDel}
-            />
-          ))}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <Loader2 className="size-10 animate-spin text-primary/40" />
+          <p className="text-sm font-medium text-muted-foreground">Đang tải danh sách phòng...</p>
         </div>
+      ) : error ? (
+        <div className="text-center py-20 bg-muted/20 rounded-2xl border border-dashed border-border">
+          <p className="text-destructive font-medium">{error}</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={fetchRooms}>Thử lại</Button>
+        </div>
+      ) : rooms.length === 0 ? (
+        <div className="text-center py-24 bg-muted/20 rounded-2xl border border-dashed border-border">
+          <DoorOpen className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-muted-foreground font-medium">Không tìm thấy phòng nào.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rooms.map((r) => (
+              <RoomCard
+                key={r.id}
+                room={r}
+                onView={(id) => navigate(`/rooms/${id}`)}
+                onEdit={(r) => navigate(`/rooms/${r.id}/edit`)} // Giả sử có trang edit hoặc modal
+                onDelete={setConfirmDel}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-8 pb-4">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Trước</Button>
+              <div className="flex items-center gap-1 mx-2">
+                {[...Array(totalPages)].map((_, i) => (
+                  <Button
+                    key={i}
+                    variant={page === i + 1 ? "default" : "ghost"}
+                    size="icon"
+                    className="size-8 text-xs"
+                    onClick={() => setPage(i + 1)}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Sau</Button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Form Dialog */}
-      {dialog && (
-        <RoomFormDialog
-          open={!!dialog}
-          onOpenChange={(v) => !v && setDialog(null)}
-          mode={dialog.mode}
-          initialData={dialog.data}
-          onSave={handleSave}
-        />
-      )}
+      {/* Form Dialog removed, navigating to Create instead */}
+
 
       {/* Confirm Delete */}
       <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
@@ -319,11 +278,14 @@ export default function RoomsPage() {
             <DialogTitle>Xóa phòng</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Bạn có chắc muốn xóa phòng <strong className="text-foreground">"{confirmDel?.roomNumber}"</strong>? Hành động này không thể hoàn tác.
+            Bạn có chắc muốn xóa phòng <strong className="text-foreground">"{confirmDel?.room_number}"</strong>? Hành động này không thể hoàn tác.
           </p>
           <DialogFooter className="justify-center gap-2 sm:justify-center">
-            <Button variant="outline" onClick={() => setConfirmDel(null)}>Hủy</Button>
-            <Button variant="destructive" onClick={handleDelete}>Xóa</Button>
+            <Button variant="outline" onClick={() => setConfirmDel(null)} disabled={saving}>Hủy</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving} className="gap-2">
+              {saving && <Loader2 className="size-4 animate-spin" />}
+              Xóa phòng
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

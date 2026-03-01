@@ -32,16 +32,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /* ── Mock Data (Same as RoomsPage.jsx for consistency) ── */
-const MOCK_ROOMS = [
-    { id: 1, roomNumber: "A-301", building: "FScape Hà Nội", status: "available", type: "Phòng đơn", area: 18, capacity: 1, floor: 3, price: 4500000, image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80" },
-    { id: 2, roomNumber: "B-205", building: "FScape FPT", status: "occupied", type: "Phòng đôi", area: 25, capacity: 2, floor: 2, price: 5200000, image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80" },
-    { id: 3, roomNumber: "C-102", building: "FScape TP.HCM", status: "occupied", type: "Studio", area: 35, capacity: 1, floor: 1, price: 6800000, image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=600&q=80" },
-    { id: 4, roomNumber: "A-405", building: "FScape Hà Nội", status: "available", type: "Phòng đơn", area: 20, capacity: 1, floor: 4, price: 4800000, image: "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80" },
-    { id: 5, roomNumber: "C-308", building: "FScape TP.HCM", status: "available", type: "Phòng đôi", area: 28, capacity: 2, floor: 3, price: 5500000, image: "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=600&q=80" },
-    { id: 6, roomNumber: "D-201", building: "FScape Đà Nẵng", status: "maintenance", type: "Ký túc xá", area: 22, capacity: 2, floor: 2, price: 4200000, image: "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=600&q=80" },
-];
+
 
 const AMENITIES_ICONS = {
     wifi: <Wifi className="size-4" />,
@@ -63,9 +58,14 @@ const AMENITIES_ICONS = {
 };
 
 const STATUS_MAP = {
-    available: { label: "Còn trống", variant: "default", color: "bg-success/15 text-success" },
-    occupied: { label: "Đã thuê", variant: "secondary", color: "bg-primary/10 text-primary" },
-    maintenance: { label: "Bảo trì", variant: "outline", color: "bg-warning/15 text-warning" },
+    AVAILABLE: { label: "Còn trống", variant: "default", color: "bg-success/15 text-success" },
+    OCCUPIED: { label: "Đã thuê", variant: "secondary", color: "bg-primary/10 text-primary" },
+    MAINTENANCE: { label: "Bảo trì", variant: "outline", color: "bg-warning/15 text-warning" },
+};
+
+const fmtPrice = (p) => {
+    if (!p) return "0";
+    return parseFloat(p).toLocaleString("vi-VN");
 };
 
 export default function RoomDetailPage() {
@@ -76,35 +76,26 @@ export default function RoomDetailPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simulate fetching
-        setLoading(true);
-        setTimeout(() => {
-            const found = MOCK_ROOMS.find(r => r.id === parseInt(id)) || MOCK_ROOMS[0];
-            // Enrich with extra data for display
-            setRoom({
-                ...found,
-                description: "Phòng được thiết kế hiện đại, đầy đủ ánh sáng tự nhiên. Không gian thoáng đãng phù hợp cho sinh viên tập trung học tập và nghỉ ngơi sau giờ học. Tòa nhà có an ninh 24/7 và khu vực để xe an toàn.",
-                images: [
-                    found.image,
-                    "https://images.unsplash.com/photo-1522770179533-24471fcdba45?w=600&q=80",
-                    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80",
-                    "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&q=80",
-                ],
-                contractType: "Hợp đồng 12 tháng",
-                minStay: "6 tháng",
-                availableFrom: "2024-03-15",
-                bedType: "Giường đơn",
-                bathroomType: "Khép kín",
-                floor: found.floor || 3,
-                amenities: ["wifi", "ac", "study_desk", "wardrobe", "kitchen", "laundry", "gym"],
-                history: [
-                    { date: "2024-02-01", action: "Thay mới điều hòa", user: "Kỹ thuật Hùng" },
-                    { date: "2024-01-15", action: "Kiểm tra định kỳ", user: "Quản lý Trang" },
-                    { date: "2023-12-10", action: "Sửa vòi nước bồn tắm", user: "Kỹ thuật Nam" },
-                ]
-            });
-            setLoading(false);
-        }, 500);
+        const fetchRoom = async () => {
+            setLoading(true);
+            try {
+                const res = await api.get(`/api/rooms/${id}`);
+                const data = res.data;
+                // Add default fields for display if API lacks them
+                setRoom({
+                    ...data,
+                    description: data.description || "Phòng được thiết kế hiện đại, đầy đủ ánh sáng tự nhiên. Không gian thoáng đãng phù hợp cho sinh viên tập trung học tập và nghỉ ngơi sau giờ học.",
+                    images: data.images?.length > 0 ? data.images.map(i => i.image_url) : [data.thumbnail_url || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80"],
+                    amenities: data.amenities || ["wifi", "ac", "study_desk", "wardrobe"],
+                    history: []
+                });
+            } catch (err) {
+                console.error("Error fetching room:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchRoom();
     }, [id]);
 
     if (loading) return (
@@ -115,7 +106,8 @@ export default function RoomDetailPage() {
 
     if (!room) return <div className="text-center py-20 font-bold">Không tìm thấy thông tin phòng!</div>;
 
-    const statusCfg = STATUS_MAP[room.status] || STATUS_MAP.available;
+    const statusKey = room.status?.toUpperCase() || "AVAILABLE";
+    const statusCfg = STATUS_MAP[statusKey] || STATUS_MAP.AVAILABLE;
 
     return (
         <div className="mx-auto max-w-6xl space-y-8 pb-20 animate-in fade-in duration-500">
@@ -132,13 +124,13 @@ export default function RoomDetailPage() {
                     </Button>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-extrabold tracking-tight">{room.roomNumber}</h1>
+                            <h1 className="text-3xl font-extrabold tracking-tight">{room.room_number}</h1>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusCfg.color}`}>
                                 {statusCfg.label}
                             </span>
                         </div>
                         <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                            <MapPin className="size-3.5" /> {room.building} • Tầng {room.floor}
+                            <MapPin className="size-3.5" /> {room.building?.name} • Tầng {room.floor}
                         </p>
                     </div>
                 </div>
@@ -261,7 +253,7 @@ export default function RoomDetailPage() {
                         </CardHeader>
                         <CardContent className="pt-2 pb-6">
                             <div className="flex items-baseline gap-1.5">
-                                <h3 className="text-4xl font-extrabold text-primary">{(room.price || 0).toLocaleString("vi-VN")}</h3>
+                                <h3 className="text-4xl font-extrabold text-primary">{fmtPrice(room.room_type?.base_price)}</h3>
                                 <span className="text-sm font-bold text-primary/70">đ/tháng</span>
                             </div>
                             <Button className="w-full mt-6 bg-primary font-bold shadow-lg shadow-primary/20 py-6 text-base">
