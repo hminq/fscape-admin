@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Search, Pencil, Trash2, MapPin, Eye,
   Building2, ArrowLeft, Layers, Loader2,
-  ToggleLeft, ToggleRight, ImageOff,
+  ToggleLeft, ToggleRight, ImagePlus, X,
+  ShieldCheck, ShieldAlert
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,10 +41,70 @@ const STATUS_STYLES = {
 
 const EMPTY_FORM = {
   name: "", location_id: "", address: "",
-  latitude: "", longitude: "",
   description: "", total_floors: "",
-  thumbnail_url: "", is_active: "true",
+  is_active: "true", images: [],
 };
+
+/* ── ImageUploader ─────────────────────────── */
+
+function ImageUploader({ images, onChange }) {
+  const inputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+
+  const addFiles = (files) => {
+    const newImgs = Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .map((f) => ({ file: f, url: URL.createObjectURL(f), name: f.name }));
+    onChange([...images, ...newImgs]);
+  };
+
+  const removeImg = (idx) => onChange(images.filter((_, i) => i !== idx));
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    addFiles(e.dataTransfer.files);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Hình ảnh</Label>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        className={`flex flex-col items-center justify-center gap-2 h-28 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
+          }`}
+      >
+        <ImagePlus className="size-6 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground text-center">
+          Kéo thả ảnh vào đây hoặc <span className="text-primary font-medium">chọn file</span>
+        </p>
+        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+          onChange={(e) => addFiles(e.target.files)} />
+      </div>
+      {images.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {images.map((img, idx) => (
+            <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+              {idx === 0 && (
+                <span className="absolute bottom-0 left-0 right-0 text-[9px] font-bold text-center bg-primary text-primary-foreground py-0.5">
+                  Ảnh chính
+                </span>
+              )}
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); removeImg(idx); }}
+                className="absolute top-1 right-1 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              ><X className="size-3" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ── BuildingCard ──────────────────────────── */
 
@@ -189,7 +250,6 @@ function BuildingDetail({ buildingId, onBack }) {
                 ["Khu vực", building.location?.name || "—"],
                 ["Địa chỉ", building.address],
                 ...(building.total_floors > 0 ? [["Số tầng", `${building.total_floors} tầng`]] : []),
-                ["Tọa độ", `${building.latitude}, ${building.longitude}`],
                 ["Ngày tạo", fmt(building.created_at)],
                 ["Cập nhật", fmt(building.updated_at)],
               ].map(([label, value]) => (
@@ -206,21 +266,29 @@ function BuildingDetail({ buildingId, onBack }) {
         </div>
       </Card>
 
-      {/* Images gallery */}
+      {/* Images gallery – mosaic layout */}
       {building.images?.length > 0 && (
         <div>
           <h2 className="text-lg font-bold mb-3">Hình ảnh</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {building.images.map((img) => (
-              <div key={img.id} className="aspect-video rounded-lg overflow-hidden bg-muted">
-                <img
-                  src={img.image_url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = "none"; }}
-                />
-              </div>
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            {building.images.map((img, idx) => {
+              const src = img.image_url || img.url || img;
+              return (
+                <div
+                  key={img.id || idx}
+                  className={`relative rounded-xl overflow-hidden bg-muted ${idx === 0 ? "col-span-2 row-span-2 aspect-video" : "aspect-square"
+                    }`}
+                >
+                  <img src={src} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    onError={(e) => { e.target.style.display = "none"; }} />
+                  {idx === 0 && (
+                    <span className="absolute bottom-0 left-0 right-0 text-[10px] font-bold text-center bg-primary/80 text-primary-foreground py-1">
+                      Ảnh chính
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -233,11 +301,10 @@ function BuildingDetail({ buildingId, onBack }) {
             {building.facilities.map((f) => (
               <span
                 key={f.id}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full ${
-                  f.BuildingFacility?.is_active !== false
-                    ? "bg-success/15 text-success"
-                    : "bg-muted text-muted-foreground"
-                }`}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full ${f.BuildingFacility?.is_active !== false
+                  ? "bg-success/15 text-success"
+                  : "bg-muted text-muted-foreground"
+                  }`}
               >
                 {f.name}
               </span>
@@ -274,16 +341,18 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
   const [form, setForm] = useState(
     initialData
       ? {
-          name: initialData.name || "",
-          location_id: initialData.location_id || "",
-          address: initialData.address || "",
-          latitude: initialData.latitude ?? "",
-          longitude: initialData.longitude ?? "",
-          description: initialData.description || "",
-          total_floors: initialData.total_floors ?? "",
-          thumbnail_url: initialData.thumbnail_url || "",
-          is_active: String(initialData.is_active ?? true),
-        }
+        name: initialData.name || "",
+        location_id: initialData.location_id || "",
+        address: initialData.address || "",
+        description: initialData.description || "",
+        total_floors: initialData.total_floors ?? "",
+        is_active: String(initialData.is_active ?? true),
+        images: (initialData.images || []).map((img) => ({
+          url: img.image_url || img.url || img,
+          name: "",
+          existing: true,
+        })),
+      }
       : EMPTY_FORM
   );
   const [errors, setErrors] = useState({});
@@ -294,8 +363,6 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
     if (!form.name.trim()) e.name = true;
     if (!form.location_id) e.location_id = true;
     if (!form.address.trim()) e.address = true;
-    if (form.latitude === "" || isNaN(Number(form.latitude))) e.latitude = true;
-    if (form.longitude === "" || isNaN(Number(form.longitude))) e.longitude = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -307,12 +374,10 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
       name: form.name.trim(),
       location_id: form.location_id,
       address: form.address.trim(),
-      latitude: Number(form.latitude),
-      longitude: Number(form.longitude),
       description: form.description.trim() || null,
       total_floors: form.total_floors ? Number(form.total_floors) : null,
-      thumbnail_url: form.thumbnail_url.trim() || null,
       is_active: form.is_active === "true",
+      // images: form.images  // attach if your API supports multipart
     });
   };
 
@@ -360,35 +425,9 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Vĩ độ *</Label>
-              <Input
-                type="number" step="any"
-                value={form.latitude}
-                onChange={(e) => set("latitude", e.target.value)}
-                placeholder="VD: 21.0285"
-                className={errors.latitude ? "border-destructive" : ""}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Kinh độ *</Label>
-              <Input
-                type="number" step="any"
-                value={form.longitude}
-                onChange={(e) => set("longitude", e.target.value)}
-                placeholder="VD: 105.8542"
-                className={errors.longitude ? "border-destructive" : ""}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
               <Label>Số tầng</Label>
-              <Input
-                type="number" min="1"
-                value={form.total_floors}
-                onChange={(e) => set("total_floors", e.target.value)}
-              />
+              <Input type="number" min="1" value={form.total_floors}
+                onChange={(e) => set("total_floors", e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Trạng thái</Label>
@@ -402,23 +441,16 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>URL ảnh đại diện</Label>
-            <Input
-              value={form.thumbnail_url}
-              onChange={(e) => set("thumbnail_url", e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
+          <ImageUploader
+            images={form.images}
+            onChange={(imgs) => set("images", imgs)}
+          />
 
           <div className="space-y-1.5">
             <Label>Mô tả</Label>
-            <Textarea
-              rows={3}
-              value={form.description}
+            <Textarea rows={3} value={form.description}
               onChange={(e) => set("description", e.target.value)}
-              placeholder="Mô tả ngắn về tòa nhà..."
-            />
+              placeholder="Mô tả ngắn về tòa nhà..." />
           </div>
 
           <DialogFooter>
@@ -572,33 +604,36 @@ export default function BuildingsPage() {
         </Button>
       </div>
 
-      {/* Summary card */}
-      <Card className="py-0 gap-0 overflow-hidden">
-        <div className="flex items-stretch">
-          <div className="flex-1 flex items-center gap-4 px-6 py-5">
-            <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
-              <Building2 className="size-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{total}</p>
-              <p className="text-sm text-muted-foreground">Tòa nhà</p>
-            </div>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden">
+          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Building2 className="size-6 text-primary" />
           </div>
-          <div className="flex items-center gap-6 px-6 py-5 border-l border-border bg-muted/30">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-success">{activeCount}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Hoạt động</p>
-            </div>
-            <div className="w-px h-8 bg-border" />
-            <div className="text-center">
-              <p className="text-2xl font-bold text-muted-foreground">
-                {buildings.length - activeCount}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Không hoạt động</p>
-            </div>
+          <div>
+            <p className="text-3xl font-bold tracking-tight">{total}</p>
+            <p className="text-sm text-muted-foreground">Tổng tòa nhà</p>
           </div>
-        </div>
-      </Card>
+        </Card>
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden">
+          <div className="size-14 rounded-2xl bg-success/10 flex items-center justify-center">
+            <ShieldCheck className="size-6 text-success" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-success">{activeCount}</p>
+            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden bg-muted/5 border-none shadow-sm">
+          <div className="size-14 rounded-2xl bg-background flex items-center justify-center border border-border">
+            <ShieldAlert className="size-6 text-muted-foreground/40" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-muted-foreground">{total - activeCount}</p>
+            <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
+          </div>
+        </Card>
+      </div>
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">

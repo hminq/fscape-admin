@@ -38,7 +38,6 @@ const navItems = [
       { label: "Khu vực", to: "/locations" },
       { label: "Trường đại học", to: "/universities" },
       { label: "Danh sách", to: "/buildings" },
-      { label: "Tiện ích", to: "/buildings/facilities" },
     ],
   },
   {

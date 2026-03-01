@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,11 +145,10 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5">
                 {location.name}
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
-                  location.isActive
-                    ? "bg-success/15 text-success"
-                    : "bg-muted text-muted-foreground"
-                }`}>
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${location.isActive
+                  ? "bg-success/15 text-success"
+                  : "bg-muted text-muted-foreground"
+                  }`}>
                   {location.isActive ? "Hoạt động" : "Không hoạt động"}
                 </span>
               </DialogTitle>
@@ -382,33 +381,36 @@ export default function LocationsPage() {
         </Button>
       </div>
 
-      {/* Summary card */}
-      <Card className="py-0 gap-0 overflow-hidden">
-        <div className="flex items-stretch">
-          <div className="flex-1 flex items-center gap-4 px-6 py-5">
-            <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
-              <MapPin className="size-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{total}</p>
-              <p className="text-sm text-muted-foreground">Tổng khu vực</p>
-            </div>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
+          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <MapPin className="size-6 text-primary" />
           </div>
-          <div className="flex items-center gap-6 px-6 py-5 border-l border-border bg-muted/30">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-success">{activeCount}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Hoạt động</p>
-            </div>
-            <div className="w-px h-8 bg-border" />
-            <div className="text-center">
-              <p className="text-2xl font-bold text-muted-foreground">
-                {locations.length - activeCount}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Không hoạt động</p>
-            </div>
+          <div>
+            <p className="text-3xl font-bold tracking-tight">{total}</p>
+            <p className="text-sm text-muted-foreground">Tổng khu vực</p>
           </div>
-        </div>
-      </Card>
+        </Card>
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
+          <div className="size-14 rounded-2xl bg-success/10 flex items-center justify-center">
+            <ShieldCheck className="size-6 text-success" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-success">{activeCount}</p>
+            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden bg-muted/5 border-none shadow-sm">
+          <div className="size-14 rounded-2xl bg-background flex items-center justify-center border border-border">
+            <ShieldAlert className="size-6 text-muted-foreground/40" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-muted-foreground">{locations.length - activeCount}</p>
+            <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
+          </div>
+        </Card>
+      </div>
 
       {/* Search + filter */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -499,16 +501,14 @@ export default function LocationsPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${
-                            loc.isActive
-                              ? "bg-success/15 text-success"
-                              : "bg-muted text-muted-foreground"
-                          }`}
+                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${loc.isActive
+                            ? "bg-success/15 text-success"
+                            : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           <span
-                            className={`size-2 rounded-full shrink-0 ${
-                              loc.isActive ? "bg-success" : "bg-muted-foreground/40"
-                            }`}
+                            className={`size-2 rounded-full shrink-0 ${loc.isActive ? "bg-success" : "bg-muted-foreground/40"
+                              }`}
                           />
                           {loc.isActive ? "Hoạt động" : "Không hoạt động"}
                         </span>

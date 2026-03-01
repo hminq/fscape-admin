@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus, Search, Pencil, Trash2, Eye, X,
-  Home, DoorOpen, KeyRound, Wrench,
+  Home, DoorOpen, KeyRound, Wrench, ChevronRight
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,10 +44,13 @@ const ROOM_TYPES = ["Phòng đơn", "Phòng đôi", "Studio", "Ký túc xá"];
 
 const fmtPrice = (p) => p.toLocaleString("vi-VN");
 
-function RoomCard({ room, onEdit, onDelete }) {
+function RoomCard({ room, onEdit, onDelete, onView }) {
   const cfg = STATUS_MAP[room.status];
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-lg flex flex-col">
+    <Card
+      className="overflow-hidden transition-all hover:shadow-xl flex flex-col cursor-pointer group"
+      onClick={() => onView(room.id)}
+    >
       <div className="relative h-44 overflow-hidden shrink-0">
         <img src={room.image} alt={room.roomNumber} className="w-full h-full object-cover transition-transform hover:scale-105" />
         <Badge className="absolute top-3 right-3" variant={cfg.variant}>{cfg.label}</Badge>
@@ -74,13 +78,20 @@ function RoomCard({ room, onEdit, onDelete }) {
           <span className="text-xs text-muted-foreground">/ tháng</span>
         </div>
         <div className="flex items-center gap-2 mt-auto pt-1">
-          <Button size="sm" className="flex-1 gap-1.5">
+          <Button
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(room.id);
+            }}
+          >
             <Eye className="size-3.5" /> Chi tiết
           </Button>
-          <Button size="icon" variant="outline" className="size-8" onClick={() => onEdit(room)}>
+          <Button size="icon" variant="outline" className="size-8" onClick={(e) => { e.stopPropagation(); onEdit(room); }}>
             <Pencil className="size-3.5" />
           </Button>
-          <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive/10" onClick={() => onDelete(room)}>
+          <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); onDelete(room); }}>
             <Trash2 className="size-3.5" />
           </Button>
         </div>
@@ -184,6 +195,7 @@ function RoomFormDialog({ open, onOpenChange, mode, initialData, onSave }) {
 }
 
 export default function RoomsPage() {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState(INITIAL_ROOMS);
   const [dialog, setDialog] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
@@ -230,7 +242,7 @@ export default function RoomsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Phòng</h1>
           <p className="text-sm text-muted-foreground">Quản lý tất cả các phòng cho thuê</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setDialog({ mode: "add", data: null })}>
+        <Button className="gap-1.5" onClick={() => navigate("/rooms/create")}>
           <Plus className="size-4" /> Tạo phòng mới
         </Button>
       </div>
@@ -239,13 +251,13 @@ export default function RoomsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryStats.map((s) => (
           <Card key={s.label}>
-            <CardContent className="flex items-center gap-3.5 pt-4 pb-4">
-              <div className={`flex items-center justify-center size-11 rounded-xl ${s.color}`}>
-                <s.icon className="size-5" />
+            <CardContent className="flex items-center gap-3.5 pt-5 pb-5">
+              <div className={`flex items-center justify-center size-14 rounded-2xl ${s.color}`}>
+                <s.icon className="size-6" />
               </div>
               <div>
-                <p className="text-xl font-bold">{s.value}</p>
-                <p className="text-[11px] text-muted-foreground font-medium">{s.label}</p>
+                <p className="text-3xl font-bold">{s.value}</p>
+                <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">{s.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -278,7 +290,13 @@ export default function RoomsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((r) => (
-            <RoomCard key={r.id} room={r} onEdit={(r) => setDialog({ mode: "edit", data: { ...r } })} onDelete={setConfirmDel} />
+            <RoomCard
+              key={r.id}
+              room={r}
+              onView={(id) => navigate(`/rooms/${id}`)}
+              onEdit={(r) => setDialog({ mode: "edit", data: { ...r } })}
+              onDelete={setConfirmDel}
+            />
           ))}
         </div>
       )}
