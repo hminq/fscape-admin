@@ -126,14 +126,6 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3 pt-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tổng quan</h1>
-          <p className="text-sm text-muted-foreground">Chào mừng trở lại! Đây là tổng quan hoạt động của FScape</p>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (

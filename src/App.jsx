@@ -8,7 +8,15 @@ import DashboardPage from "./pages/DashboardPage";
 import LocationsPage from "./pages/LocationsPage";
 import UniversitiesPage from "./pages/UniversitiesPage";
 import BuildingsPage from "./pages/BuildingsPage";
+import CreateBuildingPage from "./pages/CreateBuildingPage";
 import RoomsPage from "./pages/RoomsPage";
+import CreateRoomPage from "./pages/CreateRoomPage";
+import RoomTypesPage from "./pages/RoomTypesPage";
+import AssetsPage from "./pages/AssetsPage";
+import AccountsPage from "./pages/AccountsPage";
+import CreateAccountPage from "./pages/CreateAccountPage";
+import CreateAssetPage from "./pages/CreateAssetPage";
+import RoomDetailPage from "./pages/RoomDetailPage";
 
 export default function App() {
   return (
@@ -19,10 +27,20 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="accounts" element={<AccountsPage />} />
+            <Route path="accounts/create" element={<CreateAccountPage />} />
             <Route path="locations" element={<LocationsPage />} />
             <Route path="universities" element={<UniversitiesPage />} />
             <Route path="buildings" element={<BuildingsPage />} />
-            <Route path="rooms" element={<RoomsPage />} />
+            <Route path="buildings/create" element={<CreateBuildingPage />} />
+            <Route path="rooms">
+              <Route index element={<RoomsPage />} />
+              <Route path=":id" element={<RoomDetailPage />} />
+              <Route path="create" element={<CreateRoomPage />} />
+              <Route path="types" element={<RoomTypesPage />} />
+            </Route>
+            <Route path="assets" element={<AssetsPage />} />
+            <Route path="assets/create" element={<CreateAssetPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

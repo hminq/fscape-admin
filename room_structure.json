@@ -1,0 +1,30 @@
+{
+  "id": "fa615f6f-ef4e-478d-8270-fcba07e4d2e1",
+  "building_id": "eca636e3-d5a3-46d4-bdd6-fa5371e0b070",
+  "room_type_id": "871b69e4-306a-4dea-865d-5b9827937a42",
+  "room_number": "101",
+  "floor": 1,
+  "thumbnail_url": null,
+  "image_3d_url": null,
+  "blueprint_url": null,
+  "status": "AVAILABLE",
+  "createdAt": "2026-03-01T14:16:41.589Z",
+  "updatedAt": "2026-03-01T14:16:41.589Z",
+  "building": {
+    "id": "eca636e3-d5a3-46d4-bdd6-fa5371e0b070",
+    "name": "Building A",
+    "address": "123 Nguyen Trai, Ha Noi"
+  },
+  "room_type": {
+    "id": "871b69e4-306a-4dea-865d-5b9827937a42",
+    "name": "Studio Deluxe",
+    "base_price": "3500000.00",
+    "deposit_months": 1
+  },
+  "images": [
+    {
+      "id": "7a68ae4c-259a-4117-8dc9-c2b179cae87c",
+      "image_url": "https://example.com/room1.jpg"
+    }
+  ]
+}
