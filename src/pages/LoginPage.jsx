@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import ContactDialog from "../components/ContactDialog";
-import fscapeLogo from "../assets/fscape-logo.svg";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiJson } from "@/lib/apiClient";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import ContactDialog from "@/components/ContactDialog";
+import fscapeLogo from "@/assets/fscape-logo.svg";
 
-const DEMO_EMAIL = "admin@fscape.com";
-const DEMO_PASSWORD = "admin123";
+const ROLE_HOME = {
+  ADMIN: "/",
+  STAFF: "/staff",
+  BUILDING_MANAGER: "/building-manager",
+};
 
-// -- Animated floating blobs for the left panel --
 function Blob({ style }) {
   return (
     <div
@@ -40,27 +43,42 @@ function EyeIcon({ open }) {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState(DEMO_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
-  const { signIn } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      signIn({ email, name: "Nguyễn Hoàng Minh", role: "Quản trị viên" });
-      navigate("/");
-    } else {
-      setError("Email hoặc mật khẩu không đúng. Vui lòng thử lại.");
+    try {
+      const data = await apiJson("/api/auth/internal/login", {
+        method: "POST",
+        withAuth: false,
+        body: { email, password },
+      });
+
+      const u = data.user ?? {};
+      const fullName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+
+      login(data.access_token, {
+        id: u.id,
+        email: u.email ?? email,
+        role: u.role,
+        name: fullName || u.email || email,
+      });
+
+      navigate(ROLE_HOME[u.role] ?? "/");
+    } catch (err) {
+      setError(err?.message || "Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -100,8 +118,8 @@ export default function LoginPage() {
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <img src={fscapeLogo} alt="FScape" style={{ width: 46, height: 46, borderRadius: 12 }} />
-            <span style={{ color: "white", fontWeight: 700, fontSize: "1.2rem", letterSpacing: "-0.01em" }}>
-              FScape Admin
+            <span style={{ color: "white", fontWeight: 700, fontSize: "1.4rem", letterSpacing: "-0.01em" }}>
+              FScape
             </span>
           </div>
         </div>

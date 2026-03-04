@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, Search, Pencil, Trash2, MapPin, Eye,
   Building2, ArrowLeft, Layers, Loader2,
-  ToggleLeft, ToggleRight, ImagePlus, X,
-  ShieldCheck, ShieldAlert
+  ImagePlus, X, ChevronLeft, ChevronRight,
+  GraduationCap, User as UserIcon, Phone, Mail,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,25 +19,19 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { apiJson, apiRequest } from "@/lib/apiClient";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 
 /* ── helpers ───────────────────────────────── */
 
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
-
 const thumb = (b) => b.thumbnail_url || defaultBuildingImg;
 
-const STATUS_STYLES = {
-  true: { label: "Hoạt động", class: "bg-success/15 text-success" },
-  false: { label: "Không hoạt động", class: "bg-muted text-muted-foreground" },
+const STATUS = {
+  true: { label: "Hoạt động", dot: "bg-success", badge: "border-success/30 bg-success/10 text-success" },
+  false: { label: "Vô hiệu hóa", dot: "bg-muted-foreground/40", badge: "border-border bg-muted text-muted-foreground" },
 };
 
 const EMPTY_FORM = {
@@ -46,63 +40,82 @@ const EMPTY_FORM = {
   is_active: "true", images: [],
 };
 
-/* ── ImageUploader ─────────────────────────── */
+const PER_SECTION = 6;
 
-function ImageUploader({ images, onChange }) {
-  const inputRef = useRef(null);
-  const [dragging, setDragging] = useState(false);
+async function uploadFiles(purpose, files) {
+  const fd = new FormData();
+  fd.append("purpose", purpose);
+  for (const f of files) fd.append("files", f);
+  const res = await apiRequest("/api/upload", { method: "POST", body: fd });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Upload thất bại");
+  }
+  return res.json();
+}
 
-  const addFiles = (files) => {
-    const newImgs = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((f) => ({ file: f, url: URL.createObjectURL(f), name: f.name }));
-    onChange([...images, ...newImgs]);
-  };
+/* ── DonutChart ─────────────────────────────── */
 
-  const removeImg = (idx) => onChange(images.filter((_, i) => i !== idx));
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    addFiles(e.dataTransfer.files);
-  };
+function DonutChart({ active, inactive, size = 100 }) {
+  const total = active + inactive;
+  const pct = total > 0 ? (active / total) * 100 : 0;
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
 
   return (
-    <div className="space-y-2">
-      <Label>Hình ảnh</Label>
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`flex flex-col items-center justify-center gap-2 h-28 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
-          }`}
-      >
-        <ImagePlus className="size-6 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground text-center">
-          Kéo thả ảnh vào đây hoặc <span className="text-primary font-medium">chọn file</span>
-        </p>
-        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
-          onChange={(e) => addFiles(e.target.files)} />
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
+          className="stroke-muted" />
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          className="stroke-success transition-all duration-500" />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[11px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
       </div>
-      {images.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
-          {images.map((img, idx) => (
-            <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
-              {idx === 0 && (
-                <span className="absolute bottom-0 left-0 right-0 text-[9px] font-bold text-center bg-primary text-primary-foreground py-0.5">
-                  Ảnh chính
-                </span>
-              )}
-              <button type="button"
-                onClick={(e) => { e.stopPropagation(); removeImg(idx); }}
-                className="absolute top-1 right-1 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              ><X className="size-3" /></button>
-            </div>
-          ))}
+    </div>
+  );
+}
+
+/* ── BuildingSummary ───────────────────────── */
+
+function BuildingSummary({ total, active, inactive }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-6 p-5">
+        {/* Left — total */}
+        <div className="flex items-center gap-4 flex-1">
+          <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <Building2 className="size-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+            <p className="text-sm text-muted-foreground mt-1">Tổng tòa nhà</p>
+          </div>
         </div>
-      )}
+
+        {/* Divider */}
+        <div className="w-px h-16 bg-border shrink-0" />
+
+        {/* Right — chart */}
+        <div className="flex items-center gap-5">
+          <DonutChart active={active} inactive={inactive} size={80} />
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-success shrink-0" />
+              <span className="text-sm text-muted-foreground">Hoạt động</span>
+              <span className="text-sm font-semibold ml-auto pl-3">{active}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-muted-foreground/30 shrink-0" />
+              <span className="text-sm text-muted-foreground">Vô hiệu hóa</span>
+              <span className="text-sm font-semibold ml-auto pl-3">{inactive}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -110,37 +123,32 @@ function ImageUploader({ images, onChange }) {
 /* ── BuildingCard ──────────────────────────── */
 
 function BuildingCard({ building, onView, onEdit, onDelete }) {
-  const st = STATUS_STYLES[building.is_active] || STATUS_STYLES["true"];
+  const st = STATUS[building.is_active] || STATUS["true"];
 
   return (
-    <Card className="overflow-hidden py-0 gap-0 transition-shadow hover:shadow-lg">
-      <div className="h-52 overflow-hidden bg-muted">
+    <Card className="overflow-hidden py-0 gap-0 transition-shadow hover:shadow-lg group">
+      <div className="h-48 overflow-hidden bg-muted relative">
         <img
           src={thumb(building)}
           alt={building.name}
-          className="w-full h-full object-cover transition-transform hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => { e.target.src = defaultBuildingImg; }}
         />
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-2.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-bold text-base truncate">{building.name}</h3>
-          <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.class}`}>
+          <h3 className="font-bold text-[15px] truncate">{building.name}</h3>
+          <span className={`shrink-0 text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${st.badge}`}>
             {st.label}
           </span>
         </div>
 
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <MapPin className="size-3 shrink-0" /> {building.address}
+        <p className="text-xs text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+          <MapPin className="size-3 shrink-0 mt-0.5" /> {building.address}
         </p>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {building.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="size-3" /> {building.location.name}
-            </span>
-          )}
           {(building.total_floors ?? 0) > 0 && (
             <span className="flex items-center gap-1">
               <Layers className="size-3" /> {building.total_floors} tầng
@@ -152,15 +160,15 @@ function BuildingCard({ building, onView, onEdit, onDelete }) {
         </div>
 
         <div className="flex items-center gap-2 pt-1">
-          <Button size="sm" className="flex-1 gap-1.5" onClick={() => onView(building)}>
+          <Button size="sm" className="flex-1 gap-1.5 h-9" onClick={() => onView(building)}>
             <Eye className="size-3.5" /> Chi tiết
           </Button>
-          <Button size="icon" variant="outline" className="size-8" onClick={() => onEdit(building)}>
+          <Button size="icon" variant="outline" className="size-9" onClick={() => onEdit(building)}>
             <Pencil className="size-3.5" />
           </Button>
           <Button
             size="icon" variant="outline"
-            className="size-8 text-destructive hover:bg-destructive/10"
+            className="size-9 text-destructive hover:bg-destructive/10"
             onClick={() => onDelete(building)}
           >
             <Trash2 className="size-3.5" />
@@ -184,8 +192,8 @@ function BuildingDetail({ buildingId, onBack }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get(`/api/buildings/${buildingId}`);
-        if (!cancelled) setBuilding(res.data);
+        const res = await apiJson(`/api/buildings/${buildingId}`);
+        if (!cancelled) setBuilding(res.data || res);
       } catch {
         if (!cancelled) setError("Không thể tải thông tin tòa nhà.");
       } finally {
@@ -212,120 +220,217 @@ function BuildingDetail({ buildingId, onBack }) {
     );
   }
 
-  const st = STATUS_STYLES[building.is_active] || STATUS_STYLES["true"];
+  const st = STATUS[building.is_active] || STATUS["true"];
+  const gallery = (building.images || [])
+    .map((img) => img.image_url || img.url || img)
+    .filter(Boolean);
+
+  const infoItems = [
+    { label: "Khu vực", value: building.location?.name },
+    { label: "Địa chỉ", value: building.address },
+    ...(building.total_floors > 0 ? [{ label: "Số tầng", value: `${building.total_floors} tầng` }] : []),
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <Button variant="outline" size="icon" onClick={onBack} className="mt-1 shadow-sm">
+      <div className="flex items-start gap-3">
+        <button
+          onClick={onBack}
+          className="mt-0.5 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+        >
           <ArrowLeft className="size-4" />
-        </Button>
+        </button>
         <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-xl font-bold">{building.name}</h1>
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.class}`}>
+          <div className="flex items-center gap-2.5 mb-0.5">
+            <h1 className="text-lg font-bold">{building.name}</h1>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${st.badge}`}>
               {st.label}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
+          <p className="text-[13px] text-muted-foreground flex items-center gap-1.5">
             <MapPin className="size-3.5" /> {building.address}
           </p>
         </div>
       </div>
 
-      {/* Main info card */}
-      <Card className="overflow-hidden">
+      {/* Main info card — thumbnail only */}
+      <Card className="overflow-hidden py-0 gap-0">
         <div className="flex flex-col md:flex-row">
-          <div className="md:w-72 shrink-0">
+          <div className="md:w-64 shrink-0 bg-muted">
             <img
               src={thumb(building)}
               alt={building.name}
-              className="w-full h-full min-h-52 object-cover"
+              className="w-full h-full min-h-44 object-cover"
               onError={(e) => { e.target.src = defaultBuildingImg; }}
             />
           </div>
-          <CardContent className="p-6 space-y-4 flex-1">
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                ["Khu vực", building.location?.name || "—"],
-                ["Địa chỉ", building.address],
-                ...(building.total_floors > 0 ? [["Số tầng", `${building.total_floors} tầng`]] : []),
-              ].map(([label, value]) => (
+          <div className="flex-1 p-5">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {infoItems.map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-                  <p className="text-sm font-medium mt-0.5">{value}</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {label}
+                  </p>
+                  <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
                 </div>
               ))}
             </div>
             {building.description && (
-              <p className="text-sm text-muted-foreground border-t pt-4">{building.description}</p>
+              <p className="text-sm text-muted-foreground mt-4 pt-4 border-t border-border leading-relaxed">
+                {building.description}
+              </p>
             )}
-          </CardContent>
+          </div>
         </div>
       </Card>
 
-      {/* Images gallery – mosaic layout */}
-      {building.images?.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3">Hình ảnh</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {building.images.map((img, idx) => {
-              const src = img.image_url || img.url || img;
-              return (
-                <div
-                  key={img.id || idx}
-                  className={`relative rounded-xl overflow-hidden bg-muted ${idx === 0 ? "col-span-2 row-span-2 aspect-video" : "aspect-square"
-                    }`}
-                >
-                  <img src={src} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    onError={(e) => { e.target.style.display = "none"; }} />
-                  {idx === 0 && (
-                    <span className="absolute bottom-0 left-0 right-0 text-[10px] font-bold text-center bg-primary/80 text-primary-foreground py-1">
-                      Ảnh chính
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+      {/* Manager Info */}
+      {building.manager && (
+        <section>
+          <h2 className="text-base font-bold mb-3">Người quản lý</h2>
+          <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+            <div className="size-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+              <UserIcon className="size-5 text-primary" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-[15px]">
+                {building.manager.first_name} {building.manager.last_name}
+              </span>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-0.5">
+                {building.manager.phone && (
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="size-3.5" />
+                    {building.manager.phone}
+                  </span>
+                )}
+                {building.manager.email && (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="size-3.5" />
+                    {building.manager.email}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+      )}
+
+      {/* Gallery — equal size grid */}
+      {gallery.length > 0 && (
+        <section>
+          <h2 className="text-base font-bold mb-3">Hình ảnh ({gallery.length})</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            {gallery.map((src, idx) => (
+              <div
+                key={idx}
+                className="aspect-square rounded-lg overflow-hidden bg-muted border border-border"
+              >
+                <img
+                  src={src}
+                  alt=""
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Facilities */}
       {building.facilities?.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3">Tiện ích</h2>
+        <section>
+          <h2 className="text-lg font-bold mb-4">Tiện ích</h2>
           <div className="flex flex-wrap gap-2">
             {building.facilities.map((f) => (
               <span
                 key={f.id}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full ${f.BuildingFacility?.is_active !== false
-                  ? "bg-success/15 text-success"
-                  : "bg-muted text-muted-foreground"
+                className={`text-[13px] px-3.5 py-1.5 rounded-full border transition-colors ${f.BuildingFacility?.is_active !== false
+                  ? "border-success/30 text-success bg-success/5"
+                  : "border-border text-muted-foreground bg-muted/50"
                   }`}
               >
                 {f.name}
               </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Nearby universities */}
       {building.nearby_universities?.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3">Trường đại học lân cận</h2>
+        <section>
+          <h2 className="text-lg font-bold mb-4">Trường đại học lân cận</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {building.nearby_universities.map((uni) => (
-              <Card key={uni.id}>
-                <CardContent className="p-4">
+              <div key={uni.id} className="flex items-start gap-3 rounded-xl border border-border p-4">
+                <div className="size-9 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 mt-0.5">
+                  <GraduationCap className="size-4 text-primary" />
+                </div>
+                <div>
                   <p className="font-medium text-sm">{uni.name}</p>
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <MapPin className="size-3" /> {uni.address}
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/* ── EditFacilityPicker ─────────────────────── */
+
+function EditFacilityPicker({ selectedIds, onChange }) {
+  const [allFacilities, setAllFacilities] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiJson("/api/facilities?limit=100");
+        setAllFacilities(res.data || res || []);
+      } catch { /* silent */ }
+    })();
+  }, []);
+
+  if (allFacilities.length === 0) return null;
+
+  const toggle = (id) => {
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+  };
+
+  const selected = allFacilities.filter((f) => selectedIds.includes(f.id));
+  const available = allFacilities.filter((f) => !selectedIds.includes(f.id));
+
+  return (
+    <div className="space-y-3">
+      <Label>Tiện ích</Label>
+      {selected.length > 0 && (
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-1.5">Đã chọn</p>
+          <div className="flex flex-wrap gap-1.5">
+            {selected.map((f) => (
+              <button key={f.id} type="button" onClick={() => toggle(f.id)}
+                className="text-xs px-2.5 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors">
+                {f.name} <X className="size-3 inline ml-1 -mt-px" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {available.length > 0 && (
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-1.5">Chưa chọn</p>
+          <div className="flex flex-wrap gap-1.5">
+            {available.map((f) => (
+              <button key={f.id} type="button" onClick={() => toggle(f.id)}
+                className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
+                {f.name}
+              </button>
             ))}
           </div>
         </div>
@@ -336,70 +441,162 @@ function BuildingDetail({ buildingId, onBack }) {
 
 /* ── BuildingFormDialog ────────────────────── */
 
-function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, saving, locations }) {
-  const [form, setForm] = useState(
-    initialData
-      ? {
-        name: initialData.name || "",
-        location_id: initialData.location_id || "",
-        address: initialData.address || "",
-        description: initialData.description || "",
-        total_floors: initialData.total_floors ?? "",
-        is_active: String(initialData.is_active ?? true),
-        images: (initialData.images || []).map((img) => ({
-          url: img.image_url || img.url || img,
-          name: "",
-          existing: true,
-        })),
-      }
-      : EMPTY_FORM
-  );
+function BuildingFormDialog({ open, onOpenChange, initialData, onSaved, saving: externalSaving, locations }) {
+  const [form, setForm] = useState({});
+  const [thumbFile, setThumbFile] = useState(null);
+  const [thumbPreview, setThumbPreview] = useState(null);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [facilityIds, setFacilityIds] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [errors, setErrors] = useState({});
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const [saving, setSaving] = useState(false);
+  const thumbInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+
+  /* fetch available managers and augment with current manager if needed */
+  useEffect(() => {
+    let cancelled = false;
+    if (!open) return;
+    (async () => {
+      try {
+        const res = await apiJson("/api/admin/users/available-managers");
+        let available = res.data || [];
+        // If editing a building that already has a manager, add them to the list so 
+        // the select option is valid and they don't disappear from the dropdown
+        if (initialData?.manager) {
+          const m = initialData.manager;
+          if (!available.find((x) => x.id === m.id)) {
+            available = [{ id: m.id, first_name: m.first_name, last_name: m.last_name, email: m.email }, ...available];
+          }
+        }
+        if (!cancelled) setManagers(available);
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, initialData]);
+
+  /* populate form when dialog opens */
+  useEffect(() => {
+    if (!open || !initialData) return;
+    setForm({
+      name: initialData.name || "",
+      location_id: initialData.location_id || "",
+      manager_id: initialData.manager?.id || "",
+      address: initialData.address || "",
+      description: initialData.description || "",
+      total_floors: initialData.total_floors ?? "",
+      is_active: String(initialData.is_active ?? true),
+      latitude: initialData.latitude ?? "",
+      longitude: initialData.longitude ?? "",
+    });
+    setThumbFile(null);
+    setThumbPreview(initialData.thumbnail_url || null);
+    setGalleryImages(
+      (initialData.images || []).map((img) => ({
+        url: img.image_url || img.url || img,
+        existing: true,
+      }))
+    );
+    setFacilityIds((initialData.facilities || []).map((f) => f.id || f));
+    setErrors({});
+  }, [open, initialData]);
+
+  const set = (k, v) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+  };
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = true;
+    if (!form.name?.trim()) e.name = true;
     if (!form.location_id) e.location_id = true;
-    if (!form.address.trim()) e.address = true;
+    // Note: Do not strictly enforce manager_id here if it's optional for edits according to plan,
+    // though the user might want it required. We will leave it optional on edit or keep existing behavior.
+    if (!form.manager_id) e.manager_id = true;
+    if (!form.address?.trim()) e.address = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({
-      name: form.name.trim(),
-      location_id: form.location_id,
-      address: form.address.trim(),
-      description: form.description.trim() || null,
-      total_floors: form.total_floors ? Number(form.total_floors) : null,
-      is_active: form.is_active === "true",
-      // images: form.images  // attach if your API supports multipart
-    });
+    setSaving(true);
+
+    try {
+      /* Upload new thumbnail if changed */
+      let thumbnail_url = thumbPreview;
+      if (thumbFile) {
+        const res = await uploadFiles("building_thumbnail", [thumbFile]);
+        thumbnail_url = res.data?.url || res.url || null;
+      }
+
+      /* Upload new gallery images */
+      const existingUrls = galleryImages.filter((g) => g.existing).map((g) => g.url);
+      const newFiles = galleryImages.filter((g) => g.file).map((g) => g.file);
+      let galleryUrls = existingUrls;
+      if (newFiles.length > 0) {
+        const res = await uploadFiles("building_gallery", newFiles);
+        const uploaded = res.data?.urls || res.urls || [];
+        galleryUrls = [...existingUrls, ...uploaded];
+      }
+
+      const payload = {
+        name: form.name.trim(),
+        location_id: form.location_id,
+        manager_id: form.manager_id || undefined,
+        address: form.address.trim(),
+        description: form.description?.trim() || null,
+        total_floors: form.total_floors ? Number(form.total_floors) : null,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
+        is_active: form.is_active === "true",
+        thumbnail_url,
+        images: galleryUrls,
+        facilities: facilityIds,
+      };
+
+      await apiJson(`/api/buildings/${initialData.id}`, { method: "PUT", body: payload });
+      onSaved();
+    } catch (err) {
+      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const addGalleryFiles = (files) => {
+    const max = 5;
+    const remaining = max - galleryImages.length;
+    if (remaining <= 0) return;
+    const newImgs = Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, remaining)
+      .map((f) => ({ file: f, url: URL.createObjectURL(f) }));
+    setGalleryImages((prev) => [...prev, ...newImgs]);
+  };
+
+  const isBusy = saving || externalSaving;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "add" ? "Thêm tòa nhà mới" : "Chỉnh sửa tòa nhà"}</DialogTitle>
+          <DialogTitle>Chỉnh sửa tòa nhà</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Basic fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Tên tòa nhà *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                placeholder="VD: FScape Cầu Giấy"
-                className={errors.name ? "border-destructive" : ""}
-              />
+              <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
+                className={errors.name ? "border-destructive" : ""} />
             </div>
             <div className="space-y-1.5">
               <Label>Khu vực *</Label>
-              <Select value={form.location_id} onValueChange={(v) => set("location_id", v)}>
+              <Select value={form.location_id || ""} onValueChange={(v) => set("location_id", v)}>
                 <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
                 </SelectTrigger>
@@ -414,23 +611,41 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
 
           <div className="space-y-1.5">
             <Label>Địa chỉ *</Label>
-            <Input
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-              placeholder="VD: 144 Xuân Thủy, Cầu Giấy"
-              className={errors.address ? "border-destructive" : ""}
-            />
+            <Input value={form.address || ""} onChange={(e) => set("address", e.target.value)}
+              className={errors.address ? "border-destructive" : ""} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5 col-span-2 md:col-span-1">
+              <Label>Người quản lý *</Label>
+              <Select value={form.manager_id || ""} onValueChange={(v) => set("manager_id", v)}>
+                <SelectTrigger className={errors.manager_id ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Chọn quản lý" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.first_name} {m.last_name} ({m.email})
+                    </SelectItem>
+                  ))}
+                  {managers.length === 0 && (
+                    <div className="py-2 text-center text-xs text-muted-foreground w-full">Không có quản lý trống</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Số tầng</Label>
+              <Input type="number" min="1" value={form.total_floors || ""}
+                onChange={(e) => set("total_floors", e.target.value)} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Số tầng</Label>
-              <Input type="number" min="1" value={form.total_floors}
-                onChange={(e) => set("total_floors", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
               <Label>Trạng thái</Label>
-              <Select value={form.is_active} onValueChange={(v) => set("is_active", v)}>
+              <Select value={form.is_active || "true"} onValueChange={(v) => set("is_active", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">Hoạt động</SelectItem>
@@ -440,32 +655,159 @@ function BuildingFormDialog({ open, onOpenChange, mode, initialData, onSave, sav
             </div>
           </div>
 
-          <ImageUploader
-            images={form.images}
-            onChange={(imgs) => set("images", imgs)}
+          <MapPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onChange={(lat, lng) => {
+              set("latitude", lat);
+              setForm((p) => ({ ...p, longitude: lng }));
+            }}
           />
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Vĩ độ</Label>
+              <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Kinh độ</Label>
+              <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+            </div>
+          </div>
+
+          {/* Thumbnail */}
+          <div className="space-y-1.5">
+            <Label>Ảnh đại diện</Label>
+            {thumbPreview ? (
+              <div className="relative w-48 aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
+                <img src={thumbPreview} alt="" className="w-full h-full object-cover" />
+                <button type="button"
+                  onClick={() => { setThumbFile(null); setThumbPreview(null); }}
+                  className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => thumbInputRef.current?.click()}
+                className="w-48 aspect-video rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
+                <ImagePlus className="size-5" />
+                <span className="text-[11px]">Chọn ảnh</span>
+              </button>
+            )}
+            <input ref={thumbInputRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }
+                e.target.value = "";
+              }} />
+          </div>
+
+          {/* Gallery */}
+          <div className="space-y-1.5">
+            <Label>Thư viện ảnh ({galleryImages.length}/5)</Label>
+            <div className="flex flex-wrap gap-2">
+              {galleryImages.map((img, idx) => (
+                <div key={idx} className="relative group size-20 rounded-lg overflow-hidden border border-border bg-muted">
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  <button type="button"
+                    onClick={() => setGalleryImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+              {galleryImages.length < 5 && (
+                <button type="button" onClick={() => galleryInputRef.current?.click()}
+                  className="size-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
+                  <Plus className="size-5" />
+                </button>
+              )}
+            </div>
+            <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden"
+              onChange={(e) => { addGalleryFiles(e.target.files); e.target.value = ""; }} />
+          </div>
+
+          {/* Description */}
           <div className="space-y-1.5">
             <Label>Mô tả</Label>
-            <Textarea rows={3} value={form.description}
+            <Textarea rows={3} value={form.description || ""}
               onChange={(e) => set("description", e.target.value)}
               placeholder="Mô tả ngắn về tòa nhà..." />
           </div>
 
+          {/* Facilities */}
+          <EditFacilityPicker selectedIds={facilityIds} onChange={setFacilityIds} />
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              {mode === "add" ? "Thêm tòa nhà" : "Lưu thay đổi"}
+            <Button type="submit" disabled={isBusy}
+              className="bg-success text-success-foreground hover:bg-success/90">
+              {isBusy && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              Lưu thay đổi
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ── LocationSection (with per-section paging) ── */
+
+function LocationSection({ locId, name, buildings, onView, onEdit, onDelete }) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(buildings.length / PER_SECTION);
+  const visible = buildings.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
+  const showPaging = totalPages > 1;
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-lg bg-primary/8 flex items-center justify-center">
+            <MapPin className="size-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-[15px] font-semibold leading-tight">{name}</h2>
+            <p className="text-xs text-muted-foreground">{buildings.length} tòa nhà</p>
+          </div>
+        </div>
+
+        {showPaging && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground mr-1">
+              {page + 1}/{totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="size-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="size-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {visible.map((b) => (
+          <BuildingCard
+            key={b.id}
+            building={b}
+            onView={onView}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -476,11 +818,8 @@ export default function BuildingsPage() {
   const { user } = useAuth();
 
   /* data */
-  const [buildings, setBuildings] = useState([]);
+  const [allBuildings, setAllBuildings] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -496,72 +835,68 @@ export default function BuildingsPage() {
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
 
-  const limit = 9;
-
-  /* ─ fetch locations for dropdown ─ */
+  /* ─ fetch locations ─ */
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/api/locations?limit=100&is_active=true");
+        const res = await apiJson("/api/locations?limit=100&is_active=true");
         setLocations(res.data || []);
       } catch {
-        /* silent — locations dropdown will be empty */
+        /* silent */
       }
     })();
   }, []);
 
-  /* ─ fetch buildings ─ */
+  /* ─ fetch all buildings ─ */
   const fetchBuildings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page, limit });
-      if (search.trim()) params.set("search", search.trim());
-      if (filterActive === "active") params.set("is_active", "true");
-      if (filterActive === "inactive") params.set("is_active", "false");
-      if (filterLocation !== "all") params.set("location_id", filterLocation);
-
-      const res = await api.get(`/api/buildings?${params}`);
-      setBuildings(res.data || []);
-      setTotal(res.total || 0);
-      setPage(res.page || 1);
-      setTotalPages(res.totalPages || 1);
+      const res = await apiJson("/api/buildings?limit=200");
+      setAllBuildings(res.data || []);
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterActive, filterLocation]);
+  }, []);
 
   useEffect(() => { fetchBuildings(); }, [fetchBuildings]);
 
-  useEffect(() => { setPage(1); }, [search, filterActive, filterLocation]);
+  /* ─ client-side filtering ─ */
+  const filtered = useMemo(() => allBuildings.filter((b) => {
+    if (filterActive === "active" && !b.is_active) return false;
+    if (filterActive === "inactive" && b.is_active) return false;
+    if (filterLocation !== "all" && b.location_id !== filterLocation) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!b.name?.toLowerCase().includes(q) && !b.address?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [allBuildings, filterActive, filterLocation, search]);
 
-  /* stats */
-  const activeCount = buildings.filter((b) => b.is_active).length;
+  /* ─ group by location ─ */
+  const locationGroups = useMemo(() => {
+    const grouped = filtered.reduce((acc, b) => {
+      const locName = b.location?.name || "Chưa phân khu vực";
+      const locId = b.location_id || "_none";
+      if (!acc[locId]) acc[locId] = { name: locName, buildings: [] };
+      acc[locId].buildings.push(b);
+      return acc;
+    }, {});
+    return Object.entries(grouped).sort(([, a], [, b]) => a.name.localeCompare(b.name, "vi"));
+  }, [filtered]);
+
+  /* ─ stats ─ */
+  const totalCount = allBuildings.length;
+  const activeCount = allBuildings.filter((b) => b.is_active).length;
+  const inactiveCount = totalCount - activeCount;
 
   /* ─ CRUD handlers ─ */
-  const handleSave = async (data) => {
-    setSaving(true);
-    try {
-      if (dialog.mode === "add") {
-        await api.post("/api/buildings", { ...data, manager_id: user?.id });
-      } else {
-        await api.put(`/api/buildings/${dialog.data.id}`, data);
-      }
-      setDialog(null);
-      fetchBuildings();
-    } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async () => {
     setSaving(true);
     try {
-      await api.delete(`/api/buildings/${confirmDel.id}`);
+      await apiJson(`/api/buildings/${confirmDel.id}`, { method: "DELETE" });
       setConfirmDel(null);
       fetchBuildings();
     } catch (err) {
@@ -574,8 +909,9 @@ export default function BuildingsPage() {
   const handleToggleConfirm = async () => {
     setSaving(true);
     try {
-      await api.put(`/api/buildings/${confirmToggle.id}`, {
-        is_active: !confirmToggle.is_active,
+      await apiJson(`/api/buildings/${confirmToggle.id}/status`, {
+        method: "PATCH",
+        body: { is_active: !confirmToggle.is_active },
       });
       setConfirmToggle(null);
       fetchBuildings();
@@ -599,41 +935,13 @@ export default function BuildingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Tòa nhà</h1>
           <p className="text-sm text-muted-foreground">Quản lý tất cả các tòa nhà FScape</p>
         </div>
-        <Button className="gap-0.5" onClick={() => navigate("/buildings/create")}>
+        <Button className="gap-1.5" onClick={() => navigate("/buildings/create")}>
           <Plus className="size-4" /> Thêm tòa nhà
         </Button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden">
-          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Building2 className="size-6 text-primary" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold tracking-tight">{total}</p>
-            <p className="text-sm text-muted-foreground">Tổng tòa nhà</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden">
-          <div className="size-14 rounded-2xl bg-success/10 flex items-center justify-center">
-            <ShieldCheck className="size-6 text-success" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-success">{activeCount}</p>
-            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden bg-muted/5 border-none shadow-sm">
-          <div className="size-14 rounded-2xl bg-background flex items-center justify-center border border-border">
-            <ShieldAlert className="size-6 text-muted-foreground/40" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-muted-foreground">{total - activeCount}</p>
-            <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
-          </div>
-        </Card>
-      </div>
+      {/* Summary */}
+      <BuildingSummary total={totalCount} active={activeCount} inactive={inactiveCount} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -647,9 +955,8 @@ export default function BuildingsPage() {
           />
         </div>
 
-        {/* Location filter */}
         <Select value={filterLocation} onValueChange={setFilterLocation}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="Khu vực" />
           </SelectTrigger>
           <SelectContent>
@@ -660,7 +967,6 @@ export default function BuildingsPage() {
           </SelectContent>
         </Select>
 
-        {/* Status filter */}
         <div className="flex gap-1.5">
           {[
             { key: "all", label: "Tất cả" },
@@ -679,7 +985,7 @@ export default function BuildingsPage() {
         </div>
       </div>
 
-      {/* Building cards */}
+      {/* Building list grouped by location */}
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -692,60 +998,34 @@ export default function BuildingsPage() {
               Thử lại
             </Button>
           </div>
-        ) : buildings.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             Không tìm thấy tòa nhà nào.
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {buildings.map((b) => (
-                <BuildingCard
-                  key={b.id}
-                  building={b}
-                  onView={(b) => setSelectedId(b.id)}
-                  onEdit={(b) => setDialog({ mode: "edit", data: b })}
-                  onDelete={setConfirmDel}
-                />
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4">
-                <p className="text-xs text-muted-foreground">
-                  Trang {page} / {totalPages} ({total} tòa nhà)
-                </p>
-                <div className="flex gap-1.5">
-                  <Button
-                    size="sm" variant="outline"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    Trước
-                  </Button>
-                  <Button
-                    size="sm" variant="outline"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Sau
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+          <div className="space-y-10">
+            {locationGroups.map(([locId, group]) => (
+              <LocationSection
+                key={locId}
+                locId={locId}
+                name={group.name}
+                buildings={group.buildings}
+                onView={(b) => setSelectedId(b.id)}
+                onEdit={(b) => setDialog({ mode: "edit", data: b })}
+                onDelete={setConfirmDel}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Form Dialog */}
+      {/* Edit Dialog */}
       {dialog && (
         <BuildingFormDialog
           open={!!dialog}
           onOpenChange={(v) => !v && setDialog(null)}
-          mode={dialog.mode}
           initialData={dialog.data}
-          onSave={handleSave}
+          onSaved={() => { setDialog(null); fetchBuildings(); }}
           saving={saving}
           locations={locations}
         />

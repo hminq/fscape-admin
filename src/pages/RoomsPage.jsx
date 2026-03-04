@@ -129,7 +129,7 @@ export default function RoomsPage() {
       const res = await api.get(`/api/rooms?${params}`);
       setRooms(res.data || []);
       setTotal(res.total || 0);
-      setTotalPages(res.totalPages || 1);
+      setTotalPages(res.total_pages || res.totalPages || 1);
     } catch (err) {
       setError("Không thể kết nối API. Vui lòng thử lại sau.");
     } finally {
