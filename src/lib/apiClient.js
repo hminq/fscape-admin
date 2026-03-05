@@ -1,0 +1,60 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+function resolveUrl(path) {
+  if (!path || path.startsWith("http://") || path.startsWith("https://")) {
+    return path || API_BASE_URL;
+  }
+  return API_BASE_URL
+    ? `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`
+    : path;
+}
+
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+export async function apiRequest(path, options = {}) {
+  const { method = "GET", body, headers: custom, withAuth = true, ...rest } = options;
+  const headers = { ...(custom || {}) };
+  const isFormData = body instanceof FormData;
+
+  if (body && !isFormData && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (withAuth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  return fetch(resolveUrl(path), {
+    method,
+    headers,
+    body: body && !isFormData ? JSON.stringify(body) : body,
+    ...rest,
+  });
+}
+
+export async function apiJson(path, options = {}) {
+  const response = await apiRequest(path, options);
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      data && typeof data.message === "string"
+        ? data.message
+        : "Yêu cầu không thành công. Vui lòng thử lại.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}

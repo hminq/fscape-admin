@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,64 @@ const fmt = (iso) => {
 
 const EMPTY_FORM = { name: "", is_active: "true" };
 
+/* ── DonutChart ─────────────────────────────── */
+
+function DonutChart({ active, inactive, size = 72 }) {
+  const total = active + inactive;
+  const pct = total > 0 ? (active / total) * 100 : 0;
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          className="stroke-success transition-all duration-500" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[10px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
+      </div>
+    </div>
+  );
+}
+
+function LocationSummary({ total, active, inactive }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-6 p-5">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <MapPin className="size-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+            <p className="text-sm text-muted-foreground mt-1">Khu vực</p>
+          </div>
+        </div>
+        <div className="w-px h-14 bg-border shrink-0" />
+        <div className="flex items-center gap-4">
+          <DonutChart active={active} inactive={inactive} size={64} />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-success shrink-0" />
+              <span className="text-xs text-muted-foreground">Hoạt động</span>
+              <span className="text-xs font-semibold ml-auto pl-2">{active}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
+              <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
+              <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SortIcon({ field, sortField, sortDir }) {
   if (sortField !== field) return <ChevronsUpDown className="size-3.5 ml-1 opacity-40" />;
   return sortDir === "asc"
@@ -56,7 +114,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
   const startEdit = () => {
     setForm({
       name: location.name || "",
-      is_active: String(location.isActive ?? true),
+      is_active: String(location.is_active ?? true),
     });
     setErrors({});
     setEditing(true);
@@ -146,22 +204,22 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5">
                 {location.name}
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${location.isActive
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${location.is_active
                   ? "bg-success/15 text-success"
                   : "bg-muted text-muted-foreground"
                   }`}>
-                  {location.isActive ? "Hoạt động" : "Không hoạt động"}
+                  {location.is_active ? "Hoạt động" : "Không hoạt động"}
                 </span>
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-2">
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ngày tạo</p>
-                <p className="text-sm font-medium mt-0.5">{fmt(location.createdAt)}</p>
+                <p className="text-sm font-medium mt-0.5">{fmt(location.created_at)}</p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cập nhật</p>
-                <p className="text-sm font-medium mt-0.5">{fmt(location.updatedAt)}</p>
+                <p className="text-sm font-medium mt-0.5">{fmt(location.updated_at)}</p>
               </div>
             </div>
             <DialogFooter className="gap-2 sm:justify-between">
@@ -288,7 +346,7 @@ export default function LocationsPage() {
       setLocations(res.data || []);
       setTotal(res.total || 0);
       setPage(res.page || 1);
-      setTotalPages(res.totalPages || 1);
+      setTotalPages(res.total_pages || res.totalPages || 1);
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -314,7 +372,7 @@ export default function LocationsPage() {
     return sortDir === "asc" ? diff : -diff;
   });
 
-  const activeCount = locations.filter((l) => l.isActive).length;
+  const activeCount = locations.filter((l) => l.is_active).length;
 
 
 
@@ -362,7 +420,7 @@ export default function LocationsPage() {
     setSaving(true);
     try {
       await api.put(`/api/locations/${confirmToggle.id}`, {
-        is_active: !confirmToggle.isActive,
+        is_active: !confirmToggle.is_active,
       });
       setConfirmToggle(null);
       fetchLocations();
@@ -388,37 +446,8 @@ export default function LocationsPage() {
         </Button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
-          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <MapPin className="size-6 text-primary" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold tracking-tight">{total}</p>
-            <p className="text-sm text-muted-foreground">Tổng khu vực</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
-          <div className="size-14 rounded-2xl bg-success/10 flex items-center justify-center">
-            <ShieldCheck className="size-6 text-success" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-success">{activeCount}</p>
-            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden bg-muted/5 border-none shadow-sm">
-          <div className="size-14 rounded-2xl bg-background flex items-center justify-center border border-border">
-            <ShieldAlert className="size-6 text-muted-foreground/40" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-muted-foreground">{locations.length - activeCount}</p>
-            <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
-          </div>
-        </Card>
-
-      </div>
+      {/* Summary */}
+      <LocationSummary total={total} active={activeCount} inactive={total - activeCount} />
 
       {/* Search + filter */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -473,20 +502,20 @@ export default function LocationsPage() {
                   <TableHead>Trạng thái</TableHead>
                   <TableHead
                     className="cursor-pointer select-none hover:text-foreground"
-                    onClick={() => handleSort("createdAt")}
+                    onClick={() => handleSort("created_at")}
                   >
                     <span className="inline-flex items-center">
                       Ngày tạo
-                      <SortIcon field="createdAt" sortField={sortField} sortDir={sortDir} />
+                      <SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
                     </span>
                   </TableHead>
                   <TableHead
                     className="cursor-pointer select-none hover:text-foreground"
-                    onClick={() => handleSort("updatedAt")}
+                    onClick={() => handleSort("updated_at")}
                   >
                     <span className="inline-flex items-center">
                       Cập nhật
-                      <SortIcon field="updatedAt" sortField={sortField} sortDir={sortDir} />
+                      <SortIcon field="updated_at" sortField={sortField} sortDir={sortDir} />
                     </span>
                   </TableHead>
                   <TableHead className="text-right pr-4">Hành động</TableHead>
@@ -510,34 +539,34 @@ export default function LocationsPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${loc.isActive
+                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${loc.is_active
                             ? "bg-success/15 text-success"
                             : "bg-muted text-muted-foreground"
                             }`}
                         >
                           <span
-                            className={`size-2 rounded-full shrink-0 ${loc.isActive ? "bg-success" : "bg-muted-foreground/40"
+                            className={`size-2 rounded-full shrink-0 ${loc.is_active ? "bg-success" : "bg-muted-foreground/40"
                               }`}
                           />
-                          {loc.isActive ? "Hoạt động" : "Không hoạt động"}
+                          {loc.is_active ? "Hoạt động" : "Không hoạt động"}
                         </span>
                       </TableCell>
 
                       <TableCell className="text-sm text-muted-foreground">
-                        {fmt(loc.createdAt)}
+                        {fmt(loc.created_at)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {fmt(loc.updatedAt)}
+                        {fmt(loc.updated_at)}
                       </TableCell>
                       <TableCell className="pr-4">
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
                             size="icon" variant="ghost"
-                            className={`size-8 ${loc.isActive ? "text-success hover:text-success/80" : "text-muted-foreground"}`}
-                            title={loc.isActive ? "Tắt hoạt động" : "Bật hoạt động"}
+                            className={`size-8 ${loc.is_active ? "text-success hover:text-success/80" : "text-muted-foreground"}`}
+                            title={loc.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
                             onClick={() => setConfirmToggle(loc)}
                           >
-                            {loc.isActive
+                            {loc.is_active
                               ? <ToggleRight className="size-5" />
                               : <ToggleLeft className="size-5" />}
                           </Button>

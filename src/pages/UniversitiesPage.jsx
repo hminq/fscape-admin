@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus, Search, Pencil, Trash2, MapPin, GraduationCap,
-  ToggleLeft, ToggleRight, ChevronUp, ChevronDown,
-  ChevronsUpDown, Loader2, Eye, ImagePlus, X,
-  ShieldCheck, ShieldAlert
+  ToggleLeft, ToggleRight, Loader2, Eye, Building2,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,8 +20,8 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { api } from "@/lib/api";
-
+import { apiJson } from "@/lib/apiClient";
+import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 
 /* ── helpers ───────────────────────────────── */
@@ -30,129 +29,89 @@ import defaultBuildingImg from "@/assets/default_building_img.jpg";
 const fmt = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
-  return isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
-const EMPTY_FORM = {
-  name: "", location_id: "", address: "",
-  is_active: "true", images: [],
+const STATUS = {
+  true: { label: "Hoạt động", badge: "border-success/30 bg-success/10 text-success" },
+  false: { label: "Vô hiệu hóa", badge: "border-border bg-muted text-muted-foreground" },
 };
 
-/* ── Sort icon ─────────────────────────────── */
+/* ── DonutChart ─────────────────────────────── */
 
-function SortIcon({ field, sortField, sortDir }) {
-  if (sortField !== field) return <ChevronsUpDown className="size-3.5 ml-1 opacity-40" />;
-  return sortDir === "asc"
-    ? <ChevronUp className="size-3.5 ml-1 text-primary" />
-    : <ChevronDown className="size-3.5 ml-1 text-primary" />;
-}
-
-/* ── ImageUploader component ─────────────────── */
-
-function ImageUploader({ images, onChange }) {
-  const inputRef = useRef(null);
-  const [dragging, setDragging] = useState(false);
-
-  const addFiles = (files) => {
-    const newImgs = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((f) => ({ file: f, url: URL.createObjectURL(f), name: f.name }));
-    onChange([...images, ...newImgs]);
-  };
-
-  const removeImg = (idx) => {
-    const next = images.filter((_, i) => i !== idx);
-    onChange(next);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    addFiles(e.dataTransfer.files);
-  };
+function DonutChart({ active, inactive, size = 72 }) {
+  const total = active + inactive;
+  const pct = total > 0 ? (active / total) * 100 : 0;
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
 
   return (
-    <div className="space-y-2">
-      <Label>Hình ảnh</Label>
-
-      {/* Drop zone */}
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`flex flex-col items-center justify-center gap-2 h-28 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${dragging
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-primary/50 hover:bg-muted/40"
-          }`}
-      >
-        <ImagePlus className="size-6 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground text-center">
-          Kéo thả ảnh vào đây hoặc <span className="text-primary font-medium">chọn file</span>
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => addFiles(e.target.files)}
-        />
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          className="stroke-success transition-all duration-500" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[10px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
       </div>
-
-      {/* Preview grid */}
-      {images.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
-          {images.map((img, idx) => (
-            <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
-              {idx === 0 && (
-                <span className="absolute bottom-0 left-0 right-0 text-[9px] font-bold text-center bg-primary text-primary-foreground py-0.5">
-                  Ảnh chính
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); removeImg(idx); }}
-                className="absolute top-1 right-1 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-/* ── University Detail/Edit Dialog ─────────── */
+/* ── Summary ────────────────────────────────── */
 
-function UniversityDetailDialog({
-  open, onOpenChange, universityId,
-  locations, onSave, onDelete, saving,
-}) {
-  const [university, setUniversity] = useState(null);
+function UniSummary({ total, active, inactive }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-6 p-5">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <GraduationCap className="size-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+            <p className="text-sm text-muted-foreground mt-1">Trường đại học</p>
+          </div>
+        </div>
+        <div className="w-px h-14 bg-border shrink-0" />
+        <div className="flex items-center gap-4">
+          <DonutChart active={active} inactive={inactive} size={64} />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-success shrink-0" />
+              <span className="text-xs text-muted-foreground">Hoạt động</span>
+              <span className="text-xs font-semibold ml-auto pl-2">{active}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
+              <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
+              <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Detail Dialog ──────────────────────────── */
+
+function UniDetailDialog({ open, onOpenChange, uniId, onRefresh, onEdit, onDelete }) {
+  const [uni, setUni] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(null);
-  const [formErrors, setFormErrors] = useState({});
-  const [confirmDel, setConfirmDel] = useState(false);
 
   useEffect(() => {
-    if (!universityId || !open) return;
+    if (!uniId || !open) return;
     let cancelled = false;
-    setEditing(false);
-    setConfirmDel(false);
     (async () => {
       setLoading(true);
-      setError(null);
       try {
-        const res = await api.get(`/api/universities/${universityId}`);
-        if (!cancelled) setUniversity(res.data);
+        const res = await apiJson(`/api/universities/${uniId}`);
+        if (!cancelled) setUni(res.data || res);
       } catch {
         if (!cancelled) setError("Không thể tải thông tin.");
       } finally {
@@ -160,215 +119,64 @@ function UniversityDetailDialog({
       }
     })();
     return () => { cancelled = true; };
-  }, [universityId, open]);
+  }, [uniId, open]);
 
-  const startEdit = () => {
-    setForm({
-      name: university.name || "",
-      location_id: university.locationId || "",
-      address: university.address || "",
-      is_active: String(university.isActive ?? true),
-      images: (university.images || []).map((url) => ({ url, name: "", existing: true })),
-    });
-    setFormErrors({});
-    setEditing(true);
-  };
+  if (!open) return null;
 
-  const validate = () => {
-    const e = {};
-    if (!form.name.trim()) e.name = true;
-    if (!form.location_id) e.location_id = true;
-    setFormErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSave(universityId, {
-      name: form.name.trim(),
-      location_id: form.location_id,
-      address: form.address.trim() || null,
-      is_active: form.is_active === "true",
-      // images: form.images  // attach if your API supports multipart
-    });
-  };
-
-  const handleDelete = () => {
-    onDelete(universityId);
-  };
-
-  const hasImages = university?.images?.length > 0;
+  const st = STATUS[uni?.is_active] || STATUS["true"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : error || !university ? (
+        ) : error || !uni ? (
           <div className="text-center py-10">
             <p className="text-sm text-destructive">{error || "Không tìm thấy."}</p>
           </div>
-        ) : editing ? (
-          /* ─── Edit mode ─── */
-          <>
-            <DialogHeader>
-              <DialogTitle>Chỉnh sửa trường</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Tên trường *</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                    className={formErrors.name ? "border-destructive" : ""}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Khu vực *</Label>
-                  <Select value={form.location_id} onValueChange={(v) => setForm((p) => ({ ...p, location_id: v }))}>
-                    <SelectTrigger className={formErrors.location_id ? "border-destructive" : ""}>
-                      <SelectValue placeholder="Chọn khu vực" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Địa chỉ</Label>
-                <Input
-                  value={form.address}
-                  onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                  placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <ImageUploader
-                  images={form.images}
-                  onChange={(imgs) => setForm((p) => ({ ...p, images: imgs }))}
-                />
-                <div className="space-y-1.5 flex flex-col justify-end">
-                  <Label>Trạng thái</Label>
-                  <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="true">Hoạt động</SelectItem>
-                      <SelectItem value="false">Không hoạt động</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
-                <Button
-                  type="submit" disabled={saving}
-                  className="bg-success text-success-foreground hover:bg-success/90"
-                >
-                  {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-                  Lưu thay đổi
-                </Button>
-              </DialogFooter>
-            </form>
-          </>
-        ) : confirmDel ? (
-          /* ─── Delete confirm ─── */
-          <>
-            <DialogHeader>
-              <DialogTitle>Xóa trường đại học</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground text-center py-2">
-              Bạn có chắc muốn xóa trường{" "}
-              <strong className="text-foreground">&quot;{university.name}&quot;</strong>?{" "}
-              Hành động này không thể hoàn tác.
-            </p>
-            <DialogFooter className="justify-center gap-2 sm:justify-center">
-              <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
-              <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-                {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-                Xóa
-              </Button>
-            </DialogFooter>
-          </>
         ) : (
-          /* ─── View mode ─── */
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5">
-                {university.name}
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${university.isActive
-                  ? "bg-success/15 text-success"
-                  : "bg-muted text-muted-foreground"
-                  }`}>
-                  {university.isActive ? "Hoạt động" : "Không hoạt động"}
+                {uni.name}
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${st.badge}`}>
+                  {st.label}
                 </span>
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-5">
-              {/* Info grid */}
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  ["Khu vực", university.location?.name || "—"],
-                  ["Năm thành lập", university.founded_year || "—"],
-                  ["Ngày tạo", fmt(university.createdAt)],
-                  ["Cập nhật", fmt(university.updatedAt)],
+                  ["Khu vực", uni.location?.name],
+                  ["Ngày tạo", fmt(uni.created_at)],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-                    <p className="text-sm font-medium mt-0.5">{value}</p>
+                    <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Address */}
-              {university.address && (
+              {uni.address && (
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <MapPin className="size-4 mt-0.5 shrink-0 text-primary" />
-                  <span>{university.address}</span>
+                  <span>{uni.address}</span>
                 </div>
               )}
 
-              {/* Images */}
-              {hasImages && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Hình ảnh</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {university.images.map((url, idx) => (
-                      <div key={idx} className={`relative rounded-lg overflow-hidden bg-muted ${idx === 0 ? "col-span-2 row-span-2 aspect-video" : "aspect-square"
-                        }`}>
-                        <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
-                        {idx === 0 && (
-                          <span className="absolute bottom-0 left-0 right-0 text-[10px] font-bold text-center bg-primary/80 text-primary-foreground py-1">
-                            Ảnh chính
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Nearby buildings */}
-              {university.nearby_buildings?.length > 0 && (
+              {uni.nearby_buildings?.length > 0 && (
                 <div>
                   <h3 className="text-sm font-bold mb-2.5">Tòa nhà FScape lân cận</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {university.nearby_buildings.map((b) => (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {uni.nearby_buildings.map((b) => (
                       <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border">
-                        <div className="size-12 rounded-lg overflow-hidden bg-muted shrink-0">
-                          <img
-                            src={b.thumbnail_url || defaultBuildingImg}
-                            alt={b.name}
+                        <div className="size-10 rounded-lg overflow-hidden bg-muted shrink-0">
+                          <img src={b.thumbnail_url || defaultBuildingImg} alt={b.name}
                             className="w-full h-full object-cover"
-                            onError={(e) => { e.target.src = defaultBuildingImg; }}
-                          />
+                            onError={(e) => { e.target.src = defaultBuildingImg; }} />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{b.name}</p>
@@ -384,20 +192,15 @@ function UniversityDetailDialog({
                 </div>
               )}
             </div>
-
-            {/* Action buttons */}
-            <DialogFooter className="gap-2 sm:justify-between">
-              <Button
-                variant="outline" size="sm"
-                className="text-destructive hover:bg-destructive/10 gap-1.5"
-                onClick={() => setConfirmDel(true)}
-              >
-                <Trash2 className="size-3.5" /> Xóa
-              </Button>
-              <Button size="sm" className="gap-1.5" onClick={startEdit}>
+            
+            <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onEdit(uni)}>
                 <Pencil className="size-3.5" /> Chỉnh sửa
               </Button>
-            </DialogFooter>
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => onDelete(uni)}>
+                <Trash2 className="size-3.5" /> Xóa
+              </Button>
+            </div>
           </>
         )}
       </DialogContent>
@@ -405,58 +208,87 @@ function UniversityDetailDialog({
   );
 }
 
-/* ── Create Form Dialog ────────────────────── */
+/* ── Create / Edit Dialog ───────────────────── */
 
-function UniversityCreateDialog({ open, onOpenChange, onSave, saving, locations }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSaved }) {
+  const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (mode === "edit" && initialData) {
+      setForm({
+        name: initialData.name || "",
+        address: initialData.address || "",
+        latitude: initialData.latitude ?? "",
+        longitude: initialData.longitude ?? "",
+        is_active: String(initialData.is_active ?? true),
+        location_id: initialData.location_id || "",
+      });
+    } else {
+      setForm({ name: "", address: "", latitude: "", longitude: "", is_active: "true", location_id: "" });
+    }
+    setErrors({});
+  }, [open, mode, initialData]);
+
+  const set = (k, v) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+  };
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = true;
+    if (!form.name?.trim()) e.name = true;
     if (!form.location_id) e.location_id = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({
-      name: form.name.trim(),
-      location_id: form.location_id,
-      address: form.address.trim() || null,
-      is_active: form.is_active === "true",
-      // images: form.images  // attach if your API supports multipart
-    });
-  };
+    setSaving(true);
+    try {
+      const body = {
+        name: form.name.trim(),
+        address: form.address?.trim() || null,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
+        is_active: form.is_active === "true",
+        ...(mode === "create" ? { location_id: form.location_id } : {}),
+      };
 
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) setForm(EMPTY_FORM);
-  }, [open]);
+      if (mode === "create") {
+        await apiJson("/api/universities", { method: "POST", body });
+      } else {
+        await apiJson(`/api/universities/${initialData.id}`, { method: "PUT", body });
+      }
+      onSaved();
+    } catch (err) {
+      alert(err.message || "Đã xảy ra lỗi.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Thêm trường đại học</DialogTitle>
+          <DialogTitle>{mode === "create" ? "Thêm trường đại học" : "Chỉnh sửa trường"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Tên trường *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
+              <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
                 placeholder="VD: Đại học Bách Khoa"
-                className={errors.name ? "border-destructive" : ""}
-              />
+                className={errors.name ? "border-destructive" : ""} />
             </div>
             <div className="space-y-1.5">
               <Label>Khu vực *</Label>
-              <Select value={form.location_id} onValueChange={(v) => set("location_id", v)}>
+              <Select value={form.location_id || ""} onValueChange={(v) => set("location_id", v)}>
                 <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
                 </SelectTrigger>
@@ -468,22 +300,34 @@ function UniversityCreateDialog({ open, onOpenChange, onSave, saving, locations 
               </Select>
             </div>
           </div>
+
           <div className="space-y-1.5">
             <Label>Địa chỉ</Label>
-            <Input
-              value={form.address}
-              onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-              placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM"
-            />
+            <Input value={form.address || ""} onChange={(e) => set("address", e.target.value)}
+              placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <ImageUploader
-              images={form.images}
-              onChange={(imgs) => setForm((p) => ({ ...p, images: imgs }))}
-            />
-            <div className="space-y-1.5 flex flex-col justify-end">
+
+          <MapPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onChange={(lat, lng) => {
+              set("latitude", lat);
+              setForm((p) => ({ ...p, longitude: lng }));
+            }}
+          />
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Vĩ độ</Label>
+              <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Kinh độ</Label>
+              <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+            </div>
+            <div className="space-y-1.5">
               <Label>Trạng thái</Label>
-              <Select value={form.is_active} onValueChange={(v) => set("is_active", v)}>
+              <Select value={form.is_active || "true"} onValueChange={(v) => set("is_active", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">Hoạt động</SelectItem>
@@ -492,14 +336,13 @@ function UniversityCreateDialog({ open, onOpenChange, onSave, saving, locations 
               </Select>
             </div>
           </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button
-              type="submit" disabled={saving}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
+            <Button type="submit" disabled={saving}
+              className="bg-success text-success-foreground hover:bg-success/90">
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              Thêm trường
+              {mode === "create" ? "Thêm trường" : "Lưu thay đổi"}
             </Button>
           </DialogFooter>
         </form>
@@ -508,143 +351,188 @@ function UniversityCreateDialog({ open, onOpenChange, onSave, saving, locations 
   );
 }
 
+/* ── Location Section ───────────────────────── */
+
+const PER_SECTION = 8;
+
+function LocationSection({ name, universities, onView, onToggle }) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(universities.length / PER_SECTION);
+  const visible = universities.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
+            <MapPin className="size-3.5 text-primary" />
+          </div>
+          <h2 className="text-[15px] font-semibold">{name}</h2>
+          <span className="text-xs text-muted-foreground">({universities.length})</span>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">{page + 1}/{totalPages}</span>
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
+              <ChevronLeft className="size-3.5" />
+            </button>
+            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
+              <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Card className="overflow-hidden py-0 gap-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10 pl-4">#</TableHead>
+              <TableHead>Tên trường</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Ngày tạo</TableHead>
+              <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visible.map((uni, idx) => {
+              const st = STATUS[uni.is_active] || STATUS["true"];
+              return (
+                <TableRow key={uni.id}>
+                  <TableCell className="pl-4 text-muted-foreground text-xs">
+                    {page * PER_SECTION + idx + 1}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium text-sm">{uni.name}</span>
+                    {uni.address && (
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                        <MapPin className="size-3 shrink-0" /> {uni.address}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${st.badge}`}>
+                      {st.label}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmt(uni.created_at)}</TableCell>
+                  <TableCell className="pr-4">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="icon" variant="ghost" className="size-8"
+                        title={uni.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
+                        onClick={() => onToggle(uni)}>
+                        {uni.is_active
+                          ? <ToggleRight className="size-5 text-success" />
+                          : <ToggleLeft className="size-5 text-muted-foreground" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="size-8" onClick={() => onView(uni)}>
+                        <Eye className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+    </section>
+  );
+}
+
 /* ── Main Page ─────────────────────────────── */
 
 export default function UniversitiesPage() {
-  /* data */
-  const [universities, setUniversities] = useState([]);
+  const [allUnis, setAllUnis] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  /* filters */
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState("all");
   const [filterLocation, setFilterLocation] = useState("all");
-  const [sortField, setSortField] = useState(null);
-  const [sortDir, setSortDir] = useState("asc");
 
-  /* dialogs */
-  const [showCreate, setShowCreate] = useState(false);
+  const [formDialog, setFormDialog] = useState(null);
   const [detailId, setDetailId] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
   const [confirmToggle, setConfirmToggle] = useState(null);
 
-  const limit = 10;
-
-  /* ─ fetch locations for dropdown ─ */
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/api/locations?limit=100&is_active=true");
+        const res = await apiJson("/api/locations?limit=100&is_active=true");
         setLocations(res.data || []);
-      } catch {
-        /* silent */
-      }
+      } catch { /* silent */ }
     })();
   }, []);
 
-  /* ─ fetch universities ─ */
-  const fetchUniversities = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page, limit });
-      if (search.trim()) params.set("search", search.trim());
-      if (filterActive === "active") params.set("is_active", "true");
-      if (filterActive === "inactive") params.set("is_active", "false");
-      if (filterLocation !== "all") params.set("location_id", filterLocation);
-
-      const res = await api.get(`/api/universities?${params}`);
-      setUniversities(res.data || []);
-      setTotal(res.total || 0);
-      setPage(res.page || 1);
-      setTotalPages(res.totalPages || 1);
+      const res = await apiJson("/api/universities?limit=200");
+      setAllUnis(res.data || []);
     } catch {
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      setError("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterActive, filterLocation]);
+  }, []);
 
-  useEffect(() => { fetchUniversities(); }, [fetchUniversities]);
-  useEffect(() => { setPage(1); }, [search, filterActive, filterLocation]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  /* sort */
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("asc");
+  const filtered = useMemo(() => allUnis.filter((u) => {
+    if (filterActive === "active" && !u.is_active) return false;
+    if (filterActive === "inactive" && u.is_active) return false;
+    if (filterLocation !== "all" && u.location_id !== filterLocation) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!u.name?.toLowerCase().includes(q) && !u.address?.toLowerCase().includes(q)) return false;
     }
-  };
+    return true;
+  }), [allUnis, filterActive, filterLocation, search]);
 
-  const sorted = [...universities].sort((a, b) => {
-    if (!sortField) return 0;
-    if (sortField === "name") {
-      const cmp = (a.name || "").localeCompare(b.name || "", "vi");
-      return sortDir === "asc" ? cmp : -cmp;
-    }
-    const diff = new Date(a[sortField]) - new Date(b[sortField]);
-    return sortDir === "asc" ? diff : -diff;
-  });
+  const locationGroups = useMemo(() => {
+    const grouped = filtered.reduce((acc, u) => {
+      const locName = u.location?.name || "Chưa phân khu vực";
+      const locId = u.location_id || "_none";
+      if (!acc[locId]) acc[locId] = { name: locName, unis: [] };
+      acc[locId].unis.push(u);
+      return acc;
+    }, {});
+    return Object.entries(grouped).sort(([, a], [, b]) => a.name.localeCompare(b.name, "vi"));
+  }, [filtered]);
 
-  const activeCount = universities.filter((u) => u.isActive).length;
+  const totalCount = allUnis.length;
+  const activeCount = allUnis.filter((u) => u.is_active).length;
 
-  /* ─ CRUD handlers ─ */
-  const handleCreate = async (data) => {
+  const handleDelete = async () => {
     setSaving(true);
     try {
-      await api.post("/api/universities", data);
-      setShowCreate(false);
-      fetchUniversities();
+      await apiJson(`/api/universities/${confirmDel.id}`, { method: "DELETE" });
+      setConfirmDel(null);
+      fetchAll();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      alert(err.message || "Không thể xóa.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUpdate = async (id, data) => {
+  const handleToggle = async () => {
     setSaving(true);
     try {
-      await api.put(`/api/universities/${id}`, data);
-      setDetailId(null);
-      fetchUniversities();
-    } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    setSaving(true);
-    try {
-      await api.delete(`/api/universities/${id}`);
-      setDetailId(null);
-      fetchUniversities();
-    } catch (err) {
-      alert(err.message || "Không thể xóa. Vui lòng thử lại.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleToggleConfirm = async () => {
-    setSaving(true);
-    try {
-      await api.put(`/api/universities/${confirmToggle.id}`, {
-        is_active: !confirmToggle.isActive,
+      await apiJson(`/api/universities/${confirmToggle.id}/status`, {
+        method: "PATCH",
+        body: { is_active: !confirmToggle.is_active },
       });
       setConfirmToggle(null);
-      fetchUniversities();
+      fetchAll();
     } catch (err) {
-      alert(err.message || "Không thể cập nhật. Vui lòng thử lại.");
+      alert(err.message || "Không thể cập nhật.");
     } finally {
       setSaving(false);
     }
@@ -658,55 +546,23 @@ export default function UniversitiesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Đại học</h1>
           <p className="text-sm text-muted-foreground">Quản lý các trường đại học đối tác của FScape</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setShowCreate(true)}>
+        <Button className="gap-1.5" onClick={() => setFormDialog({ mode: "create" })}>
           <Plus className="size-4" /> Thêm trường
         </Button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
-          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <GraduationCap className="size-6 text-primary" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold tracking-tight">{total}</p>
-            <p className="text-sm text-muted-foreground">Trường đại học</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden shadow-sm">
-          <div className="size-14 rounded-2xl bg-success/10 flex items-center justify-center">
-            <ShieldCheck className="size-6 text-success" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-success">{activeCount}</p>
-            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-6 py-5 overflow-hidden bg-muted/5 border-none shadow-sm">
-          <div className="size-14 rounded-2xl bg-background flex items-center justify-center border border-border">
-            <ShieldAlert className="size-6 text-muted-foreground/40" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-muted-foreground">{total - activeCount}</p>
-            <p className="text-sm text-muted-foreground">Vô hiệu hóa</p>
-          </div>
-        </Card>
-      </div>
+      {/* Summary */}
+      <UniSummary total={totalCount} active={activeCount} inactive={totalCount - activeCount} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Tìm kiếm trường..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Tìm kiếm trường..." value={search}
+            onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterLocation} onValueChange={setFilterLocation}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="Khu vực" />
           </SelectTrigger>
           <SelectContent>
@@ -721,21 +577,18 @@ export default function UniversitiesPage() {
             { key: "all", label: "Tất cả" },
             { key: "active", label: "Hoạt động" },
             { key: "inactive", label: "Không hoạt động" },
-          ].map((fl) => (
-            <Button
-              key={fl.key}
-              size="sm"
-              variant={filterActive === fl.key ? "default" : "outline"}
-              onClick={() => setFilterActive(fl.key)}
-            >
-              {fl.label}
+          ].map((f) => (
+            <Button key={f.key} size="sm"
+              variant={filterActive === f.key ? "default" : "outline"}
+              onClick={() => setFilterActive(f.key)}>
+              {f.label}
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
-      <Card className="overflow-hidden py-0 gap-0">
+      {/* List grouped by location */}
+      <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -743,173 +596,86 @@ export default function UniversitiesPage() {
         ) : error ? (
           <div className="py-14 text-center">
             <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchUniversities}>
-              Thử lại
-            </Button>
+            <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">Không tìm thấy trường nào.</div>
         ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 pl-4">#</TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none hover:text-foreground"
-                    onClick={() => handleSort("name")}
-                  >
-                    <span className="inline-flex items-center">
-                      Tên trường
-                      <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
-                    </span>
-                  </TableHead>
-                  <TableHead>Khu vực</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none hover:text-foreground"
-                    onClick={() => handleSort("createdAt")}
-                  >
-                    <span className="inline-flex items-center">
-                      Ngày tạo
-                      <SortIcon field="createdAt" sortField={sortField} sortDir={sortDir} />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right pr-4">Hành động</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-14 text-center text-muted-foreground">
-                      Không tìm thấy trường đại học nào.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sorted.map((uni, idx) => (
-                    <TableRow key={uni.id}>
-                      <TableCell className="pl-4 text-muted-foreground text-xs">
-                        {(page - 1) * limit + idx + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium">{uni.name}</span>
-                          {uni.address && (
-                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                              <MapPin className="size-3 shrink-0" /> {uni.address}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {uni.location?.name || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${uni.isActive
-                            ? "bg-success/15 text-success"
-                            : "bg-muted text-muted-foreground"
-                            }`}
-                        >
-                          <span
-                            className={`size-2 rounded-full shrink-0 ${uni.isActive ? "bg-success" : "bg-muted-foreground/40"
-                              }`}
-                          />
-                          {uni.isActive ? "Hoạt động" : "Không hoạt động"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {fmt(uni.createdAt)}
-                      </TableCell>
-                      <TableCell className="pr-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="icon" variant="ghost"
-                            className={`size-8 ${uni.isActive ? "text-success hover:text-success/80" : "text-muted-foreground"}`}
-                            title={uni.isActive ? "Tắt hoạt động" : "Bật hoạt động"}
-                            onClick={() => setConfirmToggle(uni)}
-                          >
-                            {uni.isActive
-                              ? <ToggleRight className="size-5" />
-                              : <ToggleLeft className="size-5" />}
-                          </Button>
-                          <Button
-                            size="icon" variant="ghost" className="size-8"
-                            title="Chi tiết"
-                            onClick={() => setDetailId(uni.id)}
-                          >
-                            <Eye className="size-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Trang {page} / {totalPages} ({total} trường)
-                </p>
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Trước
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Sau
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+          <div className="space-y-8">
+            {locationGroups.map(([locId, group]) => (
+              <LocationSection
+                key={locId}
+                name={group.name}
+                universities={group.unis}
+                onView={(u) => setDetailId(u.id)}
+                onToggle={setConfirmToggle}
+              />
+            ))}
+          </div>
         )}
-      </Card>
+      </div>
 
-      {/* Detail / Edit / Delete dialog */}
-      <UniversityDetailDialog
+      {/* Detail dialog */}
+      <UniDetailDialog
         open={!!detailId}
         onOpenChange={(v) => !v && setDetailId(null)}
-        universityId={detailId}
-        locations={locations}
-        onSave={handleUpdate}
-        onDelete={handleDelete}
-        saving={saving}
+        uniId={detailId}
+        onRefresh={fetchAll}
+        onEdit={(u) => { setDetailId(null); setFormDialog({ mode: "edit", data: u }); }}
+        onDelete={(u) => { setDetailId(null); setConfirmDel(u); }}
       />
 
-      {/* Create dialog */}
-      <UniversityCreateDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        onSave={handleCreate}
-        saving={saving}
-        locations={locations}
-      />
+      {/* Create / Edit dialog */}
+      {formDialog && (
+        <UniFormDialog
+          open={!!formDialog}
+          onOpenChange={(v) => !v && setFormDialog(null)}
+          mode={formDialog.mode}
+          initialData={formDialog.data}
+          locations={locations}
+          onSaved={() => { setFormDialog(null); fetchAll(); }}
+        />
+      )}
 
       {/* Confirm toggle */}
       <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
-            <DialogTitle>
-              {confirmToggle?.isActive ? "Tắt trường" : "Bật trường"}
-            </DialogTitle>
+            <DialogTitle>{confirmToggle?.is_active ? "Tắt trường" : "Bật trường"}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {confirmToggle?.isActive
+            {confirmToggle?.is_active
               ? <>Bạn có chắc muốn <strong className="text-foreground">tắt hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
-              : <>Bạn có chắc muốn <strong className="text-foreground">bật hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
-            }
+              : <>Bạn có chắc muốn <strong className="text-foreground">bật hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>}
           </p>
           <DialogFooter className="justify-center gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => setConfirmToggle(null)}>Hủy</Button>
             <Button
-              variant={confirmToggle?.isActive ? "destructive" : "outline"}
-              className={!confirmToggle?.isActive ? "border-success bg-success text-success-foreground hover:bg-success/90 hover:border-success/90" : ""}
-              disabled={saving}
-              onClick={handleToggleConfirm}
-            >
+              variant={confirmToggle?.is_active ? "destructive" : "outline"}
+              className={!confirmToggle?.is_active ? "border-success bg-success text-success-foreground hover:bg-success/90" : ""}
+              disabled={saving} onClick={handleToggle}>
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.isActive ? "Tắt" : "Bật"}
+              {confirmToggle?.is_active ? "Tắt" : "Bật"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete */}
+      <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle>Xóa trường đại học</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bạn có chắc muốn xóa trường <strong className="text-foreground">&quot;{confirmDel?.name}&quot;</strong>?
+            Hành động này không thể hoàn tác.
+          </p>
+          <DialogFooter className="justify-center gap-2 sm:justify-center">
+            <Button variant="outline" onClick={() => setConfirmDel(null)}>Hủy</Button>
+            <Button variant="destructive" disabled={saving} onClick={handleDelete}>
+              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              Xóa
             </Button>
           </DialogFooter>
         </DialogContent>

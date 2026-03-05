@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { apiJson } from "@/lib/apiClient";
 
 function FormSection({ title, children }) {
     return (
@@ -30,10 +31,11 @@ export default function CreateAccountPage() {
     const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
-        name: "",
+        first_name: "",
+        last_name: "",
         email: "",
         phone: "",
-        role: "admin",
+        role: "BUILDING_MANAGER",
         password: "",
         confirmPassword: "",
     });
@@ -44,8 +46,7 @@ export default function CreateAccountPage() {
     const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
     const handleSave = async () => {
-        // Simple validation
-        if (!form.name || !form.email || !form.password) {
+        if (!form.first_name || !form.email || !form.password) {
             alert("Vui lòng điền đầy đủ các trường bắt buộc (*)");
             return;
         }
@@ -56,10 +57,24 @@ export default function CreateAccountPage() {
         }
 
         setSaving(true);
-        // Mimic API call
-        await new Promise((r) => setTimeout(r, 1500));
-        setSaving(false);
-        navigate("/accounts");
+        try {
+            await apiJson("/api/admin/users", {
+                method: "POST",
+                body: {
+                    first_name: form.first_name.trim(),
+                    last_name: form.last_name?.trim() || null,
+                    email: form.email.trim(),
+                    phone: form.phone?.trim() || null,
+                    role: form.role,
+                    password: form.password,
+                },
+            });
+            navigate("/accounts");
+        } catch (err) {
+            alert(err.message || "Đã xảy ra lỗi khi tạo tài khoản.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -86,13 +101,23 @@ export default function CreateAccountPage() {
                 <FormSection title="Thông tin cá nhân">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <Label>Họ và tên *</Label>
+                            <Label>Họ *</Label>
                             <Input
-                                placeholder="VD: Nguyễn Văn A"
-                                value={form.name}
-                                onChange={(e) => handleChange("name", e.target.value)}
+                                placeholder="VD: Nguyễn"
+                                value={form.first_name}
+                                onChange={(e) => handleChange("first_name", e.target.value)}
                             />
                         </div>
+                        <div className="space-y-1.5">
+                            <Label>Tên</Label>
+                            <Input
+                                placeholder="VD: Văn A"
+                                value={form.last_name}
+                                onChange={(e) => handleChange("last_name", e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label>Email *</Label>
                             <Input
@@ -102,8 +127,6 @@ export default function CreateAccountPage() {
                                 onChange={(e) => handleChange("email", e.target.value)}
                             />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label>Số điện thoại</Label>
                             <Input
@@ -112,6 +135,8 @@ export default function CreateAccountPage() {
                                 onChange={(e) => handleChange("phone", e.target.value)}
                             />
                         </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label>Vai trò *</Label>
                             <Select value={form.role} onValueChange={(v) => handleChange("role", v)}>
@@ -119,9 +144,8 @@ export default function CreateAccountPage() {
                                     <SelectValue placeholder="Chọn vai trò" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="admin">Quản trị viên (Admin)</SelectItem>
-                                    <SelectItem value="manager">Quản lý tòa nhà (Manager)</SelectItem>
-                                    <SelectItem value="staff">Nhân viên (Staff)</SelectItem>
+                                    <SelectItem value="BUILDING_MANAGER">Quản lý tòa nhà</SelectItem>
+                                    <SelectItem value="STAFF">Nhân viên</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

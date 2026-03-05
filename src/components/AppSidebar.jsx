@@ -27,7 +27,6 @@ const navItems = [
     to: "/accounts",
     children: [
       { label: "Danh sách", to: "/accounts" },
-      { label: "Tạo tài khoản", to: "/accounts/create" },
     ],
   },
   {

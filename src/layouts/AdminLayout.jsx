@@ -5,6 +5,12 @@ import AppSidebar from "../components/AppSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
+const ROLE_LABELS = {
+  ADMIN: "Quản trị viên",
+  STAFF: "Nhân viên",
+  BUILDING_MANAGER: "Quản lý tòa nhà",
+};
+
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -68,7 +74,7 @@ export default function AdminLayout() {
                 <div className="border-t border-border px-4 py-3">
                   <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                     <Shield className="size-3.5 shrink-0" />
-                    <span>{user?.role}</span>
+                    <span>{ROLE_LABELS[user?.role] ?? user?.role}</span>
                   </div>
                 </div>
 

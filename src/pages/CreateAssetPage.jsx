@@ -29,6 +29,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { apiJson } from "@/lib/apiClient";
 
 /* ── Constants ─────────────────────────────── */
 
@@ -50,7 +51,6 @@ const ASSET_CONDITIONS = [
 
 const ASSET_STATUSES = [
     { value: "active", label: "Đang sử dụng" },
-    { value: "maintenance", label: "Đang bảo trì" },
     { value: "stored", label: "Trong kho" },
     { value: "lost", label: "Mất / Thất lạc" },
     { value: "disposed", label: "Đã thanh lý" },
@@ -156,7 +156,7 @@ export default function CreateAssetPage() {
         name: "",
         type: "furniture",
         condition: "good",
-        status: "active",
+        status: "AVAILABLE",
         buildingId: "",
         roomId: "",
         purchaseDate: "",
@@ -187,15 +187,38 @@ export default function CreateAssetPage() {
             alert("Vui lòng nhập tên tài sản");
             return;
         }
+        if (!form.buildingId || form.buildingId === "none") {
+            alert("Vui lòng chọn tòa nhà");
+            return;
+        }
 
         setSaving(true);
         try {
-            // Mock API delay
-            await new Promise((r) => setTimeout(r, 1500));
-            // In real app: FormData for images + json for data
+            // Generate QR code randomly if empty in backend, but backend model requires it
+            const qr_code = `ASSET-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+            // Map status text to fit backend ENUM: AVAILABLE or IN_USE
+            let mappedStatus = "AVAILABLE";
+            if (form.status === "active") mappedStatus = "IN_USE";
+
+            const payload = {
+                name: form.name.trim(),
+                qr_code,
+                building_id: form.buildingId,
+                current_room_id: form.roomId === "common" || !form.roomId ? null : form.roomId,
+                price: form.price ? Number(form.price) : null,
+                status: mappedStatus,
+                notes: form.description.trim() || null,
+            };
+
+            await apiJson("/api/assets", {
+                method: "POST",
+                body: payload,
+            });
+
             navigate("/assets");
         } catch (err) {
-            alert("Đã xảy ra lỗi khi tạo tài sản.");
+            alert(err.message || "Đã xảy ra lỗi khi tạo tài sản.");
         } finally {
             setSaving(false);
         }
