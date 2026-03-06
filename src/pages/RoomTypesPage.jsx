@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Plus, Search, Pencil, Trash2, Home, ToggleLeft, ToggleRight,
     ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye,
-    Bed, Bath, Maximize, Users, Banknote,
+    Bed, Bath, Maximize, Users, Banknote, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
     Select, SelectContent, SelectItem,
     SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { api } from "@/lib/apiClient";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -58,35 +58,13 @@ function SortIcon({ field, sortField, sortDir }) {
         : <ChevronDown className="size-3.5 ml-1 text-primary" />;
 }
 
-/* ── DonutChart ─────────────────────────────── */
+import StatusBar from "@/components/StatusBar";
 
-function DonutChart({ active, inactive, size = 72 }) {
-    const total = active + inactive;
-    const pct = total > 0 ? (active / total) * 100 : 0;
-    const r = 36;
-    const circ = 2 * Math.PI * r;
-    const offset = circ - (pct / 100) * circ;
-
-    return (
-        <div className="relative" style={{ width: size, height: size }}>
-            <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-                <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-                <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-                    strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-                    className="stroke-success transition-all duration-500" />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
-            </div>
-        </div>
-    );
-}
-
-function RoomTypeSummary({ total, active, inactive }) {
+function RoomTypeSummary({ total, active, inactive, filterActive }) {
     return (
         <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-6 p-5">
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 min-w-[150px]">
                     <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                         <Home className="size-5 text-primary" />
                     </div>
@@ -96,21 +74,7 @@ function RoomTypeSummary({ total, active, inactive }) {
                     </div>
                 </div>
                 <div className="w-px h-14 bg-border shrink-0" />
-                <div className="flex items-center gap-4">
-                    <DonutChart active={active} inactive={inactive} size={64} />
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-success shrink-0" />
-                            <span className="text-xs text-muted-foreground">Hoạt động</span>
-                            <span className="text-xs font-semibold ml-auto pl-2">{active}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
-                            <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
-                            <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
-                        </div>
-                    </div>
-                </div>
+                <StatusBar active={active} inactive={inactive} filter={filterActive} label="loại phòng" />
             </div>
         </div>
     );
@@ -242,7 +206,7 @@ function formToPayload(form) {
 
 /* ── RoomType Detail Dialog (view / edit / delete) ── */
 
-function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, saving }) {
+function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, onManageAssets, saving }) {
     const [editing, setEditing] = useState(false);
     const [confirmDel, setConfirmDel] = useState(false);
     const [form, setForm] = useState(null);
@@ -374,18 +338,150 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                         </div>
                         <DialogFooter className="gap-2 sm:justify-between">
                             <Button
-                                variant="outline" size="sm"
-                                className="text-destructive hover:bg-destructive/10 gap-1.5"
+                                variant="destructive" size="sm"
+                                className="gap-1.5"
                                 onClick={() => setConfirmDel(true)}
                             >
                                 <Trash2 className="size-3.5" /> Vô hiệu hóa
                             </Button>
-                            <Button size="sm" className="gap-1.5" onClick={startEdit}>
-                                <Pencil className="size-3.5" /> Chỉnh sửa
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={onManageAssets}>
+                                    Tài sản
+                                </Button>
+                                <Button size="sm" className="gap-1.5" onClick={startEdit}>
+                                    <Pencil className="size-3.5" /> Chỉnh sửa
+                                </Button>
+                            </div>
                         </DialogFooter>
                     </>
                 )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/* ── Asset Assignment Dialog ─────────────────── */
+
+function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [items, setItems] = useState([]);
+    const [assetTypes, setAssetTypes] = useState([]);
+
+    const fetchAssets = useCallback(async () => {
+        if (!roomType) return;
+        setLoading(true);
+        try {
+            const [typesRes, assignedRes] = await Promise.all([
+                api.get("/api/asset-types?limit=500"),
+                api.get(`/api/room-types/${roomType.id}/assets`)
+            ]);
+            setAssetTypes(typesRes.data || []);
+
+            const currentItems = (assignedRes.data || []).map(a => ({
+                asset_type_id: a.asset_type?.id || a.asset_type_id, // handle both populated and flat structures
+                quantity: a.quantity || 1
+            }));
+            setItems(currentItems);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }, [roomType]);
+
+    useEffect(() => {
+        if (open) fetchAssets();
+    }, [open, fetchAssets]);
+
+    const handleSave = async () => {
+        if (items.length > 20) {
+            alert("Tối đa chỉ được gán 20 loại tài sản cho một loại phòng.");
+            return;
+        }
+        setSaving(true);
+        try {
+            await api.put(`/api/room-types/${roomType.id}/assets`, items);
+            onOpenChange(false);
+        } catch (err) {
+            alert(err.message || "Đã xảy ra lỗi.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addItem = () => {
+        if (items.length >= 20) return;
+        setItems(prev => [...prev, { asset_type_id: "", quantity: 1 }]);
+    };
+
+    const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
+
+    const updateItem = (idx, key, val) => {
+        setItems(prev => prev.map((item, i) => i === idx ? { ...item, [key]: val } : item));
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Định mức tài sản - {roomType?.name}</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                    <p className="text-sm text-muted-foreground">
+                        Định cấu hình các loại tài sản mặc định sẽ có sẵn trong loại phòng này. (Tối đa 20 mục)
+                    </p>
+
+                    {loading ? (
+                        <div className="py-10 flex justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+                    ) : (
+                        <div className="space-y-3">
+                            {items.map((item, i) => (
+                                <div key={i} className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        <Select value={item.asset_type_id} onValueChange={(v) => updateItem(i, "asset_type_id", v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Chọn loại tài sản" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {assetTypes.map(t => (
+                                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="w-24">
+                                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, "quantity", parseInt(e.target.value) || 1)} />
+                                    </div>
+                                    <Button size="icon" variant="ghost" className="text-destructive w-10 shrink-0" onClick={() => removeItem(i)}>
+                                        <Trash2 className="size-4" />
+                                    </Button>
+                                </div>
+                            ))}
+
+                            {items.length === 0 && (
+                                <div className="text-center py-6 text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                                    Chưa có tài sản định mức nào.
+                                </div>
+                            )}
+
+                            {items.length < 20 && (
+                                <Button size="sm" variant="outline" className="w-full gap-2 border-dashed border-border" onClick={addItem}>
+                                    <Plus className="size-4" /> Thêm tài sản ({items.length}/20)
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter className="pt-4">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+                    <Button disabled={loading || saving} onClick={handleSave}>
+                        {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                        Lưu định mức
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -435,6 +531,7 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
 export default function RoomTypesPage() {
     const [types, setTypes] = useState([]);
     const [total, setTotal] = useState(0);
+    const [totalActive, setTotalActive] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
@@ -447,6 +544,7 @@ export default function RoomTypesPage() {
 
     const [showCreate, setShowCreate] = useState(false);
     const [detailType, setDetailType] = useState(null);
+    const [showAssetDialog, setShowAssetDialog] = useState(false);
     const [confirmToggle, setConfirmToggle] = useState(null);
     const [error, setError] = useState(null);
 
@@ -464,6 +562,7 @@ export default function RoomTypesPage() {
             const res = await api.get(`/api/room-types?${params}`);
             setTypes(res.data || []);
             setTotal(res.total || 0);
+            setTotalActive(res.active_count || 0);
             setPage(res.page || 1);
             setTotalPages(res.total_pages || res.totalPages || 1);
         } catch {
@@ -492,7 +591,7 @@ export default function RoomTypesPage() {
         return sortDir === "asc" ? diff : -diff;
     });
 
-    const activeCount = types.filter((t) => t.is_active).length;
+    const activeCount = totalActive;
 
     const handleCreate = async (data) => {
         setSaving(true);
@@ -562,11 +661,11 @@ export default function RoomTypesPage() {
             </div>
 
             {/* Summary */}
-            <RoomTypeSummary total={total} active={activeCount} inactive={total - activeCount} />
+            <RoomTypeSummary total={total} active={activeCount} inactive={total - activeCount} filterActive={filterActive} />
 
             {/* Search + filter */}
-            <div className="flex items-center gap-3 flex-wrap">
-                <div className="relative flex-1 min-w-[280px]">
+            <div className="flex items-center gap-3 flex-wrap mt-2">
+                <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input
                         placeholder="Tìm kiếm theo tên loại phòng..."
@@ -575,20 +674,41 @@ export default function RoomTypesPage() {
                         className="pl-9"
                     />
                 </div>
-                <div className="flex gap-1.5 bg-muted/50 p-1 rounded-lg border border-border/50">
-                    {["all", "active", "inactive"].map((k) => (
+                <div className="flex gap-1.5">
+                    {[
+                        { key: "all", label: "Tất cả" },
+                        { key: "active", label: "Hoạt động" },
+                        { key: "inactive", label: "Không hoạt động" },
+                    ].map((f) => (
                         <Button
-                            key={k}
+                            key={f.key}
                             size="sm"
-                            variant={filterActive === k ? "secondary" : "ghost"}
-                            onClick={() => setFilterActive(k)}
-                            className={filterActive === k ? "shadow-sm bg-background px-4" : "text-muted-foreground px-4"}
+                            variant={filterActive === f.key ? "default" : "outline"}
+                            onClick={() => setFilterActive(f.key)}
                         >
-                            {k === "all" ? "Tất cả" : k === "active" ? "Hoạt động" : "Tắt"}
+                            {f.label}
                         </Button>
                     ))}
                 </div>
             </div>
+
+            {/* Pagination Header */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-2">
+                    <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium">{page}/{totalPages}</span>
+                        <div className="flex items-center gap-1">
+                            <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                                <ChevronLeft className="size-4" />
+                            </Button>
+                            <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                                <ChevronRight className="size-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Table */}
             <Card className="overflow-hidden py-0 gap-0">
@@ -675,22 +795,26 @@ export default function RoomTypesPage() {
                             </TableBody>
                         </Table>
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                                <p className="text-xs text-muted-foreground">Trang {page} / {totalPages}</p>
-                                <div className="flex gap-1.5">
-                                    <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Trước</Button>
-                                    <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau</Button>
-                                </div>
-                            </div>
-                        )}
                     </>
                 )}
             </Card>
 
-            <RoomTypeDetailDialog open={!!detailType} onOpenChange={(v) => !v && setDetailType(null)} roomType={detailType} onSave={handleUpdate} onDelete={handleDelete} saving={saving} />
+            <RoomTypeDetailDialog
+                open={!!detailType && !showAssetDialog}
+                onOpenChange={(v) => !v && setDetailType(null)}
+                roomType={detailType}
+                onSave={handleUpdate}
+                onDelete={handleDelete}
+                onManageAssets={() => setShowAssetDialog(true)}
+                saving={saving}
+            />
             <RoomTypeCreateDialog open={showCreate} onOpenChange={setShowCreate} onSave={handleCreate} saving={saving} />
+
+            <AssetAssignmentDialog
+                open={showAssetDialog}
+                onOpenChange={setShowAssetDialog}
+                roomType={detailType}
+            />
 
             <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>
                 <DialogContent className="max-w-sm text-center">

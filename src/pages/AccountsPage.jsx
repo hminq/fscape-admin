@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Users, Loader2, Mail, Phone,
+  Plus, Search, Users, Loader2, Mail, Phone, Save,
   ToggleLeft, ToggleRight, Shield, UserCog, UserCheck,
-  ChevronLeft, ChevronRight, Eye, EyeOff,
+  ChevronLeft, ChevronRight, Eye, Copy, Check, CircleCheck,
+  Building2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,9 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { apiJson } from "@/lib/apiClient";
+import { api, apiJson } from "@/lib/apiClient";
+import defaultUserImg from "@/assets/default_user_img.jpg";
+import StatusBar from "@/components/StatusBar";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -33,61 +36,41 @@ const fmt = (iso) => {
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 
 const ROLE_MAP = {
-  ADMIN: { label: "Quản trị viên", color: "text-primary border-primary/20 bg-primary/5", dot: "bg-primary", icon: Shield },
-  BUILDING_MANAGER: { label: "Quản lý tòa nhà", color: "text-success border-success/20 bg-success/5", dot: "bg-success", icon: UserCog },
-  STAFF: { label: "Nhân viên", color: "text-warning border-warning/20 bg-warning/5", dot: "bg-warning", icon: UserCheck },
+  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: Shield },
+  BUILDING_MANAGER: { label: "Quản lý tòa nhà", color: "text-chart-2 border-chart-2/20 bg-chart-2/5", dot: "bg-chart-2", icon: UserCog },
+  STAFF: { label: "Nhân viên", color: "text-chart-3 border-chart-3/20 bg-chart-3/5", dot: "bg-chart-3", icon: UserCheck },
+  RESIDENT: { label: "Cư dân", color: "text-chart-4 border-chart-4/20 bg-chart-4/5", dot: "bg-chart-4", icon: Users },
+  CUSTOMER: { label: "Khách hàng", color: "text-chart-5 border-chart-5/20 bg-chart-5/5", dot: "bg-chart-5", icon: Users },
 };
 
-const ROLE_ORDER = ["ADMIN", "BUILDING_MANAGER", "STAFF"];
+const ROLE_ORDER = ["ADMIN", "BUILDING_MANAGER", "STAFF", "RESIDENT", "CUSTOMER"];
 
 const STATUS = {
   true: { label: "Hoạt động" },
   false: { label: "Vô hiệu hóa" },
 };
 
-/* ── DonutChart (2-segment: status) ────────── */
+/* ── Role Donut (chart-1..5 colors) ───────── */
 
-function DonutChart({ active, inactive, size = 72 }) {
-  const total = active + inactive;
-  const pct = total > 0 ? (active / total) * 100 : 0;
-  const r = 36;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
+const ROLE_CHART = [
+  { key: "ADMIN", label: "Admin", stroke: "stroke-chart-1", dot: "bg-chart-1" },
+  { key: "BUILDING_MANAGER", label: "Quản lý", stroke: "stroke-chart-2", dot: "bg-chart-2" },
+  { key: "STAFF", label: "Nhân viên", stroke: "stroke-chart-3", dot: "bg-chart-3" },
+  { key: "RESIDENT", label: "Cư dân", stroke: "stroke-chart-4", dot: "bg-chart-4" },
+  { key: "CUSTOMER", label: "Khách hàng", stroke: "stroke-chart-5", dot: "bg-chart-5" },
+];
 
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          className="stroke-success transition-all duration-500" />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── RoleDonutChart (multi-segment) ────────── */
-
-const ROLE_STROKE = {
-  ADMIN: "stroke-primary",
-  BUILDING_MANAGER: "stroke-success",
-  STAFF: "stroke-warning",
-};
-
-function RoleDonutChart({ counts, size = 72 }) {
-  const entries = ROLE_ORDER.map((r) => [r, counts[r] || 0]).filter(([, v]) => v > 0);
-  const total = entries.reduce((s, [, v]) => s + v, 0);
+function RoleDonut({ counts, size = 80 }) {
+  const entries = ROLE_CHART.map((r) => ({ ...r, count: counts[r.key] || 0 })).filter((r) => r.count > 0);
+  const total = entries.reduce((s, r) => s + r.count, 0);
   const r = 36;
   const circ = 2 * Math.PI * r;
 
-  let accumulated = 0;
-  const segments = entries.map(([role, count]) => {
-    const len = total > 0 ? (count / total) * circ : 0;
-    const seg = { role, len, offset: circ - accumulated, cls: ROLE_STROKE[role] || "stroke-muted" };
-    accumulated += len;
+  let acc = 0;
+  const segs = entries.map((e) => {
+    const len = total > 0 ? (e.count / total) * circ : 0;
+    const seg = { ...e, len, offset: circ - acc };
+    acc += len;
     return seg;
   });
 
@@ -95,72 +78,43 @@ function RoleDonutChart({ counts, size = 72 }) {
     <div className="relative" style={{ width: size, height: size }}>
       <svg viewBox="0 0 100 100" className="size-full -rotate-90">
         <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-        {segments.map((seg) => (
-          <circle key={seg.role} cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-            strokeDasharray={`${seg.len} ${circ - seg.len}`}
-            strokeDashoffset={seg.offset}
-            className={`${seg.cls} transition-all duration-500`} />
+        {segs.map((s) => (
+          <circle key={s.key} cx="50" cy="50" r={r} fill="none" strokeWidth="10"
+            strokeDasharray={`${s.len} ${circ - s.len}`}
+            strokeDashoffset={s.offset}
+            className={`${s.stroke} transition-all duration-500`} />
         ))}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold leading-none">{total}</span>
+        <span className="text-xs font-bold leading-none">{total}</span>
       </div>
     </div>
   );
 }
 
-/* ── Summary Card ──────────────────────────── */
+/* ── Summary Card (unified) ──────────────── */
 
-function AccountSummary({ total, active, inactive, roleCounts }) {
+function AccountSummary({ active, inactive, roleCounts, filterActive }) {
   return (
-    <div className="rounded-2xl border border-border bg-card">
-      <div className="flex items-center gap-6 p-5 flex-wrap">
-        <div className="flex items-center gap-4 flex-1 min-w-[140px]">
-          <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-            <Users className="size-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
-            <p className="text-sm text-muted-foreground mt-1">Tài khoản</p>
-          </div>
-        </div>
-
-        <div className="w-px h-14 bg-border shrink-0" />
-
-        <div className="flex items-center gap-4">
-          <DonutChart active={active} inactive={inactive} size={64} />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-success shrink-0" />
-              <span className="text-xs text-muted-foreground">Hoạt động</span>
-              <span className="text-xs font-semibold ml-auto pl-2">{active}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
-              <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
-              <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-px h-14 bg-border shrink-0" />
-
-        <div className="flex items-center gap-4">
-          <RoleDonutChart counts={roleCounts} size={64} />
-          <div className="space-y-2">
-            {[
-              { key: "ADMIN", label: "Admin", dot: "bg-primary" },
-              { key: "BUILDING_MANAGER", label: "Quản lý", dot: "bg-success" },
-              { key: "STAFF", label: "Nhân viên", dot: "bg-warning" },
-            ].map((r) => (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-8 flex-wrap">
+        {/* Role donut + horizontal legend */}
+        <div className="flex items-center gap-5">
+          <RoleDonut counts={roleCounts} size={76} />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+            {ROLE_CHART.map((r) => (
               <div key={r.key} className="flex items-center gap-2">
                 <span className={`size-2 rounded-full ${r.dot} shrink-0`} />
-                <span className="text-xs text-muted-foreground">{r.label}</span>
-                <span className="text-xs font-semibold ml-auto pl-2">{roleCounts[r.key] || 0}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{r.label}</span>
+                <span className="text-xs font-semibold">{roleCounts[r.key] || 0}</span>
               </div>
             ))}
           </div>
         </div>
+
+        <div className="w-px h-12 bg-border shrink-0" />
+
+        <StatusBar active={active} inactive={inactive} filter={filterActive} label="tài khoản" />
       </div>
     </div>
   );
@@ -172,15 +126,15 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setForm({ first_name: "", last_name: "", email: "", phone: "", role: "BUILDING_MANAGER", password: "", confirmPassword: "" });
+    setForm({ first_name: "", last_name: "", email: "", phone: "", role: "BUILDING_MANAGER" });
     setErrors({});
-    setShowPw(false);
-    setShowPwConfirm(false);
+    setResult(null);
+    setCopied(false);
   }, [open]);
 
   const set = (k, v) => {
@@ -192,8 +146,6 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
     const e = {};
     if (!form.first_name?.trim()) e.first_name = true;
     if (!form.email?.trim()) e.email = true;
-    if (!form.password) e.password = true;
-    if (form.password && form.password !== form.confirmPassword) e.confirmPassword = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -203,7 +155,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      await apiJson("/api/admin/users", {
+      const res = await apiJson("/api/users", {
         method: "POST",
         body: {
           first_name: form.first_name.trim(),
@@ -211,10 +163,9 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
           email: form.email.trim(),
           phone: form.phone?.trim() || null,
           role: form.role,
-          password: form.password,
         },
       });
-      onSaved();
+      setResult(res.data ?? res);
     } catch (err) {
       alert(err.message || "Đã xảy ra lỗi.");
     } finally {
@@ -222,6 +173,55 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(result?.generated_password || "");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    if (result) onSaved();
+  };
+
+  /* ── Success view ── */
+  if (result) {
+    return (
+      <Dialog open={open} onOpenChange={() => handleClose()}>
+        <DialogContent className="max-w-sm text-center">
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <CircleCheck className="size-7 text-primary" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold">Tạo tài khoản thành công</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {fullName(result)} — {result.email}
+              </p>
+            </div>
+
+            <div className="w-full rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              <p className="text-xs text-muted-foreground">Mật khẩu được tạo tự động — hãy gửi cho người dùng:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm font-mono font-semibold tracking-wider text-center select-all">
+                  {result.generated_password}
+                </code>
+                <Button size="icon" variant="outline" className="shrink-0 size-9" onClick={handleCopy}>
+                  {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={handleClose}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  /* ── Form view ── */
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -268,40 +268,12 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Mật khẩu *</Label>
-              <div className="relative">
-                <Input type={showPw ? "text" : "password"} value={form.password || ""}
-                  onChange={(e) => set("password", e.target.value)} placeholder="••••••••"
-                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`} />
-                <Button type="button" variant="ghost" size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground"
-                  onClick={() => setShowPw(!showPw)}>
-                  {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Xác nhận mật khẩu *</Label>
-              <div className="relative">
-                <Input type={showPwConfirm ? "text" : "password"} value={form.confirmPassword || ""}
-                  onChange={(e) => set("confirmPassword", e.target.value)} placeholder="••••••••"
-                  className={`pr-10 ${errors.confirmPassword ? "border-destructive" : ""}`} />
-                <Button type="button" variant="ghost" size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground"
-                  onClick={() => setShowPwConfirm(!showPwConfirm)}>
-                  {showPwConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground">Mật khẩu sẽ được hệ thống tự động tạo.</p>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}
-              className="bg-success text-success-foreground hover:bg-success/90">
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}
               Tạo tài khoản
             </Button>
           </DialogFooter>
@@ -311,11 +283,90 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
   );
 }
 
+/* ── Account Detail Dialog ────────────────── */
+
+function AccountDetailDialog({ open, onOpenChange, account }) {
+  const [buildingName, setBuildingName] = useState(null);
+
+  useEffect(() => {
+    if (!open || !account?.building_id) { setBuildingName(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiJson(`/api/buildings/${account.building_id}`);
+        if (!cancelled) setBuildingName((res.data || res)?.name || null);
+      } catch {
+        if (!cancelled) setBuildingName(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, account?.building_id]);
+
+  if (!account) return null;
+  const roleMeta = ROLE_MAP[account.role] || {};
+  const RoleIcon = roleMeta.icon || Users;
+  const name = fullName(account);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Chi tiết tài khoản</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-3 pb-2">
+          <img
+            src={account.avatar_url || defaultUserImg}
+            alt={name}
+            className="size-20 rounded-full object-cover ring-2 ring-border"
+          />
+          <div className="text-center">
+            <p className="text-lg font-semibold">{name}</p>
+            <div className={`inline-flex items-center gap-1.5 mt-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${roleMeta.color}`}>
+              <RoleIcon className="size-3" />
+              {roleMeta.label || account.role}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2"><Mail className="size-3.5" /> Email</span>
+            <span className="font-medium">{account.email}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2"><Phone className="size-3.5" /> Điện thoại</span>
+            <span className="font-medium">{account.phone || "—"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2"><Shield className="size-3.5" /> Trạng thái</span>
+            <span className={`flex items-center gap-1.5 font-medium ${account.is_active ? "text-success" : "text-muted-foreground"}`}>
+              <span className={`size-2 rounded-full ${account.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+              {account.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+            </span>
+          </div>
+          {account.building_id && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground flex items-center gap-2"><Building2 className="size-3.5" /> Tòa nhà</span>
+              <span className="font-medium truncate max-w-[180px]">{buildingName || "—"}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2"><Users className="size-3.5" /> Ngày tạo</span>
+            <span className="font-medium">{fmt(account.created_at)}</span>
+          </div>
+        </div>
+
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ── Role Section (grouped table) ──────────── */
 
 const PER_SECTION = 8;
 
-function RoleSection({ role, accounts, onToggle }) {
+function RoleSection({ role, accounts, onToggle, onView }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(accounts.length / PER_SECTION);
   const visible = accounts.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
@@ -330,19 +381,19 @@ function RoleSection({ role, accounts, onToggle }) {
             <Icon className="size-3.5 text-primary" />
           </div>
           <h2 className="text-[15px] font-semibold">{roleMeta.label || role}</h2>
-          <span className="text-xs text-muted-foreground">({accounts.length})</span>
+          <span className="text-sm font-medium text-muted-foreground">{accounts.length} kết quả</span>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground mr-1">{page + 1}/{totalPages}</span>
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
-              <ChevronLeft className="size-3.5" />
-            </button>
-            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
-              <ChevronRight className="size-3.5" />
-            </button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -386,12 +437,19 @@ function RoleSection({ role, accounts, onToggle }) {
                   <TableCell className="text-sm text-muted-foreground">{fmt(acc.created_at)}</TableCell>
                   <TableCell className="pr-4">
                     <div className="flex items-center justify-end gap-1">
+                      {acc.role !== "ADMIN" && (
+                        <Button size="icon" variant="ghost" className="size-8"
+                          title={acc.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
+                          onClick={() => onToggle(acc)}>
+                          {acc.is_active
+                            ? <ToggleRight className="size-5 text-success" />
+                            : <ToggleLeft className="size-5 text-muted-foreground" />}
+                        </Button>
+                      )}
                       <Button size="icon" variant="ghost" className="size-8"
-                        title={acc.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
-                        onClick={() => onToggle(acc)}>
-                        {acc.is_active
-                          ? <ToggleRight className="size-5 text-success" />
-                          : <ToggleLeft className="size-5 text-muted-foreground" />}
+                        title="Chi tiết"
+                        onClick={() => onView(acc)}>
+                        <Eye className="size-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -418,13 +476,14 @@ export default function AccountsPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [confirmToggle, setConfirmToggle] = useState(null);
+  const [detailAcc, setDetailAcc] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiJson("/api/admin/users");
-      setAllAccounts(res.data || res || []);
+      const res = await apiJson("/api/users");
+      setAllAccounts(res.data?.data || []);
     } catch {
       setError("Không thể tải dữ liệu.");
     } finally {
@@ -462,23 +521,23 @@ export default function AccountsPage() {
   const totalCount = allAccounts.length;
   const activeCount = allAccounts.filter((a) => a.is_active).length;
   const roleCounts = useMemo(() => {
-    const c = { ADMIN: 0, BUILDING_MANAGER: 0, STAFF: 0 };
+    const c = { ADMIN: 0, BUILDING_MANAGER: 0, STAFF: 0, RESIDENT: 0, CUSTOMER: 0 };
     allAccounts.forEach((a) => { if (c[a.role] !== undefined) c[a.role]++; });
     return c;
   }, [allAccounts]);
 
   /* actions */
+  const [toggleError, setToggleError] = useState(null);
+
   const handleToggle = async () => {
     setSaving(true);
+    setToggleError(null);
     try {
-      await apiJson(`/api/admin/users/${confirmToggle.id}/status`, {
-        method: "PATCH",
-        body: { is_active: !confirmToggle.is_active },
-      });
+      await api.patch(`/api/users/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
       fetchAll();
     } catch (err) {
-      alert(err.message || "Không thể cập nhật.");
+      setToggleError(err.message || "Không thể cập nhật.");
     } finally {
       setSaving(false);
     }
@@ -499,10 +558,10 @@ export default function AccountsPage() {
 
       {/* Summary */}
       <AccountSummary
-        total={totalCount}
         active={activeCount}
         inactive={totalCount - activeCount}
         roleCounts={roleCounts}
+        filterActive={filterActive}
       />
 
       {/* Filters */}
@@ -548,6 +607,7 @@ export default function AccountsPage() {
                 role={role}
                 accounts={accounts}
                 onToggle={setConfirmToggle}
+                onView={setDetailAcc}
               />
             ))}
           </div>
@@ -558,28 +618,37 @@ export default function AccountsPage() {
       <CreateAccountDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        onSaved={() => { setShowCreate(false); fetchAll(); }}
+        onSaved={() => { fetchAll(); }}
+      />
+
+      {/* Detail dialog */}
+      <AccountDetailDialog
+        open={!!detailAcc}
+        onOpenChange={(v) => !v && setDetailAcc(null)}
+        account={detailAcc}
       />
 
       {/* Confirm toggle */}
-      <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>
+      <Dialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) { setConfirmToggle(null); setToggleError(null); } }}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
-            <DialogTitle>{confirmToggle?.is_active ? "Tắt tài khoản" : "Bật tài khoản"}</DialogTitle>
+            <DialogTitle>{confirmToggle?.is_active ? "Vô hiệu hóa tài khoản" : "Kích hoạt tài khoản"}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.is_active
               ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> tài khoản <strong className="text-foreground">&quot;{confirmToggle && fullName(confirmToggle)}&quot;</strong>?</>
               : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> tài khoản <strong className="text-foreground">&quot;{confirmToggle && fullName(confirmToggle)}&quot;</strong>?</>}
           </p>
+          {toggleError && (
+            <p className="text-sm text-destructive">{toggleError}</p>
+          )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
-            <Button variant="outline" onClick={() => setConfirmToggle(null)}>Hủy</Button>
+            <Button variant="outline" onClick={() => { setConfirmToggle(null); setToggleError(null); }}>Hủy</Button>
             <Button
-              variant={confirmToggle?.is_active ? "destructive" : "outline"}
-              className={!confirmToggle?.is_active ? "border-success bg-success text-success-foreground hover:bg-success/90" : ""}
+              variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.is_active ? "Tắt" : "Bật"}
+              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -34,9 +34,9 @@ const navItems = [
     icon: Building2,
     to: "/buildings",
     children: [
+      { label: "Danh sách", to: "/buildings" },
       { label: "Khu vực", to: "/locations" },
       { label: "Trường đại học", to: "/universities" },
-      { label: "Danh sách", to: "/buildings" },
     ],
   },
   {
@@ -54,7 +54,7 @@ const navItems = [
     to: "/assets",
     children: [
       { label: "Danh sách", to: "/assets" },
-      { label: "Bảo trì", to: "/assets/maintenance" },
+      { label: "Loại tài sản", to: "/assets/types" },
     ],
   },
   {
