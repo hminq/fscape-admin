@@ -9,6 +9,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { api, apiRequest } from "@/lib/apiClient";
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /* ── constants ──────────────────────────────────────────── */
@@ -202,7 +203,6 @@ export default function BMContractSignPage() {
 
   /* ── helpers ────────────────────────────────────────── */
 
-  const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
 
   /* ── loading state ──────────────────────────────────── */
 

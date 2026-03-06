@@ -9,6 +9,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/apiClient";
+import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -20,10 +21,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import StatusDot from "@/components/StatusDot";
+import StatusBar from "@/components/StatusBar";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
+const FETCH_LIMIT = 999;
 
 const STATUS_MAP = {
   ACTIVE: { label: "Đang hiệu lực", dot: "bg-success", text: "text-success" },
@@ -33,10 +37,10 @@ const STATUS_MAP = {
 };
 
 const STATUS_CHART = [
-  { key: "ACTIVE", label: "Đang hiệu lực", stroke: "stroke-chart-1", dot: "bg-chart-1" },
-  { key: "EXPIRING_SOON", label: "Sắp hết hạn", stroke: "stroke-chart-4", dot: "bg-chart-4" },
-  { key: "FINISHED", label: "Đã kết thúc", stroke: "stroke-chart-5", dot: "bg-chart-5" },
-  { key: "TERMINATED", label: "Đã chấm dứt", stroke: "stroke-destructive", dot: "bg-destructive" },
+  { key: "ACTIVE", stroke: "stroke-chart-1", dot: "bg-chart-1" },
+  { key: "EXPIRING_SOON", stroke: "stroke-chart-4", dot: "bg-chart-4" },
+  { key: "FINISHED", stroke: "stroke-chart-5", dot: "bg-chart-5" },
+  { key: "TERMINATED", stroke: "stroke-destructive", dot: "bg-destructive" },
 ];
 
 const STATUS_FILTERS = [
@@ -48,20 +52,6 @@ const STATUS_FILTERS = [
 
 /** Chỉ hiển thị hợp đồng đã ký xong (không bao gồm trạng thái chờ ký) */
 const EXCLUDED_STATUSES = ["DRAFT", "PENDING_CUSTOMER_SIGNATURE", "PENDING_MANAGER_SIGNATURE"];
-
-/* ── helpers ─────────────────────────────────────────────── */
-
-const StatusDot = ({ status }) => {
-  const s = STATUS_MAP[status] || { label: status, dot: "bg-muted-foreground/30", text: "text-muted-foreground" };
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className={`size-2 rounded-full ${s.dot}`} />
-      <span className={`${s.text} font-medium`}>{s.label}</span>
-    </div>
-  );
-};
-
-const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
 
 /* ── Donut Chart ─────────────────────────────────────────── */
 
@@ -99,8 +89,9 @@ function StatusDonut({ counts, size = 80 }) {
 
 /* ── Summary Card ────────────────────────────────────────── */
 
-function ContractSummary({ statusCounts, activeCount, totalCount }) {
-  const activePct = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
+function ContractSummary({ statusCounts }) {
+  const activeCount = statusCounts.ACTIVE || 0;
+  const totalCount = Object.values(statusCounts).reduce((s, v) => s + v, 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -112,7 +103,7 @@ function ContractSummary({ statusCounts, activeCount, totalCount }) {
             {STATUS_CHART.map((s) => (
               <div key={s.key} className="flex items-center gap-2">
                 <span className={`size-2 rounded-full ${s.dot} shrink-0`} />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{s.label}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{STATUS_MAP[s.key].label}</span>
                 <span className="text-xs font-semibold">{statusCounts[s.key] || 0}</span>
               </div>
             ))}
@@ -121,26 +112,7 @@ function ContractSummary({ statusCounts, activeCount, totalCount }) {
 
         <div className="w-px h-12 bg-border shrink-0" />
 
-        {/* Active ratio bar */}
-        <div className="flex-1 min-w-[180px] space-y-2.5">
-          <div className="flex items-center text-xs">
-            <span className="text-muted-foreground">Tỷ lệ hiệu lực</span>
-          </div>
-          <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-success transition-all duration-500"
-              style={{ width: `${activePct}%` }}
-            />
-          </div>
-          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-success" /> {activePct}% đang hiệu lực
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-muted-foreground/30" /> {100 - activePct}% khác
-            </span>
-          </div>
-        </div>
+        <StatusBar active={activeCount} inactive={totalCount - activeCount} filter="all" label="hợp đồng" />
       </div>
     </div>
   );
@@ -174,7 +146,7 @@ export default function BMContractsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/api/contracts?limit=999");
+      const res = await api.get(`/api/contracts?limit=${FETCH_LIMIT}`);
       const all = (res.data || []).filter((c) => !EXCLUDED_STATUSES.includes(c.status));
       setAllContracts(all);
     } catch {
@@ -197,16 +169,12 @@ export default function BMContractsPage() {
     return c;
   }, [allContracts]);
 
-  const activeCount = statusCounts.ACTIVE || 0;
-
   const filtered = useMemo(() => {
     return allContracts.filter((c) => {
-      // Status filter
       if (filterStatus !== "all") {
         const f = STATUS_FILTERS.find((sf) => sf.key === filterStatus);
         if (f?.match && !f.match.includes(c.status)) return false;
       }
-      // Search
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const customerName = `${c.customer?.last_name || ""} ${c.customer?.first_name || ""}`.toLowerCase();
@@ -240,11 +208,7 @@ export default function BMContractsPage() {
 
       {/* Summary */}
       {!loading && !error && (
-        <ContractSummary
-          statusCounts={statusCounts}
-          activeCount={activeCount}
-          totalCount={allContracts.length}
-        />
+        <ContractSummary statusCounts={statusCounts} />
       )}
 
       {/* Filters */}
@@ -341,7 +305,7 @@ export default function BMContractsPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(c.start_date)} → {formatDate(c.end_date)}
                     </TableCell>
-                    <TableCell><StatusDot status={c.status} /></TableCell>
+                    <TableCell><StatusDot status={c.status} statusMap={STATUS_MAP} /></TableCell>
                     <TableCell className="pr-4 text-right">
                       <Button
                         variant="ghost"

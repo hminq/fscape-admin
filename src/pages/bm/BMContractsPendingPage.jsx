@@ -8,7 +8,9 @@ import {
   PenLine,
 } from "lucide-react";
 import { api } from "@/lib/apiClient";
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import StatusDot from "@/components/StatusDot";
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -19,20 +21,6 @@ const STATUS_MAP = {
   PENDING_MANAGER_SIGNATURE: { label: "Chờ quản lý ký", dot: "bg-chart-2", text: "text-chart-2" },
 };
 
-/* ── helpers ─────────────────────────────────────────────── */
-
-const StatusDot = ({ status }) => {
-  const s = STATUS_MAP[status] || { label: status, dot: "bg-muted-foreground/30", text: "text-muted-foreground" };
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className={`size-2 rounded-full ${s.dot}`} />
-      <span className={`${s.text} font-medium`}>{s.label}</span>
-    </div>
-  );
-};
-
-const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
-
 /* ── main component ─────────────────────────────────────── */
 
 export default function BMContractsPendingPage() {
@@ -40,11 +28,13 @@ export default function BMContractsPendingPage() {
 
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   /* ── fetch pending contracts ───────────────────────────── */
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [bmRes, custRes] = await Promise.all([
         api.get(`/api/contracts?status=PENDING_MANAGER_SIGNATURE&limit=${PENDING_FETCH_LIMIT}`),
@@ -54,7 +44,7 @@ export default function BMContractsPendingPage() {
       all.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setContracts(all);
     } catch {
-      setContracts([]);
+      setError("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
@@ -75,9 +65,14 @@ export default function BMContractsPendingPage() {
         <div className="flex min-h-[30vh] items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
+      ) : error ? (
+        <div className="py-14 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchPending}>Thử lại</Button>
+        </div>
       ) : contracts.length === 0 ? (
         <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-          <CheckCircle className="size-10 text-green-500" />
+          <CheckCircle className="size-10 text-success" />
           <p className="text-sm text-muted-foreground">Không có hợp đồng nào chờ ký</p>
         </div>
       ) : (
@@ -89,21 +84,21 @@ export default function BMContractsPendingPage() {
                 key={c.id}
                 className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
                   isBMSign
-                    ? "border-blue-200 bg-blue-50/50 hover:bg-blue-50"
-                    : "border-amber-200 bg-amber-50/50 hover:bg-amber-50"
+                    ? "border-chart-2/30 bg-chart-2/5 hover:bg-chart-2/10"
+                    : "border-chart-4/30 bg-chart-4/5 hover:bg-chart-4/10"
                 }`}
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{c.contract_number}</span>
-                    <StatusDot status={c.status} />
+                    <StatusDot status={c.status} statusMap={STATUS_MAP} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Khách hàng: {c.customer?.last_name} {c.customer?.first_name} — Phòng {c.room?.room_number}
                     {c.room?.building?.name && `, ${c.room.building.name}`}
                   </p>
                   {c.signature_expires_at && (
-                    <p className="flex items-center gap-1 text-xs text-amber-600">
+                    <p className="flex items-center gap-1 text-xs text-chart-4">
                       <Clock className="size-3" />
                       Hạn ký: {formatDate(c.signature_expires_at)}
                     </p>
