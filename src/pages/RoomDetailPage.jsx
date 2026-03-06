@@ -1,352 +1,379 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    ArrowLeft,
-    Pencil,
-    Trash2,
-    Calendar,
-    Users,
-    Maximize,
-    Bed,
-    Bath,
-    Wifi,
-    Wind,
-    ShieldCheck,
-    Coffee,
-    Monitor,
-    Tv,
-    Utensils,
-    Waves,
-    Dumbbell,
-    BookOpen,
-    Bike,
-    Video,
-    LayoutDashboard,
-    Clock,
-    Home,
-    MapPin,
-    CheckCircle2
+    ArrowLeft, Pencil, Trash2, MapPin, Layers, Home,
+    Mail, Phone, Loader2, DollarSign, Users, Maximize2,
+    FileText, CalendarDays, ClipboardList, User as UserIcon,
+    Box
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import {
+    Dialog, DialogContent, DialogHeader,
+    DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { api } from "@/lib/apiClient";
+import ModelViewer, { is3DFile } from "@/components/ModelViewer";
+import defaultRoomImg from "@/assets/default_building_img.jpg";
+import defaultUserImg from "@/assets/default_user_img.jpg";
 
-/* ── Mock Data (Same as RoomsPage.jsx for consistency) ── */
 
-
-const AMENITIES_ICONS = {
-    wifi: <Wifi className="size-4" />,
-    ac: <Wind className="size-4" />,
-    study_desk: <BookOpen className="size-4" />,
-    chair: <Coffee className="size-4" />,
-    wardrobe: <Home className="size-4" />,
-    heating: <Wind className="size-4" />,
-    window: <LayoutDashboard className="size-4" />,
-    mirror: <Users className="size-4" />,
-    kitchen: <Utensils className="size-4" />,
-    laundry: <Waves className="size-4" />,
-    gym: <Dumbbell className="size-4" />,
-    study_room: <BookOpen className="size-4" />,
-    common_area: <Users className="size-4" />,
-    rooftop: <LayoutDashboard className="size-4" />,
-    bike_storage: <Bike className="size-4" />,
-    cinema: <Video className="size-4" />,
+const STATUS_CFG = {
+    AVAILABLE: { label: "Còn trống", bg: "bg-success", text: "text-success" },
+    OCCUPIED: { label: "Đã thuê", bg: "bg-primary", text: "text-primary" },
+    MAINTENANCE: { label: "Bảo trì", bg: "bg-amber-500", text: "text-amber-500" },
+    LOCKED: { label: "Khóa", bg: "bg-destructive", text: "text-destructive" },
 };
 
-const STATUS_MAP = {
-    AVAILABLE: { label: "Còn trống", variant: "default", color: "bg-success/15 text-success" },
-    OCCUPIED: { label: "Đã thuê", variant: "secondary", color: "bg-primary/10 text-primary" },
-    MAINTENANCE: { label: "Bảo trì", variant: "outline", color: "bg-warning/15 text-warning" },
-};
+const fmtPrice = (p) => p ? parseFloat(p).toLocaleString("vi-VN") : "—";
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
-const fmtPrice = (p) => {
-    if (!p) return "0";
-    return parseFloat(p).toLocaleString("vi-VN");
+const CONTRACT_STATUS_LABEL = {
+    DRAFT: "Nháp", PENDING_CUSTOMER_SIGNATURE: "Chờ KH ký",
+    PENDING_MANAGER_SIGNATURE: "Chờ QL ký", ACTIVE: "Đang hiệu lực",
+    EXPIRING_SOON: "Sắp hết hạn", EXPIRED: "Đã hết hạn",
+    TERMINATED: "Đã chấm dứt", CANCELLED: "Đã hủy",
+};
+const BOOKING_STATUS_LABEL = {
+    PENDING: "Chờ xử lý", DEPOSIT_PAID: "Đã đặt cọc",
+    CONFIRMED: "Đã xác nhận", CANCELLED: "Đã hủy", CONVERTED: "Đã chuyển HĐ",
+};
+const REQUEST_STATUS_LABEL = {
+    PENDING: "Chờ xử lý", IN_PROGRESS: "Đang xử lý",
+    RESOLVED: "Đã giải quyết", CLOSED: "Đã đóng",
 };
 
 export default function RoomDetailPage() {
     const { id } = useParams();
-    console.log("RoomDetailPage ID param:", id);
     const navigate = useNavigate();
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [confirmDel, setConfirmDel] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        const fetchRoom = async () => {
+        const fetch = async () => {
             setLoading(true);
             try {
                 const res = await api.get(`/api/rooms/${id}`);
-                const data = res.data;
-                // Add default fields for display if API lacks them
-                setRoom({
-                    ...data,
-                    description: data.description || "Phòng được thiết kế hiện đại, đầy đủ ánh sáng tự nhiên. Không gian thoáng đãng phù hợp cho sinh viên tập trung học tập và nghỉ ngơi sau giờ học.",
-                    images: data.images?.length > 0 ? data.images.map(i => i.image_url) : [data.thumbnail_url || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80"],
-                    amenities: data.amenities || ["wifi", "ac", "study_desk", "wardrobe"],
-                    history: []
-                });
+                setRoom(res.data || res);
             } catch (err) {
-                console.error("Error fetching room:", err);
+                console.error(err);
+                setError("Không thể tải thông tin phòng.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchRoom();
+        fetch();
     }, [id]);
+
+    const handleDelete = async () => {
+        setSaving(true);
+        try {
+            await api.delete(`/api/rooms/${room.id}`);
+            navigate("/rooms");
+        } catch (err) {
+            alert(err.message || "Xóa thất bại");
+        } finally {
+            setSaving(false);
+            setConfirmDel(false);
+        }
+    };
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <Loader2 className="animate-spin text-muted-foreground size-8" />
         </div>
     );
 
-    if (!room) return <div className="text-center py-20 font-bold">Không tìm thấy thông tin phòng!</div>;
+    if (error || !room) return (
+        <div className="text-center py-20 space-y-4">
+            <p className="text-sm text-destructive">{error || "Không tìm thấy thông tin phòng."}</p>
+            <Button variant="outline" size="sm" onClick={() => navigate("/rooms")}>Quay lại</Button>
+        </div>
+    );
 
     const statusKey = room.status?.toUpperCase() || "AVAILABLE";
-    const statusCfg = STATUS_MAP[statusKey] || STATUS_MAP.AVAILABLE;
+    const statusCfg = STATUS_CFG[statusKey] || STATUS_CFG.AVAILABLE;
+
+    // API returns images as array of strings (image_url strings)
+    const thumbnail = room.thumbnail_url
+        || (Array.isArray(room.images) && typeof room.images[0] === 'string' ? room.images[0] : room.images?.[0]?.image_url)
+        || defaultRoomImg;
+
+    const gallery = Array.isArray(room.images) && room.images.length > 0
+        ? room.images.map(img => typeof img === 'string' ? img : img?.image_url)
+        : [];
+
+    const infoItems = [
+        { label: "Tòa nhà", value: room.building?.name },
+        { label: "Tầng", value: room.floor != null ? `Tầng ${room.floor}` : null },
+        { label: "Loại phòng", value: room.room_type?.name },
+        { label: "Giá thuê", value: room.room_type?.base_price != null ? `${fmtPrice(room.room_type.base_price)} đ/tháng` : null },
+        { label: "Diện tích", value: room.room_type?.area_sqm != null ? `${room.room_type.area_sqm} m²` : null },
+        { label: "Sức chứa", value: room.room_type?.capacity != null ? `${room.room_type.capacity} người` : null },
+    ].filter(i => i.value != null);
+
+    const hasActiveContract = (room.resident_contracts || []).some(c =>
+        ['ACTIVE', 'EXPIRING_SOON', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE'].includes(c.status)
+    );
+    const hasActiveBooking = (room.resident_bookings || []).some(b =>
+        ['PENDING', 'DEPOSIT_PAID'].includes(b.status)
+    );
+    const isLocked = hasActiveContract || hasActiveBooking || room.status === 'OCCUPIED';
 
     return (
-        <div className="mx-auto max-w-6xl space-y-8 pb-20 animate-in fade-in duration-500">
-            {/* Header / Actions */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate("/rooms")}
-                        className="rounded-full bg-background border shadow-sm hover:translate-x-[-2px] transition-transform"
-                    >
-                        <ArrowLeft className="size-4" />
-                    </Button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-extrabold tracking-tight">{room.room_number}</h1>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusCfg.color}`}>
-                                {statusCfg.label}
-                            </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                            <MapPin className="size-3.5" /> {room.building?.name} • Tầng {room.floor}
-                        </p>
+        <div className="mx-auto max-w-4xl space-y-6 animate-in fade-in duration-500 pb-16">
+            {/* Header */}
+            <div className="flex items-start gap-3">
+                <button
+                    onClick={() => navigate("/rooms")}
+                    className="mt-0.5 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+                >
+                    <ArrowLeft className="size-4" />
+                </button>
+                <div>
+                    <div className="flex items-center gap-2.5 mb-0.5">
+                        <h1 className="text-lg font-bold">Phòng {room.room_number}</h1>
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+                            <span className={`size-2 rounded-full ${statusCfg.bg}`} />
+                            <span className={statusCfg.text}>{statusCfg.label}</span>
+                        </span>
                     </div>
+                    <p className="text-[13px] text-muted-foreground flex items-center gap-1.5">
+                        <MapPin className="size-3.5" /> {room.building?.name}
+                        {room.floor != null && (
+                            <><span className="text-muted-foreground/40 mx-0.5">·</span><Layers className="size-3.5" /> Tầng {room.floor}</>
+                        )}
+                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" className="gap-2 shadow-sm font-medium">
+            </div>
+
+            {/* Actions bar */}
+            <div className="flex items-center justify-between border-b border-border pb-4">
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" className="gap-2" onClick={() => navigate(`/rooms/${id}/edit`)}
+                        disabled={isLocked}>
                         <Pencil className="size-4" /> Chỉnh sửa
                     </Button>
-                    <Button variant="destructive" className="gap-2 shadow-sm font-medium">
-                        <Trash2 className="size-4" /> Xóa phòng
-                    </Button>
+                    {isLocked && (
+                        <span className="text-xs text-amber-600 font-medium">
+                            Có hợp đồng/đặt cọc đang hoạt động — không thể chỉnh sửa
+                        </span>
+                    )}
                 </div>
+                <Button variant="destructive" className="gap-2" onClick={() => setConfirmDel(true)} disabled={isLocked}>
+                    <Trash2 className="size-4" /> Xóa phòng
+                </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Gallery & Description */}
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Gallery */}
-                    <div className="space-y-4">
-                        <div className="aspect-[16/9] rounded-2xl overflow-hidden border border-border shadow-md transition-shadow hover:shadow-lg">
-                            <img src={room.images[0]} alt="Room main" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="grid grid-cols-4 gap-4">
-                            {room.images.slice(1).map((img, i) => (
-                                <div key={i} className="aspect-square rounded-xl overflow-hidden border border-border/60 cursor-pointer hover:border-primary/50 transition-colors">
-                                    <img src={img} alt={`Room ${i}`} className="w-full h-full object-cover" />
+            {/* General Info Card */}
+            <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
+                <div className="flex flex-col md:flex-row">
+                    <div className="md:w-64 shrink-0 bg-muted self-stretch">
+                        <img
+                            src={thumbnail}
+                            alt={`Phòng ${room.room_number}`}
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: 200 }}
+                            onError={(e) => { e.target.src = defaultRoomImg; }}
+                        />
+                    </div>
+                    <div className="flex-1 p-5">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            {infoItems.map(({ label, value }) => (
+                                <div key={label}>
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                                    <p className="text-sm font-medium mt-0.5">{value}</p>
                                 </div>
                             ))}
-                            <div className="aspect-square rounded-xl bg-muted flex flex-col items-center justify-center text-muted-foreground border border-border/40 border-dashed">
-                                <Plus className="size-6 mb-1" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Thêm ảnh</span>
+                        </div>
+                        {room.room_type?.description && (
+                            <p className="text-sm text-muted-foreground mt-4 pt-4 border-t border-border leading-relaxed">
+                                {room.room_type.description}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </Card>
+
+            {/* Gallery — right after the main info card */}
+            {gallery.length > 0 && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Hình ảnh ({gallery.length})</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                        {gallery.map((src, idx) => (
+                            <div key={idx} className="aspect-square rounded-lg overflow-hidden bg-muted border border-border">
+                                <img
+                                    src={src}
+                                    alt=""
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                    onError={(e) => { e.target.src = defaultRoomImg; }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* 3D Model Viewer */}
+            {room.image_3d_url && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Mô hình 3D</h2>
+                    {is3DFile(room.image_3d_url) ? (
+                        <ModelViewer url={room.image_3d_url} />
+                    ) : (
+                        <div className="rounded-xl border border-border bg-muted p-4 flex items-center gap-3">
+                            <Box className="size-6 text-muted-foreground" />
+                            <div>
+                                <p className="text-sm font-medium">File 3D</p>
+                                <a href={room.image_3d_url} target="_blank" rel="noreferrer"
+                                    className="text-xs text-primary underline">
+                                    {room.image_3d_url.split('/').pop()}
+                                </a>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* Blueprint */}
+            {room.blueprint_url && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Bản vẽ</h2>
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                        <img src={room.blueprint_url} alt="Blueprint"
+                            className="w-full h-48 object-cover"
+                            onError={e => e.target.src = defaultRoomImg} />
+                    </div>
+                </section>
+            )}
+
+            {/* Current Resident */}
+            <section>
+                <h2 className="text-base font-bold mb-3">Người thuê hiện tại</h2>
+                {room.current_resident ? (
+                    <div className="flex items-center rounded-xl border border-border bg-card p-3">
+                        <div className="flex items-center gap-3">
+                            <img
+                                src={room.current_resident.avatar_url || defaultUserImg}
+                                alt=""
+                                className="size-10 rounded-lg object-cover ring-1 ring-border"
+                                onError={e => { e.target.src = defaultUserImg; }}
+                            />
+                            <div>
+                                <span className="font-semibold text-sm">
+                                    {room.current_resident.first_name} {room.current_resident.last_name}
+                                </span>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                    <span className="flex items-center gap-1"><Mail className="size-3" />{room.current_resident.email}</span>
+                                    {room.current_resident.phone && (
+                                        <span className="flex items-center gap-1"><Phone className="size-3" />{room.current_resident.phone}</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground py-3">Chưa có người thuê.</p>
+                )}
+            </section>
 
-                    {/* Content Tabs */}
-                    <Tabs defaultValue="details" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-xl">
-                            <TabsTrigger value="details" className="rounded-lg font-bold">Chi tiết</TabsTrigger>
-                            <TabsTrigger value="amenities" className="rounded-lg font-bold">Tiện nghi</TabsTrigger>
-                            <TabsTrigger value="history" className="rounded-lg font-bold">Lịch sử</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="details" className="mt-6 space-y-6 animate-in slide-in-from-bottom-2 duration-300">
-                            <Card className="border-none shadow-sm bg-muted/10">
-                                <CardContent className="pt-6">
-                                    <h3 className="text-lg font-bold mb-3">Mô tả</h3>
-                                    <p className="text-muted-foreground leading-relaxed">
-                                        {room.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Card className="p-4 flex items-center gap-4 bg-muted/5 border-none shadow-none">
-                                    <div className="size-12 rounded-xl bg-background flex items-center justify-center border border-border shadow-sm">
-                                        <Calendar className="size-5 text-primary" />
+            {/* Resident Contracts */}
+            {Array.isArray(room.resident_contracts) && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Hợp đồng ({room.resident_contracts.length})</h2>
+                    {room.resident_contracts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-3">Chưa có hợp đồng.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {room.resident_contracts.map(c => (
+                                <div key={c.id} className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
+                                    <FileText className="size-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold">{c.contract_number}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {fmtDate(c.start_date)} → {fmtDate(c.end_date)} · {c.term_type}
+                                        </p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Hợp đồng</p>
-                                        <p className="font-bold">{room.contractType}</p>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-xs font-medium">{CONTRACT_STATUS_LABEL[c.status] || c.status}</p>
+                                        <p className="text-xs text-muted-foreground">{fmtPrice(c.base_rent)} đ/th</p>
                                     </div>
-                                </Card>
-                                <Card className="p-4 flex items-center gap-4 bg-muted/5 border-none shadow-none">
-                                    <div className="size-12 rounded-xl bg-background flex items-center justify-center border border-border shadow-sm">
-                                        <Clock className="size-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Ngày trống</p>
-                                        <p className="font-bold">{room.availableFrom}</p>
-                                    </div>
-                                </Card>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="amenities" className="mt-6 animate-in slide-in-from-bottom-2 duration-300">
-                            <Card className="border-border/60 shadow-sm">
-                                <CardContent className="pt-6 grid grid-cols-2 sm:grid-cols-3 gap-6">
-                                    {room.amenities.map(id => (
-                                        <div key={id} className="flex items-center gap-3">
-                                            <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                                {AMENITIES_ICONS[id] || <CheckCircle2 className="size-4" />}
-                                            </div>
-                                            <span className="text-sm font-semibold capitalize">{id.replace("_", " ")}</span>
-                                        </div>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="history" className="mt-6 animate-in slide-in-from-bottom-2 duration-300">
-                            <div className="space-y-4">
-                                {room.history.map((h, i) => (
-                                    <div key={i} className="flex items-start gap-4 p-4 rounded-xl border border-border/40 bg-card/50">
-                                        <div className="size-8 rounded-full bg-primary/5 flex items-center justify-center text-primary shrink-0 mt-0.5">
-                                            <CheckCircle2 className="size-4" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold">{h.action}</p>
-                                            <div className="flex items-center justify-between mt-1">
-                                                <p className="text-xs text-muted-foreground">{h.user}</p>
-                                                <p className="text-xs text-muted-foreground font-medium">{h.date}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-
-                {/* Right Column: Pricing & Specs */}
-                <div className="space-y-6">
-                    {/* Price Card */}
-                    <Card className="border-primary/20 bg-primary/5 shadow-xl/10 overflow-hidden relative">
-                        <div className="absolute top-0 right-0 p-3 opacity-10">
-                            <KeyRound className="size-24 rotate-12" />
+                                </div>
+                            ))}
                         </div>
-                        <CardHeader className="pb-0">
-                            <p className="text-xs font-bold text-primary uppercase tracking-[0.15em]">Giá thuê hàng tháng</p>
-                        </CardHeader>
-                        <CardContent className="pt-2 pb-6">
-                            <div className="flex items-baseline gap-1.5">
-                                <h3 className="text-4xl font-extrabold text-primary">{fmtPrice(room.room_type?.base_price)}</h3>
-                                <span className="text-sm font-bold text-primary/70">đ/tháng</span>
-                            </div>
-                            <Button className="w-full mt-6 bg-primary font-bold shadow-lg shadow-primary/20 py-6 text-base">
-                                Thuê ngay
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    )}
+                </section>
+            )}
 
-                    {/* Stats Grid */}
-                    <Card className="shadow-sm border-border/40">
-                        <CardHeader className="pb-2 border-b border-border/20">
-                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Thông số phòng</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="size-9 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
-                                        <Maximize className="size-5" />
+            {/* Resident Bookings */}
+            {Array.isArray(room.resident_bookings) && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Đặt phòng ({room.resident_bookings.length})</h2>
+                    {room.resident_bookings.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-3">Chưa có đặt phòng.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {room.resident_bookings.map(b => (
+                                <div key={b.id} className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
+                                    <CalendarDays className="size-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold">{b.booking_number}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Nhận phòng: {fmtDate(b.check_in_date)} · Hết hạn: {fmtDate(b.expires_at)}
+                                        </p>
                                     </div>
-                                    <span className="text-sm font-medium text-muted-foreground">Diện tích</span>
+                                    <p className="text-xs font-medium shrink-0">{BOOKING_STATUS_LABEL[b.status] || b.status}</p>
                                 </div>
-                                <span className="font-bold">{room.area} m²</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="size-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                        <Users className="size-5" />
-                                    </div>
-                                    <span className="text-sm font-medium text-muted-foreground">Sức chứa</span>
-                                </div>
-                                <span className="font-bold">{room.capacity} người</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="size-9 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                                        <Bed className="size-5" />
-                                    </div>
-                                    <span className="text-sm font-medium text-muted-foreground">Loại giường</span>
-                                </div>
-                                <span className="font-bold">{room.bedType}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="size-9 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600">
-                                        <Bath className="size-5" />
-                                    </div>
-                                    <span className="text-sm font-medium text-muted-foreground">Phòng tắm</span>
-                                </div>
-                                <span className="font-bold">{room.bathroomType}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
-                    {/* Host/Manager Card (Optional extra touch) */}
-                    <Card className="shadow-sm border-border/40 bg-muted/5">
-                        <CardContent className="p-5 flex items-center gap-4">
-                            <div className="size-12 rounded-full overflow-hidden bg-muted border-2 border-primary/20">
-                                <img src="https://i.pravatar.cc/150?u=manager" alt="Manager" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Quản lý tòa nhà</p>
-                                <p className="text-sm font-extrabold">Nguyễn Hoàng Minh</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="ml-auto rounded-full bg-primary/10 text-primary">
-                                <Coffee className="size-4" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+            {/* Resident Requests */}
+            {Array.isArray(room.resident_requests) && (
+                <section>
+                    <h2 className="text-base font-bold mb-3">Yêu cầu ({room.resident_requests.length})</h2>
+                    {room.resident_requests.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-3">Chưa có yêu cầu.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {room.resident_requests.map(r => (
+                                <div key={r.id} className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
+                                    <ClipboardList className="size-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">{r.title || r.request_number}</p>
+                                        <p className="text-xs text-muted-foreground">{r.request_type} · {fmtDate(r.created_at)}</p>
+                                    </div>
+                                    <p className="text-xs font-medium shrink-0">{REQUEST_STATUS_LABEL[r.status] || r.status}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* Confirm Delete */}
+            <Dialog open={confirmDel} onOpenChange={setConfirmDel}>
+                <DialogContent className="max-w-sm text-center">
+                    <DialogHeader>
+                        <DialogTitle>Xóa phòng</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Bạn có chắc chắn muốn xóa phòng <strong className="text-foreground">&quot;{room.room_number}&quot;</strong>? Dữ liệu không thể khôi phục.
+                    </p>
+                    <DialogFooter className="justify-center gap-2 sm:justify-center">
+                        <Button variant="outline" onClick={() => setConfirmDel(false)} disabled={saving}>Hủy</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={saving} className="gap-2">
+                            {saving && <Loader2 className="size-4 animate-spin" />}
+                            Xóa phòng
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-    );
-}
-
-function KeyRound(props) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M2.14 20.16 3.5 18.8a2.5 2.5 0 0 0 0-3.53l-1.07-1.07" />
-            <path d="M5.5 16.5 8 14" />
-            <circle cx="15.5" cy="8.5" r="5.5" />
-            <path d="M12.5 11.5 10 14" />
-            <path d="M10 14a2 2 0 0 1 0 2.83l-1.5 1.5a2 2 0 0 1-2.83 0L4.5 17.5" />
-        </svg>
     );
 }
