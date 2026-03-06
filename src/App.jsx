@@ -9,15 +9,23 @@ import DashboardPage from "./pages/DashboardPage";
 import LocationsPage from "./pages/LocationsPage";
 import UniversitiesPage from "./pages/UniversitiesPage";
 import BuildingsPage from "./pages/BuildingsPage";
+import BuildingStaffPage from "./pages/BuildingStaffPage";
 import CreateBuildingPage from "./pages/CreateBuildingPage";
 import RoomsPage from "./pages/RoomsPage";
 import CreateRoomPage from "./pages/CreateRoomPage";
+import EditRoomPage from "./pages/EditRoomPage";
 import RoomTypesPage from "./pages/RoomTypesPage";
 import AssetsPage from "./pages/AssetsPage";
+import AssetTypesPage from "./pages/AssetTypesPage";
 import AccountsPage from "./pages/AccountsPage";
 
 import CreateAssetPage from "./pages/CreateAssetPage";
 import RoomDetailPage from "./pages/RoomDetailPage";
+import ContractTemplatesPage from "./pages/ContractTemplatesPage";
+import ContractTemplateEditorPage from "./pages/ContractTemplateEditorPage";
+import RequestsPage from "./pages/RequestsPage";
+import AuditLogsPage from "./pages/AuditLogsPage";
+import SystemLogsPage from "./pages/SystemLogsPage";
 import StaffHomePage from "./pages/StaffHomePage";
 import BuildingManagerHomePage from "./pages/BuildingManagerHomePage";
 
@@ -49,14 +57,23 @@ export default function App() {
               <Route path="universities" element={<UniversitiesPage />} />
               <Route path="buildings" element={<BuildingsPage />} />
               <Route path="buildings/create" element={<CreateBuildingPage />} />
+              <Route path="buildings/:id/staff" element={<BuildingStaffPage />} />
               <Route path="rooms">
                 <Route index element={<RoomsPage />} />
                 <Route path=":id" element={<RoomDetailPage />} />
                 <Route path="create" element={<CreateRoomPage />} />
+                <Route path=":id/edit" element={<EditRoomPage />} />
                 <Route path="types" element={<RoomTypesPage />} />
               </Route>
               <Route path="assets" element={<AssetsPage />} />
               <Route path="assets/create" element={<CreateAssetPage />} />
+              <Route path="assets/types" element={<AssetTypesPage />} />
+              <Route path="contracts/templates" element={<ContractTemplatesPage />} />
+              <Route path="contracts/templates/create" element={<ContractTemplateEditorPage />} />
+              <Route path="contracts/templates/:id/edit" element={<ContractTemplateEditorPage />} />
+              <Route path="requests" element={<RequestsPage />} />
+              <Route path="logs" element={<AuditLogsPage />} />
+              <Route path="logs/system" element={<SystemLogsPage />} />
             </Route>
           </Route>
         </Route>

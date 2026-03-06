@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from "react";
-import { MapPin } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MapPin, Link } from "lucide-react";
 import { Map, useMap, MapMarker, MarkerContent, MapControls } from "@/components/ui/map";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { cn, parseGoogleMapsUrl } from "@/lib/utils";
 
 const VIETNAM_CENTER = [106.66, 16.05];
 const DEFAULT_ZOOM = 5;
@@ -39,6 +40,9 @@ function MapClickListener({ onChange }) {
  * @param {string} className
  */
 export default function MapPicker({ latitude, longitude, onChange, className }) {
+  const [gmapUrl, setGmapUrl] = useState("");
+  const [parseError, setParseError] = useState(false);
+
   const hasCoords =
     latitude !== "" && latitude != null && longitude !== "" && longitude != null &&
     !isNaN(Number(latitude)) && !isNaN(Number(longitude));
@@ -56,8 +60,38 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
     [onChange],
   );
 
+  const handlePaste = (value) => {
+    setGmapUrl(value);
+    setParseError(false);
+    if (!value.trim()) return;
+
+    const result = parseGoogleMapsUrl(value);
+    if (result) {
+      onChange(result.lat, result.lng);
+      setGmapUrl("");
+    } else {
+      setParseError(true);
+    }
+  };
+
   return (
     <div className={cn("space-y-1.5", className)}>
+      <div className="relative">
+        <Link className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Input
+          value={gmapUrl}
+          onChange={(e) => handlePaste(e.target.value)}
+          onPaste={(e) => {
+            e.preventDefault();
+            handlePaste(e.clipboardData.getData("text"));
+          }}
+          placeholder="Dán link Google Maps để lấy tọa độ..."
+          className={cn("pl-9 text-xs h-9", parseError && "border-destructive")}
+        />
+      </div>
+      {parseError && (
+        <p className="text-[11px] text-destructive">Không thể đọc tọa độ từ link này.</p>
+      )}
       <div className="h-[240px] rounded-lg overflow-hidden border border-border">
         <Map center={center} zoom={zoom}>
           <MapClickListener onChange={onChange} />
@@ -70,14 +104,14 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
               onDragEnd={handleDragEnd}
             >
               <MarkerContent>
-                <MapPin className="size-7 text-primary fill-primary/20 -translate-y-1/2" />
+                <MapPin className="size-7 text-white fill-primary -translate-y-1/2 drop-shadow-md" />
               </MarkerContent>
             </MapMarker>
           )}
         </Map>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Bấm vào bản đồ để chọn vị trí
+        Bấm vào bản đồ hoặc dán link Google Maps để chọn vị trí
       </p>
     </div>
   );

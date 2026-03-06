@@ -46,6 +46,13 @@ export async function apiJson(path, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401 && options.withAuth !== false) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+      return;
+    }
+
     const message =
       data && typeof data.message === "string"
         ? data.message
@@ -58,3 +65,11 @@ export async function apiJson(path, options = {}) {
 
   return data;
 }
+
+export const api = {
+  get: (path) => apiJson(path),
+  post: (path, data) => apiJson(path, { method: "POST", body: data }),
+  put: (path, data) => apiJson(path, { method: "PUT", body: data }),
+  patch: (path, data) => apiJson(path, { method: "PATCH", body: data }),
+  delete: (path) => apiJson(path, { method: "DELETE" }),
+};
