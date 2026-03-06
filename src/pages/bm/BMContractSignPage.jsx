@@ -1,0 +1,379 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  CheckCircle,
+  Loader2,
+  RotateCcw,
+  AlertTriangle,
+  PenLine,
+} from "lucide-react";
+import { api, apiRequest } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+/* ── constants ──────────────────────────────────────────── */
+
+const CANVAS_SCALE = 2;
+const CANVAS_LINE_WIDTH = 2;
+const INK_COLOR = "#000000";
+
+const STATUS_LABEL = {
+  PENDING_MANAGER_SIGNATURE: "Chờ BM ký",
+  ACTIVE: "Đang hiệu lực",
+};
+
+/* ── styles applied to rendered contract HTML ───────────── */
+
+const CONTRACT_STYLES = `
+  .contract-render img[src*="cloudinary"] {
+    transform: scale(3);
+    transform-origin: left top;
+    margin-bottom: 80px;
+  }
+  .contract-render img[alt*="Signature"],
+  .contract-render img[alt*="signature"] {
+    transform: none !important;
+    margin-bottom: 0 !important;
+  }
+`;
+
+/* ── page ───────────────────────────────────────────────── */
+
+export default function BMContractSignPage() {
+  const { id: contractId } = useParams();
+  const navigate = useNavigate();
+
+  const [contract, setContract] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [signing, setSigning] = useState(false);
+  const [signSuccess, setSignSuccess] = useState(false);
+
+  const contractRef = useRef(null);
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const [hasSignature, setHasSignature] = useState(false);
+
+  /* ── fetch contract ─────────────────────────────────── */
+
+  useEffect(() => {
+    if (!contractId) {
+      setError("Thiếu mã hợp đồng.");
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await api.get(`/api/contracts/${contractId}`);
+        if (!mounted) return;
+        const c = res.data;
+
+        if (c.status === "ACTIVE") {
+          setSignSuccess(true);
+        } else if (c.status !== "PENDING_MANAGER_SIGNATURE") {
+          setError("Hợp đồng này không ở trạng thái chờ BM ký.");
+        }
+
+        setContract(c);
+      } catch (err) {
+        if (mounted) setError(err.message || "Không thể tải hợp đồng.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [contractId]);
+
+  /* ── canvas setup ───────────────────────────────────── */
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !contract || contract.status !== "PENDING_MANAGER_SIGNATURE" || signSuccess) return;
+
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * CANVAS_SCALE;
+    canvas.height = rect.height * CANVAS_SCALE;
+    ctx.scale(CANVAS_SCALE, CANVAS_SCALE);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = CANVAS_LINE_WIDTH;
+    ctx.strokeStyle = INK_COLOR;
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const touch = e.touches?.[0];
+      return {
+        x: (touch ? touch.clientX : e.clientX) - r.left,
+        y: (touch ? touch.clientY : e.clientY) - r.top,
+      };
+    };
+
+    const start = (e) => {
+      e.preventDefault();
+      isDrawingRef.current = true;
+      const { x, y } = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    };
+
+    const draw = (e) => {
+      if (!isDrawingRef.current) return;
+      e.preventDefault();
+      const { x, y } = getPos(e);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    };
+
+    const end = () => {
+      if (isDrawingRef.current) {
+        isDrawingRef.current = false;
+        setHasSignature(true);
+      }
+    };
+
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", end);
+    canvas.addEventListener("mouseleave", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", draw, { passive: false });
+    canvas.addEventListener("touchend", end);
+
+    return () => {
+      canvas.removeEventListener("mousedown", start);
+      canvas.removeEventListener("mousemove", draw);
+      canvas.removeEventListener("mouseup", end);
+      canvas.removeEventListener("mouseleave", end);
+      canvas.removeEventListener("touchstart", start);
+      canvas.removeEventListener("touchmove", draw);
+      canvas.removeEventListener("touchend", end);
+    };
+  }, [contract, signSuccess]);
+
+  /* ── clear canvas ───────────────────────────────────── */
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+  };
+
+  /* ── handle sign ────────────────────────────────────── */
+
+  const handleSign = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !hasSignature || !contract) return;
+
+    setSigning(true);
+    setError("");
+    try {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      const fd = new FormData();
+      fd.append("file", blob, "manager-signature.png");
+
+      const uploadRes = await apiRequest("/api/upload?type=signature", { method: "POST", body: fd });
+      if (!uploadRes.ok) throw new Error("Upload chữ ký thất bại.");
+      const uploadData = await uploadRes.json();
+      const signatureUrl = uploadData.urls[0];
+
+      const res = await api.patch(`/api/contracts/${contract.id}/manager-sign`, {
+        signature_url: signatureUrl,
+      });
+
+      setContract(res.data);
+      setSignSuccess(true);
+
+      setTimeout(() => {
+        contractRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } catch (err) {
+      setError(err.message || "Ký hợp đồng thất bại.");
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  /* ── helpers ────────────────────────────────────────── */
+
+  const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
+
+  /* ── loading state ──────────────────────────────────── */
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="size-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  /* ── error state (no contract) ──────────────────────── */
+
+  if (error && !contract) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+        <AlertTriangle className="size-12 text-red-500" />
+        <p className="text-lg font-semibold">{error}</p>
+        <Button variant="outline" onClick={() => navigate("/building-manager/contracts")}>
+          <ArrowLeft className="mr-1.5 size-4" />
+          Quay lại danh sách
+        </Button>
+      </div>
+    );
+  }
+
+  /* ── main render ────────────────────────────────────── */
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+      <style>{CONTRACT_STYLES}</style>
+
+      {/* Header */}
+      <div className="flex items-center gap-4 pt-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 rounded-full"
+          onClick={() => navigate("/building-manager/contracts")}
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">Ký hợp đồng</h1>
+          <p className="text-sm text-muted-foreground">Xem xét và ký xác nhận hợp đồng</p>
+        </div>
+      </div>
+
+      {/* Contract info bar */}
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border bg-card p-5 shadow-sm">
+        <div>
+          <p className="text-xs text-muted-foreground">Mã hợp đồng</p>
+          <p className="font-semibold">{contract.contract_number}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Khách hàng</p>
+          <p className="font-semibold">
+            {contract.customer?.last_name} {contract.customer?.first_name}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Phòng</p>
+          <p className="font-semibold">
+            {contract.room?.room_number} — {contract.room?.building?.name}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Thời hạn</p>
+          <p className="font-semibold">
+            {formatDate(contract.start_date)} → {formatDate(contract.end_date)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Trạng thái</p>
+          <Badge
+            variant="secondary"
+            className={
+              signSuccess
+                ? "bg-green-100 text-green-700"
+                : "bg-blue-100 text-blue-700"
+            }
+          >
+            {signSuccess
+              ? STATUS_LABEL.ACTIVE
+              : STATUS_LABEL[contract.status] || contract.status}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertTriangle className="size-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Contract HTML content */}
+      <div ref={contractRef} className="rounded-xl border bg-white p-8 shadow-sm md:p-12">
+        <div
+          className="contract-render prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: contract.rendered_content || "" }}
+        />
+      </div>
+
+      {/* Signing section */}
+      {signSuccess ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl bg-green-50 p-10 text-center">
+          <CheckCircle className="size-12 text-green-600" />
+          <p className="text-lg font-semibold text-green-800">
+            Hợp đồng đã được ký và kích hoạt thành công!
+          </p>
+          <p className="text-sm text-green-700">
+            Cư dân sẽ nhận email xác nhận hợp đồng được kích hoạt.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-3"
+            onClick={() => navigate("/building-manager/contracts")}
+          >
+            <ArrowLeft className="mr-1.5 size-4" />
+            Quay lại danh sách
+          </Button>
+        </div>
+      ) : contract.status === "PENDING_MANAGER_SIGNATURE" ? (
+        <div className="rounded-xl border bg-card p-8 shadow-sm">
+          <div className="flex items-center gap-2">
+            <PenLine className="size-5 text-primary" />
+            <h2 className="text-lg font-bold">Ký xác nhận hợp đồng</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Vui lòng ký tên vào ô bên dưới để kích hoạt hợp đồng cho cư dân.
+          </p>
+
+          {/* Customer signature preview */}
+          {contract.customer_signature_url && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+              <p className="text-sm text-muted-foreground">Chữ ký khách hàng:</p>
+              <img
+                src={contract.customer_signature_url}
+                alt="Customer signature"
+                className="h-14 object-contain"
+              />
+            </div>
+          )}
+
+          {/* Canvas */}
+          <div className="relative mt-5">
+            <canvas
+              ref={canvasRef}
+              className="h-48 w-full cursor-crosshair rounded-lg border-2 border-dashed border-gray-300 bg-white touch-none"
+            />
+            {!hasSignature && (
+              <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                Ký tên tại đây
+              </p>
+            )}
+          </div>
+
+          <div className="mt-5 flex items-center justify-between">
+            <Button variant="ghost" onClick={clearCanvas}>
+              <RotateCcw className="mr-1.5 size-4" />
+              Xóa & ký lại
+            </Button>
+            <Button disabled={!hasSignature || signing} onClick={handleSign} size="lg">
+              {signing && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+              {signing ? "Đang ký..." : "Xác nhận ký hợp đồng"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
