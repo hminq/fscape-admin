@@ -35,6 +35,7 @@ const navItems = [
     to: "/buildings",
     children: [
       { label: "Danh sách", to: "/buildings" },
+      { label: "Tiện ích", to: "/facilities" },
       { label: "Khu vực", to: "/locations" },
       { label: "Trường đại học", to: "/universities" },
     ],

@@ -18,6 +18,7 @@ import RoomTypesPage from "./pages/RoomTypesPage";
 import AssetsPage from "./pages/AssetsPage";
 import AssetTypesPage from "./pages/AssetTypesPage";
 import AccountsPage from "./pages/AccountsPage";
+import FacilitiesPage from "./pages/FacilitiesPage";
 
 import CreateAssetPage from "./pages/CreateAssetPage";
 import RoomDetailPage from "./pages/RoomDetailPage";
@@ -53,6 +54,7 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="accounts" element={<AccountsPage />} />
 
+              <Route path="facilities" element={<FacilitiesPage />} />
               <Route path="locations" element={<LocationsPage />} />
               <Route path="universities" element={<UniversitiesPage />} />
               <Route path="buildings" element={<BuildingsPage />} />

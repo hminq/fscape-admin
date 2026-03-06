@@ -71,11 +71,11 @@ function Donut({ globalRooms = [] }) {
             <span className="text-xs font-bold leading-none">{total}</span>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs font-bold text-muted-foreground w-full max-w-[280px]">
-          {entries.length === 0 && <span className="text-muted-foreground/60 col-span-2">Chưa có dữ liệu phòng.</span>}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 w-full max-w-[280px]">
+          {entries.length === 0 && <span className="text-muted-foreground/60 col-span-2 text-xs">Chưa có dữ liệu phòng.</span>}
           {entries.map(e => (
             <div key={e.name} className="flex items-center gap-2">
-              <span className={`size-2.5 shrink-0 rounded-full ${e.dot}`} />
+              <span className={`size-2 shrink-0 rounded-full ${e.dot}`} />
               <span className="text-xs text-muted-foreground whitespace-nowrap" title={e.name}>{e.name}</span>
               <span className="text-xs font-semibold">{e.count}</span>
             </div>
