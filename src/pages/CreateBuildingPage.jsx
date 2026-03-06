@@ -18,12 +18,11 @@ import MapPicker from "@/components/MapPicker";
 
 /* ── upload helper ─────────────────────────── */
 
-async function uploadFiles(purpose, files) {
+async function uploadFiles(category, files) {
   const fd = new FormData();
-  fd.append("purpose", purpose);
   for (const f of files) fd.append("files", f);
 
-  const res = await apiRequest("/api/upload", { method: "POST", body: fd });
+  const res = await apiRequest(`/api/upload?type=${category}`, { method: "POST", body: fd });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Upload thất bại");

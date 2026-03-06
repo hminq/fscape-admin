@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { api } from "@/lib/apiClient";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -102,19 +102,29 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
   const [confirmDel, setConfirmDel] = useState(false);
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({});
+  const [detail, setDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Reset mode when dialog opens
   useEffect(() => {
-    if (open) {
+    if (open && location) {
       setEditing(false);
       setConfirmDel(false);
+      setDetail(null);
+      setLoadingDetail(true);
+      api.get(`/api/locations/${location.id}`)
+        .then((res) => setDetail(res.data ?? res))
+        .catch(() => setDetail(null))
+        .finally(() => setLoadingDetail(false));
     }
-  }, [open]);
+  }, [open, location]);
+
+  const buildings = detail?.buildings || [];
+  const loc = detail || location;
 
   const startEdit = () => {
     setForm({
-      name: location.name || "",
-      is_active: String(location.is_active ?? true),
+      name: loc.name || "",
+      is_active: String(loc.is_active ?? true),
     });
     setErrors({});
     setEditing(true);
@@ -137,7 +147,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md">
         {editing ? (
           /* ─── Edit mode ─── */
           <>
@@ -169,10 +179,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
-                <Button
-                  type="submit" disabled={saving}
-                  className="bg-success text-success-foreground hover:bg-success/90"
-                >
+                <Button type="submit" disabled={saving}>
                   {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
                   Lưu thay đổi
                 </Button>
@@ -187,7 +194,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
             </DialogHeader>
             <p className="text-sm text-muted-foreground text-center py-2">
               Bạn có chắc muốn xóa khu vực{" "}
-              <strong className="text-foreground">&quot;{location.name}&quot;</strong>?{" "}
+              <strong className="text-foreground">&quot;{loc.name}&quot;</strong>?{" "}
               Hành động này không thể hoàn tác.
             </p>
             <DialogFooter className="justify-center gap-2 sm:justify-center">
@@ -203,29 +210,58 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5">
-                {location.name}
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${location.is_active
-                  ? "bg-success/15 text-success"
-                  : "bg-muted text-muted-foreground"
-                  }`}>
-                  {location.is_active ? "Hoạt động" : "Không hoạt động"}
+                {loc.name}
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+                  <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                  <span className={loc.is_active ? "text-success" : "text-muted-foreground"}>
+                    {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                  </span>
                 </span>
               </DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-2">
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ngày tạo</p>
-                <p className="text-sm font-medium mt-0.5">{fmt(location.created_at)}</p>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ngày tạo</p>
+                  <p className="text-sm font-medium mt-0.5">{fmt(loc.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cập nhật</p>
+                  <p className="text-sm font-medium mt-0.5">{fmt(loc.updated_at)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cập nhật</p>
-                <p className="text-sm font-medium mt-0.5">{fmt(location.updated_at)}</p>
+
+              {/* Buildings */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building2 className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold">Tòa nhà</span>
+                  <span className="text-xs text-muted-foreground">({buildings.length})</span>
+                </div>
+                {loadingDetail ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : buildings.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Chưa có tòa nhà nào.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {buildings.map((b) => (
+                      <div key={b.id} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{b.name}</span>
+                        <span className={`size-2 rounded-full ${b.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+
             <DialogFooter className="gap-2 sm:justify-between">
               <Button
-                variant="outline" size="sm"
-                className="text-destructive hover:bg-destructive/10 gap-1.5"
+                variant="destructive" size="sm"
+                className="gap-1.5"
                 onClick={() => setConfirmDel(true)}
               >
                 <Trash2 className="size-3.5" /> Xóa
@@ -296,10 +332,7 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button
-              type="submit" disabled={saving}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
+            <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
               Thêm khu vực
             </Button>
@@ -416,16 +449,17 @@ export default function LocationsPage() {
     }
   };
 
+  const [toggleError, setToggleError] = useState(null);
+
   const handleToggleConfirm = async () => {
     setSaving(true);
+    setToggleError(null);
     try {
-      await api.put(`/api/locations/${confirmToggle.id}`, {
-        is_active: !confirmToggle.is_active,
-      });
+      await api.patch(`/api/locations/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
       fetchLocations();
     } catch (err) {
-      alert(err.message || "Không thể cập nhật trạng thái. Vui lòng thử lại.");
+      setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {
       setSaving(false);
     }
@@ -538,18 +572,12 @@ export default function LocationsPage() {
                         <span className="font-medium">{loc.name}</span>
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${loc.is_active
-                            ? "bg-success/15 text-success"
-                            : "bg-muted text-muted-foreground"
-                            }`}
-                        >
-                          <span
-                            className={`size-2 rounded-full shrink-0 ${loc.is_active ? "bg-success" : "bg-muted-foreground/40"
-                              }`}
-                          />
-                          {loc.is_active ? "Hoạt động" : "Không hoạt động"}
-                        </span>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                          <span className={loc.is_active ? "text-success font-medium" : "text-muted-foreground"}>
+                            {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                          </span>
+                        </div>
                       </TableCell>
 
                       <TableCell className="text-sm text-muted-foreground">
@@ -563,7 +591,7 @@ export default function LocationsPage() {
                           <Button
                             size="icon" variant="ghost"
                             className={`size-8 ${loc.is_active ? "text-success hover:text-success/80" : "text-muted-foreground"}`}
-                            title={loc.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
+                            title={loc.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
                             onClick={() => setConfirmToggle(loc)}
                           >
                             {loc.is_active
@@ -585,19 +613,20 @@ export default function LocationsPage() {
               </TableBody>
             </Table>
 
-            {/* Pagination */}
+            {/* Pagination header */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Trang {page} / {totalPages} ({total} khu vực)
-                </p>
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Trước
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Sau
-                  </Button>
+              <div className="flex items-center justify-between mt-2 mb-2 px-4">
+                <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">{page}/{totalPages}</span>
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -624,29 +653,31 @@ export default function LocationsPage() {
       />
 
       {/* Confirm toggle */}
-      <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>
+      <Dialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) { setConfirmToggle(null); setToggleError(null); } }}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>
-              {confirmToggle?.isActive ? "Tắt khu vực" : "Bật khu vực"}
+              {confirmToggle?.is_active ? "Vô hiệu hóa khu vực" : "Kích hoạt khu vực"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {confirmToggle?.isActive
-              ? <>Bạn có chắc muốn <strong className="text-foreground">tắt hoạt động</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
-              : <>Bạn có chắc muốn <strong className="text-foreground">bật hoạt động</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+            {confirmToggle?.is_active
+              ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+              : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
             }
           </p>
+          {toggleError && (
+            <p className="text-sm text-destructive">{toggleError}</p>
+          )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
-            <Button variant="outline" onClick={() => setConfirmToggle(null)}>Hủy</Button>
+            <Button variant="outline" onClick={() => { setConfirmToggle(null); setToggleError(null); }}>Hủy</Button>
             <Button
-              variant={confirmToggle?.isActive ? "destructive" : "outline"}
-              className={!confirmToggle?.isActive ? "border-success bg-success text-success-foreground hover:bg-success/90 hover:border-success/90" : ""}
+              variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving}
               onClick={handleToggleConfirm}
             >
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.isActive ? "Tắt" : "Bật"}
+              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>

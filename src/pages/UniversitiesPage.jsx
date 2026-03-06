@@ -20,21 +20,16 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { apiJson } from "@/lib/apiClient";
+import { api, apiJson } from "@/lib/apiClient";
 import MapPicker from "@/components/MapPicker";
-import defaultBuildingImg from "@/assets/default_building_img.jpg";
+import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
+
 
 /* ── helpers ───────────────────────────────── */
 
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
-
 const STATUS = {
-  true: { label: "Hoạt động", badge: "border-success/30 bg-success/10 text-success" },
-  false: { label: "Vô hiệu hóa", badge: "border-border bg-muted text-muted-foreground" },
+  true: { label: "Hoạt động" },
+  false: { label: "Vô hiệu hóa" },
 };
 
 /* ── DonutChart ─────────────────────────────── */
@@ -99,7 +94,7 @@ function UniSummary({ total, active, inactive }) {
 
 /* ── Detail Dialog ──────────────────────────── */
 
-function UniDetailDialog({ open, onOpenChange, uniId, onRefresh, onEdit, onDelete }) {
+function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
   const [uni, setUni] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -123,11 +118,9 @@ function UniDetailDialog({ open, onOpenChange, uniId, onRefresh, onEdit, onDelet
 
   if (!open) return null;
 
-  const st = STATUS[uni?.is_active] || STATUS["true"];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -141,66 +134,89 @@ function UniDetailDialog({ open, onOpenChange, uniId, onRefresh, onEdit, onDelet
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5">
                 {uni.name}
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${st.badge}`}>
-                  {st.label}
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+                  <span className={`size-2 rounded-full ${uni.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                  <span className={uni.is_active ? "text-success" : "text-muted-foreground"}>
+                    {uni.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                  </span>
                 </span>
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  ["Khu vực", uni.location?.name],
-                  ["Ngày tạo", fmt(uni.created_at)],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-                    <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Khu vực</p>
+                  <p className="text-sm font-medium mt-0.5">{uni.location?.name || "—"}</p>
+                </div>
+                {uni.address && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Địa chỉ</p>
+                    <p className="text-sm font-medium mt-0.5 flex items-start gap-1.5">
+                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-primary" />
+                      {uni.address}
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
 
-              {uni.address && (
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <MapPin className="size-4 mt-0.5 shrink-0 text-primary" />
-                  <span>{uni.address}</span>
+              {/* Map */}
+              {uni.latitude && uni.longitude && (
+                <div className="h-[180px] rounded-lg overflow-hidden border border-border">
+                  <Map center={[Number(uni.longitude), Number(uni.latitude)]} zoom={14}>
+                    <MapMarker latitude={Number(uni.latitude)} longitude={Number(uni.longitude)}>
+                      <MarkerContent>
+                        <MapPin className="size-6 text-white fill-primary -translate-y-1/2 drop-shadow-md" />
+                      </MarkerContent>
+                    </MapMarker>
+                  </Map>
                 </div>
               )}
 
-              {uni.nearby_buildings?.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-bold mb-2.5">Tòa nhà FScape lân cận</h3>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {uni.nearby_buildings.map((b) => (
-                      <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border">
-                        <div className="size-10 rounded-lg overflow-hidden bg-muted shrink-0">
-                          <img src={b.thumbnail_url || defaultBuildingImg} alt={b.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.src = defaultBuildingImg; }} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{b.name}</p>
-                          {b.address && (
-                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                              <MapPin className="size-3 shrink-0" /> {b.address}
-                            </p>
-                          )}
-                        </div>
+              {/* Nearby buildings — compact, max 3 */}
+              {(() => {
+                const buildings = uni.nearby_buildings || [];
+                const shown = buildings.slice(0, 3);
+                const extra = buildings.length - 3;
+                return (
+                  <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold">Tòa nhà lân cận</span>
+                      <span className="text-xs text-muted-foreground">({buildings.length})</span>
+                    </div>
+                    {buildings.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Chưa có tòa nhà nào.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {shown.map((b) => (
+                          <div key={b.id} className="flex items-center justify-between text-sm">
+                            <span className="font-medium truncate">{b.name}</span>
+                            <span className={`size-2 rounded-full shrink-0 ${b.is_active !== false ? "bg-success" : "bg-muted-foreground/30"}`} />
+                          </div>
+                        ))}
+                        {extra > 0 && (
+                          <p className="text-xs text-muted-foreground pt-0.5">+{extra} tòa nhà khác</p>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
-            
-            <div className="flex justify-end gap-2 mt-2 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onEdit(uni)}>
-                <Pencil className="size-3.5" /> Chỉnh sửa
-              </Button>
-              <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => onDelete(uni)}>
+
+            <DialogFooter className="gap-2 sm:justify-between">
+              <Button
+                variant="destructive" size="sm"
+                className="gap-1.5"
+                onClick={() => onDelete(uni)}
+              >
                 <Trash2 className="size-3.5" /> Xóa
               </Button>
-            </div>
+              <Button size="sm" className="gap-1.5" onClick={() => onEdit(uni)}>
+                <Pencil className="size-3.5" /> Chỉnh sửa
+              </Button>
+            </DialogFooter>
           </>
         )}
       </DialogContent>
@@ -223,11 +239,10 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
         address: initialData.address || "",
         latitude: initialData.latitude ?? "",
         longitude: initialData.longitude ?? "",
-        is_active: String(initialData.is_active ?? true),
         location_id: initialData.location_id || "",
       });
     } else {
-      setForm({ name: "", address: "", latitude: "", longitude: "", is_active: "true", location_id: "" });
+      setForm({ name: "", address: "", latitude: "", longitude: "", location_id: "" });
     }
     setErrors({});
   }, [open, mode, initialData]);
@@ -255,7 +270,6 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
         address: form.address?.trim() || null,
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
-        is_active: form.is_active === "true",
         ...(mode === "create" ? { location_id: form.location_id } : {}),
       };
 
@@ -316,7 +330,7 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
             }}
           />
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Vĩ độ</Label>
               <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
@@ -325,22 +339,11 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
               <Label>Kinh độ</Label>
               <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Trạng thái</Label>
-              <Select value={form.is_active || "true"} onValueChange={(v) => set("is_active", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Hoạt động</SelectItem>
-                  <SelectItem value="false">Không hoạt động</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}
-              className="bg-success text-success-foreground hover:bg-success/90">
+            <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
               {mode === "create" ? "Thêm trường" : "Lưu thay đổi"}
             </Button>
@@ -368,19 +371,19 @@ function LocationSection({ name, universities, onView, onToggle }) {
             <MapPin className="size-3.5 text-primary" />
           </div>
           <h2 className="text-[15px] font-semibold">{name}</h2>
-          <span className="text-xs text-muted-foreground">({universities.length})</span>
+          <span className="text-sm font-medium text-muted-foreground">{universities.length} kết quả</span>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground mr-1">{page + 1}/{totalPages}</span>
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
-              <ChevronLeft className="size-3.5" />
-            </button>
-            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30">
-              <ChevronRight className="size-3.5" />
-            </button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -392,7 +395,6 @@ function LocationSection({ name, universities, onView, onToggle }) {
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Tên trường</TableHead>
               <TableHead>Trạng thái</TableHead>
-              <TableHead>Ngày tạo</TableHead>
               <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
             </TableRow>
           </TableHeader>
@@ -413,15 +415,17 @@ function LocationSection({ name, universities, onView, onToggle }) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${st.badge}`}>
-                      {st.label}
-                    </span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`size-2 rounded-full ${uni.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                      <span className={uni.is_active ? "text-success font-medium" : "text-muted-foreground"}>
+                        {st.label}
+                      </span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fmt(uni.created_at)}</TableCell>
                   <TableCell className="pr-4">
                     <div className="flex items-center justify-end gap-1">
                       <Button size="icon" variant="ghost" className="size-8"
-                        title={uni.is_active ? "Tắt hoạt động" : "Bật hoạt động"}
+                        title={uni.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
                         onClick={() => onToggle(uni)}>
                         {uni.is_active
                           ? <ToggleRight className="size-5 text-success" />
@@ -522,17 +526,17 @@ export default function UniversitiesPage() {
     }
   };
 
+  const [toggleError, setToggleError] = useState(null);
+
   const handleToggle = async () => {
     setSaving(true);
+    setToggleError(null);
     try {
-      await apiJson(`/api/universities/${confirmToggle.id}/status`, {
-        method: "PATCH",
-        body: { is_active: !confirmToggle.is_active },
-      });
+      await api.patch(`/api/universities/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
       fetchAll();
     } catch (err) {
-      alert(err.message || "Không thể cập nhật.");
+      setToggleError(err.message || "Không thể cập nhật.");
     } finally {
       setSaving(false);
     }
@@ -620,7 +624,6 @@ export default function UniversitiesPage() {
         open={!!detailId}
         onOpenChange={(v) => !v && setDetailId(null)}
         uniId={detailId}
-        onRefresh={fetchAll}
         onEdit={(u) => { setDetailId(null); setFormDialog({ mode: "edit", data: u }); }}
         onDelete={(u) => { setDetailId(null); setConfirmDel(u); }}
       />
@@ -638,24 +641,28 @@ export default function UniversitiesPage() {
       )}
 
       {/* Confirm toggle */}
-      <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>
+      <Dialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) { setConfirmToggle(null); setToggleError(null); } }}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
-            <DialogTitle>{confirmToggle?.is_active ? "Tắt trường" : "Bật trường"}</DialogTitle>
+            <DialogTitle>
+              {confirmToggle?.is_active ? "Vô hiệu hóa trường" : "Kích hoạt trường"}
+            </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.is_active
-              ? <>Bạn có chắc muốn <strong className="text-foreground">tắt hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
-              : <>Bạn có chắc muốn <strong className="text-foreground">bật hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>}
+              ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+              : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>}
           </p>
+          {toggleError && (
+            <p className="text-sm text-destructive">{toggleError}</p>
+          )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
-            <Button variant="outline" onClick={() => setConfirmToggle(null)}>Hủy</Button>
+            <Button variant="outline" onClick={() => { setConfirmToggle(null); setToggleError(null); }}>Hủy</Button>
             <Button
-              variant={confirmToggle?.is_active ? "destructive" : "outline"}
-              className={!confirmToggle?.is_active ? "border-success bg-success text-success-foreground hover:bg-success/90" : ""}
+              variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
               {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.is_active ? "Tắt" : "Bật"}
+              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>
