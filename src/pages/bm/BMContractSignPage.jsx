@@ -10,18 +10,12 @@ import {
 } from "lucide-react";
 import { api, apiRequest } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const CANVAS_SCALE = 2;
 const CANVAS_LINE_WIDTH = 2;
 const INK_COLOR = "#000000";
-
-const STATUS_LABEL = {
-  PENDING_MANAGER_SIGNATURE: "Chờ BM ký",
-  ACTIVE: "Đang hiệu lực",
-};
 
 /* ── styles applied to rendered contract HTML ───────────── */
 
@@ -37,6 +31,12 @@ const CONTRACT_STYLES = `
     margin-bottom: 0 !important;
   }
 `;
+
+/** Hide raw {{placeholder}} text that hasn't been replaced yet */
+function cleanRenderedContent(html) {
+  if (!html) return "";
+  return html.replace(/\{\{manager_signature\}\}/g, "");
+}
 
 /* ── page ───────────────────────────────────────────────── */
 
@@ -169,7 +169,7 @@ export default function BMContractSignPage() {
 
   const handleSign = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !hasSignature || !contract) return;
+    if (!canvas || !hasSignature || !contract || signing) return;
 
     setSigning(true);
     setError("");
@@ -189,13 +189,13 @@ export default function BMContractSignPage() {
 
       setContract(res.data);
       setSignSuccess(true);
+      setSigning(false);
 
       setTimeout(() => {
         contractRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
       setError(err.message || "Ký hợp đồng thất bại.");
-    } finally {
       setSigning(false);
     }
   };
@@ -229,6 +229,12 @@ export default function BMContractSignPage() {
     );
   }
 
+  const periodLabel = contract.start_date && contract.end_date
+    ? `${formatDate(contract.start_date)} → ${formatDate(contract.end_date)}`
+    : contract.start_date
+      ? `Từ ${formatDate(contract.start_date)} · Không thời hạn`
+      : "—";
+
   /* ── main render ────────────────────────────────────── */
 
   return (
@@ -251,44 +257,15 @@ export default function BMContractSignPage() {
         </div>
       </div>
 
-      {/* Contract info bar */}
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border bg-card p-5 shadow-sm">
+      {/* Contract info bar — only contract number + period */}
+      <div className="flex items-center justify-between rounded-xl border bg-card p-5 shadow-sm">
         <div>
           <p className="text-xs text-muted-foreground">Mã hợp đồng</p>
           <p className="font-semibold">{contract.contract_number}</p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Khách hàng</p>
-          <p className="font-semibold">
-            {contract.customer?.last_name} {contract.customer?.first_name}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Phòng</p>
-          <p className="font-semibold">
-            {contract.room?.room_number} — {contract.room?.building?.name}
-          </p>
-        </div>
-        <div>
+        <div className="text-right">
           <p className="text-xs text-muted-foreground">Thời hạn</p>
-          <p className="font-semibold">
-            {formatDate(contract.start_date)} → {formatDate(contract.end_date)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Trạng thái</p>
-          <Badge
-            variant="secondary"
-            className={
-              signSuccess
-                ? "bg-green-100 text-green-700"
-                : "bg-blue-100 text-blue-700"
-            }
-          >
-            {signSuccess
-              ? STATUS_LABEL.ACTIVE
-              : STATUS_LABEL[contract.status] || contract.status}
-          </Badge>
+          <p className="font-semibold">{periodLabel}</p>
         </div>
       </div>
 
@@ -304,13 +281,13 @@ export default function BMContractSignPage() {
       <div ref={contractRef} className="rounded-xl border bg-white p-8 shadow-sm md:p-12">
         <div
           className="contract-render prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: contract.rendered_content || "" }}
+          dangerouslySetInnerHTML={{ __html: cleanRenderedContent(contract.rendered_content) }}
         />
       </div>
 
       {/* Signing section */}
       {signSuccess ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl bg-green-50 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-xl bg-green-50 p-10 text-center">
           <CheckCircle className="size-12 text-green-600" />
           <p className="text-lg font-semibold text-green-800">
             Hợp đồng đã được ký và kích hoạt thành công!
@@ -318,14 +295,6 @@ export default function BMContractSignPage() {
           <p className="text-sm text-green-700">
             Cư dân sẽ nhận email xác nhận hợp đồng được kích hoạt.
           </p>
-          <Button
-            variant="outline"
-            className="mt-3"
-            onClick={() => navigate("/building-manager/contracts")}
-          >
-            <ArrowLeft className="mr-1.5 size-4" />
-            Quay lại danh sách
-          </Button>
         </div>
       ) : contract.status === "PENDING_MANAGER_SIGNATURE" ? (
         <div className="rounded-xl border bg-card p-8 shadow-sm">
@@ -336,18 +305,6 @@ export default function BMContractSignPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Vui lòng ký tên vào ô bên dưới để kích hoạt hợp đồng cho cư dân.
           </p>
-
-          {/* Customer signature preview */}
-          {contract.customer_signature_url && (
-            <div className="mt-4 flex items-center gap-3 rounded-lg bg-muted/50 p-4">
-              <p className="text-sm text-muted-foreground">Chữ ký khách hàng:</p>
-              <img
-                src={contract.customer_signature_url}
-                alt="Customer signature"
-                className="h-14 object-contain"
-              />
-            </div>
-          )}
 
           {/* Canvas */}
           <div className="relative mt-5">

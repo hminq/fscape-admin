@@ -40,6 +40,10 @@ const navItems = [
     label: "Hợp đồng",
     icon: FileText,
     to: `${BM_PREFIX}/contracts`,
+    children: [
+      { label: "Danh sách", to: `${BM_PREFIX}/contracts` },
+      { label: "Chờ ký", to: `${BM_PREFIX}/contracts/pending` },
+    ],
   },
   {
     label: "Tài sản",

@@ -36,6 +36,7 @@ import BMRequestsPage from "./pages/bm/BMRequestsPage";
 import BMContractsPage from "./pages/bm/BMContractsPage";
 import BMAssetsPage from "./pages/bm/BMAssetsPage";
 import BMAuditLogsPage from "./pages/bm/BMAuditLogsPage";
+import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
 import BMContractSignPage from "./pages/bm/BMContractSignPage";
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="residents" element={<BMResidentsPage />} />
               <Route path="requests" element={<BMRequestsPage />} />
               <Route path="contracts" element={<BMContractsPage />} />
+              <Route path="contracts/pending" element={<BMContractsPendingPage />} />
               <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
               <Route path="assets" element={<BMAssetsPage />} />
               <Route path="logs" element={<BMAuditLogsPage />} />
