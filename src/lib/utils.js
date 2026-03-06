@@ -15,6 +15,13 @@ export function cn(...inputs) {
  * @param {string} url
  * @returns {{ lat: number, lng: number } | null}
  */
+/**
+ * Format an ISO date string to Vietnamese locale (dd/mm/yyyy).
+ * Returns "—" for falsy values.
+ */
+export const formatDate = (d) =>
+  d ? new Date(d).toLocaleDateString("vi-VN") : "—";
+
 export function parseGoogleMapsUrl(url) {
   if (!url || typeof url !== "string") return null;
 

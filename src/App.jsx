@@ -28,7 +28,16 @@ import RequestsPage from "./pages/RequestsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import SystemLogsPage from "./pages/SystemLogsPage";
 import StaffHomePage from "./pages/StaffHomePage";
+import BMLayout from "./layouts/BMLayout";
 import BuildingManagerHomePage from "./pages/BuildingManagerHomePage";
+import BMRoomsPage from "./pages/bm/BMRoomsPage";
+import BMResidentsPage from "./pages/bm/BMResidentsPage";
+import BMRequestsPage from "./pages/bm/BMRequestsPage";
+import BMContractsPage from "./pages/bm/BMContractsPage";
+import BMAssetsPage from "./pages/bm/BMAssetsPage";
+import BMAuditLogsPage from "./pages/bm/BMAuditLogsPage";
+import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
+import BMContractSignPage from "./pages/bm/BMContractSignPage";
 
 export default function App() {
   return (
@@ -45,7 +54,17 @@ export default function App() {
 
           {/* BUILDING_MANAGER */}
           <Route element={<RoleRoute allowedRoles={["BUILDING_MANAGER"]} />}>
-            <Route path="/building-manager" element={<BuildingManagerHomePage />} />
+            <Route path="/building-manager" element={<BMLayout />}>
+              <Route index element={<BuildingManagerHomePage />} />
+              <Route path="rooms" element={<BMRoomsPage />} />
+              <Route path="residents" element={<BMResidentsPage />} />
+              <Route path="requests" element={<BMRequestsPage />} />
+              <Route path="contracts" element={<BMContractsPage />} />
+              <Route path="contracts/pending" element={<BMContractsPendingPage />} />
+              <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
+              <Route path="assets" element={<BMAssetsPage />} />
+              <Route path="logs" element={<BMAuditLogsPage />} />
+            </Route>
           </Route>
 
           {/* ADMIN */}
