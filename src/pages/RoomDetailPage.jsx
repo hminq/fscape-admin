@@ -171,12 +171,11 @@ export default function RoomDetailPage() {
             {/* General Info Card */}
             <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
                 <div className="flex flex-col md:flex-row">
-                    <div className="md:w-64 shrink-0 bg-muted self-stretch">
+                    <div className="md:w-64 shrink-0 bg-muted h-48 md:h-auto overflow-hidden">
                         <img
                             src={thumbnail}
                             alt={`Phòng ${room.room_number}`}
                             className="w-full h-full object-cover"
-                            style={{ minHeight: 200 }}
                             onError={(e) => { e.target.src = defaultRoomImg; }}
                         />
                     </div>

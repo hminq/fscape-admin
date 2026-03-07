@@ -256,8 +256,9 @@ function RequestDetailDialog({ open, onOpenChange, requestId }) {
                 <p className="text-xs text-muted-foreground">Hình ảnh ({detail.images.length})</p>
                 <div className="grid grid-cols-3 gap-2">
                   {detail.images.map((img) => (
-                    <img key={img.id} src={img.image_url} alt=""
-                      className="rounded-lg border border-border object-cover aspect-square" />
+                    <div key={img.id} className="aspect-square rounded-lg border border-border overflow-hidden bg-muted">
+                      <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                    </div>
                   ))}
                 </div>
               </div>
