@@ -7,6 +7,7 @@ import {
   RotateCcw,
   AlertTriangle,
   PenLine,
+  Download,
 } from "lucide-react";
 import { api, apiRequest } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
@@ -263,9 +264,22 @@ export default function BMContractSignPage() {
           <p className="text-xs text-muted-foreground">Mã hợp đồng</p>
           <p className="font-semibold">{contract.contract_number}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">Thời hạn</p>
-          <p className="font-semibold">{periodLabel}</p>
+        <div className="flex items-center gap-4">
+          {contract.pdf_url && (
+            <a
+              href={contract.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              <Download className="size-4" />
+              Tải PDF
+            </a>
+          )}
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Thời hạn</p>
+            <p className="font-semibold">{periodLabel}</p>
+          </div>
         </div>
       </div>
 
@@ -324,10 +338,19 @@ export default function BMContractSignPage() {
               <RotateCcw className="mr-1.5 size-4" />
               Xóa & ký lại
             </Button>
-            <Button disabled={!hasSignature || signing} onClick={handleSign} size="lg">
-              {signing && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+            <button
+              type="button"
+              disabled={!hasSignature || signing}
+              onClick={handleSign}
+              className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-colors ${
+                hasSignature && !signing
+                  ? "bg-primary hover:bg-primary/90"
+                  : "cursor-not-allowed bg-gray-300"
+              }`}
+            >
+              {signing && <Loader2 className="h-4 w-4 animate-spin" />}
               {signing ? "Đang ký..." : "Xác nhận ký hợp đồng"}
-            </Button>
+            </button>
           </div>
         </div>
       ) : null}
