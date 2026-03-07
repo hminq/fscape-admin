@@ -71,6 +71,7 @@ export default function LoginPage() {
         email: u.email ?? email,
         role: u.role,
         name: fullName || u.email || email,
+        building_id: u.building_id || null,
       });
 
       navigate(ROLE_HOME[u.role] ?? "/");
