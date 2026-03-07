@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiJson } from "@/lib/apiClient";
+import StatusDonut from "@/components/StatusDonut";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -43,39 +44,6 @@ const STATUS_STROKE = {
 
 const STATUS_ORDER = ["AVAILABLE", "IN_USE"];
 
-/* ── StatusDonutChart (multi-segment) ──────── */
-
-function StatusDonutChart({ counts, size = 72 }) {
-  const entries = STATUS_ORDER.map((s) => [s, counts[s] || 0]).filter(([, v]) => v > 0);
-  const total = entries.reduce((s, [, v]) => s + v, 0);
-  const r = 36;
-  const circ = 2 * Math.PI * r;
-
-  let accumulated = 0;
-  const segments = entries.map(([status, count]) => {
-    const len = total > 0 ? (count / total) * circ : 0;
-    const seg = { status, len, offset: circ - accumulated, cls: STATUS_STROKE[status] || "stroke-muted" };
-    accumulated += len;
-    return seg;
-  });
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-        {segments.map((seg) => (
-          <circle key={seg.status} cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-            strokeDasharray={`${seg.len} ${circ - seg.len}`}
-            strokeDashoffset={seg.offset}
-            className={`${seg.cls} transition-all duration-500`} />
-        ))}
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold leading-none">{total}</span>
-      </div>
-    </div>
-  );
-}
 
 /* ── Summary Card ──────────────────────────── */
 
@@ -96,7 +64,7 @@ function AssetSummary({ total, statusCounts }) {
         <div className="w-px h-14 bg-border shrink-0" />
 
         <div className="flex items-center gap-4">
-          <StatusDonutChart counts={statusCounts} size={64} />
+          <StatusDonut entries={STATUS_ORDER.map((s) => ({ key: s, stroke: STATUS_STROKE[s], count: statusCounts[s] || 0 }))} size={64} />
           <div className="space-y-2">
             {STATUS_ORDER.map((s) => {
               const meta = STATUS_MAP[s];
