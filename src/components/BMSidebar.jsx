@@ -35,6 +35,10 @@ const navItems = [
     label: "Yêu cầu",
     icon: MessageSquareMore,
     to: `${BM_PREFIX}/requests`,
+    children: [
+      { label: "Danh sách", to: `${BM_PREFIX}/requests` },
+      { label: "Phân công", to: `${BM_PREFIX}/requests/assign` },
+    ],
   },
   {
     label: "Hợp đồng",

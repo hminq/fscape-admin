@@ -18,6 +18,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
+import { REQUEST_TYPE_LABELS, REQUEST_TYPES } from "@/lib/constants";
+import StatusDonut from "@/components/StatusDonut";
 
 /* ── constants ──────────────────────────────── */
 
@@ -36,16 +38,8 @@ const STATUS_MAP = {
 
 const STATUS_ORDER = ["PENDING", "ASSIGNED", "PRICE_PROPOSED", "APPROVED", "IN_PROGRESS", "DONE", "COMPLETED", "REVIEWED", "REFUNDED", "CANCELLED"];
 
-const TYPE_MAP = {
-  REPAIR: "Sửa chữa",
-  CLEANING: "Vệ sinh",
-  COMPLAINT: "Khiếu nại",
-  ASSET_CHANGE: "Đổi tài sản",
-  CHECKOUT: "Trả phòng",
-  OTHER: "Khác",
-};
-
-const TYPES = ["REPAIR", "CLEANING", "COMPLAINT", "ASSET_CHANGE", "CHECKOUT", "OTHER"];
+const TYPE_MAP = REQUEST_TYPE_LABELS;
+const TYPES = REQUEST_TYPES;
 
 const fmt = (iso) => {
   if (!iso) return "—";
@@ -68,39 +62,6 @@ const fullName = (u) => {
   return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email || "—";
 };
 
-/* ── Donut (generic) ─────────────────────────── */
-
-function Donut({ entries, size = 76 }) {
-  const filled = entries.filter((e) => e.count > 0);
-  const total = filled.reduce((s, e) => s + e.count, 0);
-  const r = 36;
-  const circ = 2 * Math.PI * r;
-
-  let acc = 0;
-  const segs = filled.map((e) => {
-    const len = total > 0 ? (e.count / total) * circ : 0;
-    const seg = { ...e, len, offset: circ - acc };
-    acc += len;
-    return seg;
-  });
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-        {segs.map((s) => (
-          <circle key={s.key} cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-            strokeDasharray={`${s.len} ${circ - s.len}`}
-            strokeDashoffset={s.offset}
-            className={`${s.stroke} transition-all duration-500`} />
-        ))}
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold leading-none">{total}</span>
-      </div>
-    </div>
-  );
-}
 
 /* ── Donut configs ───────────────────────────── */
 
@@ -133,7 +94,7 @@ function RequestSummary({ typeCounts, statusCounts }) {
       <div className="flex items-center gap-8 flex-wrap">
         {/* Type donut */}
         <div className="flex items-center gap-5">
-          <Donut entries={typeEntries} size={76} />
+          <StatusDonut entries={typeEntries} size={76} />
           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
             {TYPE_DONUT.map((e) => (
               <div key={e.key} className="flex items-center gap-2">
@@ -149,7 +110,7 @@ function RequestSummary({ typeCounts, statusCounts }) {
 
         {/* Status donut */}
         <div className="flex items-center gap-5">
-          <Donut entries={statusEntries} size={76} />
+          <StatusDonut entries={statusEntries} size={76} />
           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
             {STATUS_DONUT.map((e) => (
               <div key={e.key} className="flex items-center gap-2">
@@ -295,8 +256,9 @@ function RequestDetailDialog({ open, onOpenChange, requestId }) {
                 <p className="text-xs text-muted-foreground">Hình ảnh ({detail.images.length})</p>
                 <div className="grid grid-cols-3 gap-2">
                   {detail.images.map((img) => (
-                    <img key={img.id} src={img.image_url} alt=""
-                      className="rounded-lg border border-border object-cover aspect-square" />
+                    <div key={img.id} className="aspect-square rounded-lg border border-border overflow-hidden bg-muted">
+                      <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                    </div>
                   ))}
                 </div>
               </div>

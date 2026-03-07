@@ -548,11 +548,11 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           {/* Main info card — thumbnail only */}
           <Card className="overflow-hidden py-0 gap-0">
             <div className="flex flex-col md:flex-row">
-              <div className="md:w-64 shrink-0 bg-muted">
+              <div className="md:w-64 shrink-0 bg-muted h-48 md:h-auto overflow-hidden">
                 <img
                   src={thumb(building)}
                   alt={building.name}
-                  className="w-full h-full min-h-44 object-cover"
+                  className="w-full h-full object-cover"
                   onError={(e) => { e.target.src = defaultBuildingImg; }}
                 />
               </div>

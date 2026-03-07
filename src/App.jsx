@@ -38,6 +38,8 @@ import BMAssetsPage from "./pages/bm/BMAssetsPage";
 import BMAuditLogsPage from "./pages/bm/BMAuditLogsPage";
 import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
 import BMContractSignPage from "./pages/bm/BMContractSignPage";
+import BMRequestAssignPage from "./pages/bm/BMRequestAssignPage";
+import BMRequestDetailPage from "./pages/bm/BMRequestDetailPage";
 
 export default function App() {
   return (
@@ -59,6 +61,8 @@ export default function App() {
               <Route path="rooms" element={<BMRoomsPage />} />
               <Route path="residents" element={<BMResidentsPage />} />
               <Route path="requests" element={<BMRequestsPage />} />
+              <Route path="requests/assign" element={<BMRequestAssignPage />} />
+              <Route path="requests/:id" element={<BMRequestDetailPage />} />
               <Route path="contracts" element={<BMContractsPage />} />
               <Route path="contracts/pending" element={<BMContractsPendingPage />} />
               <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
