@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MapPin, Link } from "lucide-react";
+import { MapPin, Link } from "@phosphor-icons/react";
 import { Map, useMap, MapMarker, MarkerContent, MapControls } from "@/components/ui/map";
 import { Input } from "@/components/ui/input";
 import { cn, parseGoogleMapsUrl } from "@/lib/utils";

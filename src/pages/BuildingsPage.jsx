@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Search, Pencil, Trash2, MapPin, Eye,
-  Building2, ArrowLeft, Layers, Loader2,
-  ImagePlus, X, ChevronLeft, ChevronRight,
-  GraduationCap, User as UserIcon, Phone, Mail,
-  ToggleLeft, ToggleRight, Save, Users
-} from "lucide-react";
+  Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, Eye,
+  Buildings, ArrowLeft, Layers, CircleNotch,
+  ImagePlus, X, CaretLeft, CaretRight,
+  GraduationCap, User as UserIcon, Phone, Envelope,
+  ToggleLeft, ToggleRight, FloppyDisk, Users
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,7 +348,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CircleNotch className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -405,7 +405,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         <div className="flex items-center gap-2">
           {!isEditing && (
             <Button variant="outline" className="gap-2" onClick={startEditing}>
-              <Pencil className="size-4" /> Chỉnh sửa
+              <PencilSimple className="size-4" /> Chỉnh sửa
             </Button>
           )}
         </div>
@@ -416,7 +416,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             className="gap-2"
             onClick={() => setConfirmDel(true)}
           >
-            <Trash2 className="size-4" /> Xóa tòa nhà
+            <Trash className="size-4" /> Xóa tòa nhà
           </Button>
         )}
       </div>
@@ -582,7 +582,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
 
             {staffLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                <Loader2 className="size-4 animate-spin" /> Đang tải...
+                <CircleNotch className="size-4 animate-spin" /> Đang tải...
               </div>
             ) : staffList.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Chưa có nhân sự nào được gán cho tòa nhà này.</p>
@@ -604,7 +604,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
                             }`}>
                             {u.role === 'BUILDING_MANAGER' ? 'Quản lý' : 'Nhân viên'}
                           </span>
-                          {u.email && <span className="flex items-center gap-1"><Mail className="size-3" />{u.email}</span>}
+                          {u.email && <span className="flex items-center gap-1"><Envelope className="size-3" />{u.email}</span>}
                           {u.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
                         </div>
                       </div>
@@ -665,7 +665,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
           <Button variant="outline" onClick={cancelEditing} disabled={saving} className="bg-background">Hủy</Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}
+            {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
             Lưu thay đổi
           </Button>
         </div>
@@ -685,7 +685,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           <DialogFooter className="justify-center gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Xóa
             </Button>
           </DialogFooter>
@@ -777,10 +777,10 @@ function LocationSection({ locId, name, buildings, onView, onToggle, onStaff }) 
             <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -945,7 +945,7 @@ export default function BuildingsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Tìm kiếm tòa nhà..."
             value={search}
@@ -988,7 +988,7 @@ export default function BuildingsPage() {
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-14 text-center">
@@ -1044,7 +1044,7 @@ export default function BuildingsPage() {
               disabled={saving}
               onClick={handleToggleConfirm}
             >
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>

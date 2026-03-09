@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Users, Loader2, Mail, Phone, Save,
-  ToggleLeft, ToggleRight, Shield, UserCog, UserCheck,
-  ChevronLeft, ChevronRight, Eye, Copy, Check, CircleCheck,
-  Building2,
-} from "lucide-react";
+  Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone, FloppyDisk,
+  ToggleLeft, ToggleRight, ShieldCheck, UserCog, UserCheck,
+  CaretLeft, CaretRight, Eye, Copy, Check, CheckCircle,
+  Buildings,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ const fmt = (iso) => {
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 
 const ROLE_MAP = {
-  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: Shield },
+  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: ShieldCheck },
   BUILDING_MANAGER: { label: "Quản lý tòa nhà", color: "text-chart-2 border-chart-2/20 bg-chart-2/5", dot: "bg-chart-2", icon: UserCog },
   STAFF: { label: "Nhân viên", color: "text-chart-3 border-chart-3/20 bg-chart-3/5", dot: "bg-chart-3", icon: UserCheck },
   RESIDENT: { label: "Cư dân", color: "text-chart-4 border-chart-4/20 bg-chart-4/5", dot: "bg-chart-4", icon: Users },
@@ -191,7 +191,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
         <DialogContent className="max-w-sm text-center">
           <div className="flex flex-col items-center gap-4 py-2">
             <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <CircleCheck className="size-7 text-primary" />
+              <CheckCircle className="size-7 text-primary" />
             </div>
             <div>
               <p className="text-lg font-semibold">Tạo tài khoản thành công</p>
@@ -273,7 +273,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
               Tạo tài khoản
             </Button>
           </DialogFooter>
@@ -331,7 +331,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
 
         <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2"><Mail className="size-3.5" /> Email</span>
+            <span className="text-muted-foreground flex items-center gap-2"><Envelope className="size-3.5" /> Email</span>
             <span className="font-medium">{account.email}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -339,7 +339,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
             <span className="font-medium">{account.phone || "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2"><Shield className="size-3.5" /> Trạng thái</span>
+            <span className="text-muted-foreground flex items-center gap-2"><ShieldCheck className="size-3.5" /> Trạng thái</span>
             <span className={`flex items-center gap-1.5 font-medium ${account.is_active ? "text-success" : "text-muted-foreground"}`}>
               <span className={`size-2 rounded-full ${account.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
               {account.is_active ? "Hoạt động" : "Vô hiệu hóa"}
@@ -347,7 +347,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
           </div>
           {account.building_id && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2"><Building2 className="size-3.5" /> Tòa nhà</span>
+              <span className="text-muted-foreground flex items-center gap-2"><Buildings className="size-3.5" /> Tòa nhà</span>
               <span className="font-medium truncate max-w-[180px]">{buildingName || "—"}</span>
             </div>
           )}
@@ -388,10 +388,10 @@ function RoleSection({ role, accounts, onToggle, onView }) {
             <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -421,7 +421,7 @@ function RoleSection({ role, accounts, onToggle, onView }) {
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium text-sm">{fullName(acc)}</span>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1"><Mail className="size-3" /> {acc.email}</span>
+                        <span className="flex items-center gap-1"><Envelope className="size-3" /> {acc.email}</span>
                         {acc.phone && <span className="flex items-center gap-1"><Phone className="size-3" /> {acc.phone}</span>}
                       </div>
                     </div>
@@ -567,7 +567,7 @@ export default function AccountsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm tài khoản..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -590,7 +590,7 @@ export default function AccountsPage() {
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-14 text-center">
@@ -647,7 +647,7 @@ export default function AccountsPage() {
             <Button
               variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>

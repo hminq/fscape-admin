@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Pencil, Trash2, MapPin, GraduationCap,
-  ToggleLeft, ToggleRight, Loader2, Eye, Building2,
-  ChevronLeft, ChevronRight,
-} from "lucide-react";
+  Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, GraduationCap,
+  ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings,
+  CaretLeft, CaretRight,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,7 +123,7 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
       <DialogContent className="max-w-md">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error || !uni ? (
           <div className="text-center py-10">
@@ -181,7 +181,7 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
                 return (
                   <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <Building2 className="size-3.5 text-muted-foreground" />
+                      <Buildings className="size-3.5 text-muted-foreground" />
                       <span className="text-xs font-semibold">Tòa nhà lân cận</span>
                       <span className="text-xs text-muted-foreground">({buildings.length})</span>
                     </div>
@@ -211,10 +211,10 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
                 className="gap-1.5"
                 onClick={() => onDelete(uni)}
               >
-                <Trash2 className="size-3.5" /> Xóa
+                <Trash className="size-3.5" /> Xóa
               </Button>
               <Button size="sm" className="gap-1.5" onClick={() => onEdit(uni)}>
-                <Pencil className="size-3.5" /> Chỉnh sửa
+                <PencilSimple className="size-3.5" /> Chỉnh sửa
               </Button>
             </DialogFooter>
           </>
@@ -344,7 +344,7 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {mode === "create" ? "Thêm trường" : "Lưu thay đổi"}
             </Button>
           </DialogFooter>
@@ -378,10 +378,10 @@ function LocationSection({ name, universities, onView, onToggle }) {
             <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -561,7 +561,7 @@ export default function UniversitiesPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm trường..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -595,7 +595,7 @@ export default function UniversitiesPage() {
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-14 text-center">
@@ -661,7 +661,7 @@ export default function UniversitiesPage() {
             <Button
               variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>
@@ -681,7 +681,7 @@ export default function UniversitiesPage() {
           <DialogFooter className="justify-center gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => setConfirmDel(null)}>Hủy</Button>
             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Xóa
             </Button>
           </DialogFooter>

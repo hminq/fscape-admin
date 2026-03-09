@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-    Plus, Search, Pencil, Trash2, Home, ToggleLeft, ToggleRight,
-    ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye,
-    Bed, Bath, Maximize, Users, Banknote, ChevronLeft, ChevronRight,
-} from "lucide-react";
+    Plus, MagnifyingGlass, PencilSimple, Trash, House, ToggleLeft, ToggleRight,
+    CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye,
+    Bed, Bathtub, ArrowsOutSimple, Users, Banknote, CaretLeft, CaretRight,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,10 +52,10 @@ const EMPTY_FORM = {
 };
 
 function SortIcon({ field, sortField, sortDir }) {
-    if (sortField !== field) return <ChevronsUpDown className="size-3.5 ml-1 opacity-40" />;
+    if (sortField !== field) return <CaretUpDown className="size-3.5 ml-1 opacity-40" />;
     return sortDir === "asc"
-        ? <ChevronUp className="size-3.5 ml-1 text-primary" />
-        : <ChevronDown className="size-3.5 ml-1 text-primary" />;
+        ? <CaretUp className="size-3.5 ml-1 text-primary" />
+        : <CaretDown className="size-3.5 ml-1 text-primary" />;
 }
 
 import StatusBar from "@/components/StatusBar";
@@ -66,7 +66,7 @@ function RoomTypeSummary({ total, active, inactive, filterActive }) {
             <div className="flex items-center gap-6 p-5">
                 <div className="flex items-center gap-4 min-w-[150px]">
                     <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-                        <Home className="size-5 text-primary" />
+                        <House className="size-5 text-primary" />
                     </div>
                     <div>
                         <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
@@ -261,7 +261,7 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                             <DialogFooter className="pt-2">
                                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                                 <Button type="submit" disabled={saving}>
-                                    {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                                    {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                                     Lưu thay đổi
                                 </Button>
                             </DialogFooter>
@@ -279,7 +279,7 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                         <DialogFooter className="justify-center gap-2">
                             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
                             <Button variant="destructive" disabled={saving} onClick={() => onDelete(rt.id)}>
-                                {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                                {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                                 Vô hiệu hóa
                             </Button>
                         </DialogFooter>
@@ -310,9 +310,9 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                                 {[
                                     { icon: Banknote, label: "Giá cơ bản", value: fmtPrice(rt.base_price) },
                                     { icon: Users, label: "Sức chứa", value: `${rt.capacity_min}–${rt.capacity_max} người` },
-                                    { icon: Maximize, label: "Diện tích", value: rt.area_sqm ? `${rt.area_sqm} m²` : "—" },
+                                    { icon: ArrowsOutSimple, label: "Diện tích", value: rt.area_sqm ? `${rt.area_sqm} m²` : "—" },
                                     { icon: Bed, label: "Phòng ngủ", value: rt.bedrooms ?? "—" },
-                                    { icon: Bath, label: "Phòng tắm", value: rt.bathrooms ?? "—" },
+                                    { icon: Bathtub, label: "Phòng tắm", value: rt.bathrooms ?? "—" },
                                     { icon: Banknote, label: "Đặt cọc", value: rt.deposit_months ? `${rt.deposit_months} tháng` : "—" },
                                 ].map(({ icon: Icon, label, value }) => (
                                     <div key={label} className="rounded-lg border border-border/50 bg-muted/30 p-3">
@@ -342,14 +342,14 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                                 className="gap-1.5"
                                 onClick={() => setConfirmDel(true)}
                             >
-                                <Trash2 className="size-3.5" /> Vô hiệu hóa
+                                <Trash className="size-3.5" /> Vô hiệu hóa
                             </Button>
                             <div className="flex items-center gap-2">
                                 <Button variant="outline" size="sm" onClick={onManageAssets}>
                                     Tài sản
                                 </Button>
                                 <Button size="sm" className="gap-1.5" onClick={startEdit}>
-                                    <Pencil className="size-3.5" /> Chỉnh sửa
+                                    <PencilSimple className="size-3.5" /> Chỉnh sửa
                                 </Button>
                             </div>
                         </DialogFooter>
@@ -434,7 +434,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
                     </p>
 
                     {loading ? (
-                        <div className="py-10 flex justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+                        <div className="py-10 flex justify-center"><CircleNotch className="size-6 animate-spin text-muted-foreground" /></div>
                     ) : (
                         <div className="space-y-3">
                             {items.map((item, i) => (
@@ -455,7 +455,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
                                         <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, "quantity", parseInt(e.target.value) || 1)} />
                                     </div>
                                     <Button size="icon" variant="ghost" className="text-destructive w-10 shrink-0" onClick={() => removeItem(i)}>
-                                        <Trash2 className="size-4" />
+                                        <Trash className="size-4" />
                                     </Button>
                                 </div>
                             ))}
@@ -478,7 +478,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
                 <DialogFooter className="pt-4">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
                     <Button disabled={loading || saving} onClick={handleSave}>
-                        {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                        {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                         Lưu định mức
                     </Button>
                 </DialogFooter>
@@ -516,7 +516,7 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
                         <Button type="submit" disabled={saving}>
-                            {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                            {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                             Thêm loại phòng
                         </Button>
                     </DialogFooter>
@@ -666,7 +666,7 @@ export default function RoomTypesPage() {
             {/* Search + filter */}
             <div className="flex items-center gap-3 flex-wrap mt-2">
                 <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input
                         placeholder="Tìm kiếm theo tên loại phòng..."
                         value={search}
@@ -700,10 +700,10 @@ export default function RoomTypesPage() {
                         <span className="text-sm font-medium">{page}/{totalPages}</span>
                         <div className="flex items-center gap-1">
                             <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                                <ChevronLeft className="size-4" />
+                                <CaretLeft className="size-4" />
                             </Button>
                             <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                                <ChevronRight className="size-4" />
+                                <CaretRight className="size-4" />
                             </Button>
                         </div>
                     </div>
@@ -714,7 +714,7 @@ export default function RoomTypesPage() {
             <Card className="overflow-hidden py-0 gap-0">
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
-                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                        <CircleNotch className="size-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : error ? (
                     <div className="py-14 text-center">
@@ -766,7 +766,7 @@ export default function RoomTypesPage() {
                                                     </span>
                                                     {t.area_sqm && (
                                                         <span className="inline-flex items-center gap-1" title="Diện tích">
-                                                            <Maximize className="size-3.5" />{t.area_sqm}m²
+                                                            <ArrowsOutSimple className="size-3.5" />{t.area_sqm}m²
                                                         </span>
                                                     )}
                                                 </div>
@@ -823,7 +823,7 @@ export default function RoomTypesPage() {
                     <DialogFooter className="justify-center gap-2">
                         <Button variant="outline" onClick={() => setConfirmToggle(null)}>Hủy</Button>
                         <Button variant={confirmToggle?.is_active ? "destructive" : "outline"} className={!confirmToggle?.is_active ? "bg-success text-white border-none" : ""} disabled={saving} onClick={handleToggleConfirm}>
-                            {saving && <Loader2 className="size-4 animate-spin mr-1" />}
+                            {saving && <CircleNotch className="size-4 animate-spin mr-1" />}
                             {confirmToggle?.is_active ? "Tắt" : "Bật"}
                         </Button>
                     </DialogFooter>

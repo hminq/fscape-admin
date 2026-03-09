@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Package, Trash2, Loader2, Pencil, QrCode,
-  Building2, ChevronLeft, ChevronRight, Download, Printer,
-  DoorOpen, Eye,
-} from "lucide-react";
+  Plus, MagnifyingGlass, Package, Trash, CircleNotch, PencilSimple, QrCode,
+  Buildings, CaretLeft, CaretRight, DownloadSimple, Printer,
+  Door, Eye,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,7 +107,7 @@ function QRDialog({ open, onOpenChange, asset }) {
         </div>
         <DialogFooter className="grid grid-cols-2 gap-2">
           <Button variant="outline" className="gap-2" onClick={() => window.open(qrUrl)}>
-            <Download className="size-4" /> Tải về
+            <DownloadSimple className="size-4" /> Tải về
           </Button>
           <Button className="gap-2" onClick={() => window.print()}>
             <Printer className="size-4" /> In mã
@@ -261,7 +261,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               <DialogFooter className="pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                 <Button type="submit" disabled={saving}>
-                  {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                  {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                   Lưu thay đổi
                 </Button>
               </DialogFooter>
@@ -280,7 +280,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
             <DialogFooter className="justify-center gap-2">
               <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
               <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-                {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                 Xóa
               </Button>
             </DialogFooter>
@@ -302,14 +302,14 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Building2 className="size-3.5 text-muted-foreground" />
+                    <Buildings className="size-3.5 text-muted-foreground" />
                     <p className="text-[11px] text-muted-foreground">Tòa nhà</p>
                   </div>
                   <p className="text-sm font-semibold">{asset.building?.name || "—"}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <DoorOpen className="size-3.5 text-muted-foreground" />
+                    <Door className="size-3.5 text-muted-foreground" />
                     <p className="text-[11px] text-muted-foreground">Phòng</p>
                   </div>
                   <p className="text-sm font-semibold">{asset.room ? `Phòng ${asset.room.room_number}` : "Kho"}</p>
@@ -340,10 +340,10 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
                 className="text-destructive hover:bg-destructive/10 gap-1.5"
                 onClick={() => setConfirmDel(true)}
               >
-                <Trash2 className="size-3.5" /> Xóa
+                <Trash className="size-3.5" /> Xóa
               </Button>
               <Button size="sm" className="gap-1.5" onClick={startEdit}>
-                <Pencil className="size-3.5" /> Chỉnh sửa
+                <PencilSimple className="size-3.5" /> Chỉnh sửa
               </Button>
             </DialogFooter>
           </>
@@ -485,7 +485,7 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Tạo {Number(form.quantity) > 1 ? `${form.quantity} tài sản` : "tài sản"}
             </Button>
           </DialogFooter>
@@ -509,7 +509,7 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-            <Building2 className="size-3.5 text-primary" />
+            <Buildings className="size-3.5 text-primary" />
           </div>
           <h2 className="text-[15px] font-semibold">{buildingName}</h2>
           <span className="text-sm font-medium text-muted-foreground">{assets.length} kết quả</span>
@@ -519,10 +519,10 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
             <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -559,7 +559,7 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {asset.room ? (
-                      <span className="flex items-center gap-1"><DoorOpen className="size-3" /> {asset.room.room_number}</span>
+                      <span className="flex items-center gap-1"><Door className="size-3" /> {asset.room.room_number}</span>
                     ) : "Kho"}
                   </TableCell>
                   <TableCell className="pr-4">
@@ -668,7 +668,7 @@ export default function AssetsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm tài sản..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -691,7 +691,7 @@ export default function AssetsPage() {
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-14 text-center">

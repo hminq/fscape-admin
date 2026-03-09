@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   UserPlus,
-  Search,
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
+  MagnifyingGlass,
+  CircleNotch,
+  CaretLeft,
+  CaretRight,
+  ClipboardText,
   CheckCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/utils";
@@ -141,7 +141,7 @@ export default function BMRequestAssignPage() {
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center gap-6">
             <div className="size-12 rounded-xl bg-chart-4/10 flex items-center justify-center">
-              <ClipboardList className="size-6 text-chart-4" />
+              <ClipboardText className="size-6 text-chart-4" />
             </div>
             <div>
               <p className="text-2xl font-bold">{pendingRequests.length}</p>
@@ -157,7 +157,7 @@ export default function BMRequestAssignPage() {
       )}
 
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           placeholder="Tìm theo mã, tiêu đề, cư dân, phòng..."
           value={search}
@@ -168,7 +168,7 @@ export default function BMRequestAssignPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
         <div className="py-14 text-center">
@@ -185,7 +185,7 @@ export default function BMRequestAssignPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <ClipboardList className="size-3.5 text-primary" />
+                <ClipboardText className="size-3.5 text-primary" />
               </div>
               <span className="text-sm font-medium text-muted-foreground">{filtered.length} kết quả</span>
             </div>
@@ -195,11 +195,11 @@ export default function BMRequestAssignPage() {
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="outline" className="size-8" disabled={page === 0}
                     onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                    <ChevronLeft className="size-4" />
+                    <CaretLeft className="size-4" />
                   </Button>
                   <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1}
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
-                    <ChevronRight className="size-4" />
+                    <CaretRight className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -318,7 +318,7 @@ export default function BMRequestAssignPage() {
               Hủy
             </Button>
             <Button onClick={handleAssign} disabled={assigning || staffList.length === 0}>
-              {assigning && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {assigning && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Xác nhận phân công
             </Button>
           </DialogFooter>

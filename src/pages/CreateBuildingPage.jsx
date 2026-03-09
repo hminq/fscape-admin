@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Upload, ImagePlus, X, Save, Loader2,
+  Upload, ImagePlus, X, FloppyDisk, CircleNotch,
   MapPin, Layers, Image as ImageIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -482,7 +482,7 @@ export default function CreateBuildingPage() {
             Hủy
           </Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2 min-w-[140px]">
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {saving ? <CircleNotch className="size-4 animate-spin" /> : <FloppyDisk className="size-4" />}
             Lưu tòa nhà
           </Button>
         </div>

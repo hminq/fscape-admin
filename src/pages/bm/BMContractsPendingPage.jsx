@@ -4,9 +4,9 @@ import {
   CheckCircle,
   Clock,
   Eye,
-  Loader2,
+  CircleNotch,
   PenLine,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ export default function BMContractsPendingPage() {
 
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
         <div className="py-14 text-center">

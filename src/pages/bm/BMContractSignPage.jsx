@@ -3,12 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle,
-  Loader2,
-  RotateCcw,
-  AlertTriangle,
+  CircleNotch,
+  ArrowCounterClockwise,
+  Warning,
   PenLine,
-  Download,
-} from "lucide-react";
+  DownloadSimple,
+} from "@phosphor-icons/react";
 import { api, apiRequest } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -210,7 +210,7 @@ export default function BMContractSignPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="size-10 animate-spin text-primary" />
+        <CircleNotch className="size-10 animate-spin text-primary" />
       </div>
     );
   }
@@ -220,7 +220,7 @@ export default function BMContractSignPage() {
   if (error && !contract) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
-        <AlertTriangle className="size-12 text-red-500" />
+        <Warning className="size-12 text-red-500" />
         <p className="text-lg font-semibold">{error}</p>
         <Button variant="outline" onClick={() => navigate("/building-manager/contracts")}>
           <ArrowLeft className="mr-1.5 size-4" />
@@ -272,7 +272,7 @@ export default function BMContractSignPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
             >
-              <Download className="size-4" />
+              <DownloadSimple className="size-4" />
               Tải PDF
             </a>
           )}
@@ -286,7 +286,7 @@ export default function BMContractSignPage() {
       {/* Error banner */}
       {error && (
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <AlertTriangle className="size-4 shrink-0" />
+          <Warning className="size-4 shrink-0" />
           {error}
         </div>
       )}
@@ -335,7 +335,7 @@ export default function BMContractSignPage() {
 
           <div className="mt-5 flex items-center justify-between">
             <Button variant="ghost" onClick={clearCanvas}>
-              <RotateCcw className="mr-1.5 size-4" />
+              <ArrowCounterClockwise className="mr-1.5 size-4" />
               Xóa & ký lại
             </Button>
             <button
@@ -348,7 +348,7 @@ export default function BMContractSignPage() {
                   : "cursor-not-allowed bg-gray-300"
               }`}
             >
-              {signing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {signing && <CircleNotch className="h-4 w-4 animate-spin" />}
               {signing ? "Đang ký..." : "Xác nhận ký hợp đồng"}
             </button>
           </div>

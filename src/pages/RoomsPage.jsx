@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Search, Eye, MapPin, Layers, Home,
-  ChevronLeft, ChevronRight, Loader2, ToggleLeft, ToggleRight
-} from "lucide-react";
+  Plus, MagnifyingGlass, Eye, MapPin, Layers, House,
+  CaretLeft, CaretRight, CircleNotch, ToggleLeft, ToggleRight
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -166,7 +165,7 @@ function RoomCard({ room, onView, onToggle }) {
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-0.5"><Layers className="size-3" /> Tầng {room.floor}</span>
-          <span className="flex items-center gap-0.5 truncate" title={room.room_type?.name}><Home className="size-3 shrink-0" /> {room.room_type?.name}</span>
+          <span className="flex items-center gap-0.5 truncate" title={room.room_type?.name}><House className="size-3 shrink-0" /> {room.room_type?.name}</span>
         </div>
 
         <div className="flex items-center gap-1.5 mt-auto pt-1">
@@ -311,7 +310,7 @@ export default function RoomsPage() {
       {/* Filters — identical to BuildingsPage */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Tìm kiếm phòng..."
             value={search}
@@ -354,7 +353,7 @@ export default function RoomsPage() {
       {/* Content */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <Loader2 className="size-10 animate-spin text-muted-foreground/50" />
+          <CircleNotch className="size-10 animate-spin text-muted-foreground/50" />
           <p className="text-sm font-bold text-muted-foreground/60">Đang tải danh sách phòng...</p>
         </div>
       ) : error ? (
@@ -364,7 +363,7 @@ export default function RoomsPage() {
         </div>
       ) : rooms.length === 0 ? (
         <div className="text-center py-24 bg-muted/30 rounded-2xl border border-dashed border-border">
-          <Home className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+          <House className="size-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-muted-foreground font-bold">Không tìm thấy phòng nào.</p>
         </div>
       ) : (
@@ -399,10 +398,10 @@ export default function RoomsPage() {
                 <span className="text-[13px] font-bold">Trang {page} / {totalPages}</span>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" className="h-9 w-9 p-0 rounded-xl" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                    <ChevronLeft className="size-4" />
+                    <CaretLeft className="size-4" />
                   </Button>
                   <Button variant="outline" className="h-9 w-9 p-0 rounded-xl" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                    <ChevronRight className="size-4" />
+                    <CaretRight className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -433,7 +432,7 @@ export default function RoomsPage() {
               disabled={saving}
               onClick={handleToggleConfirm}
             >
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.status === 'LOCKED' ? "Mở khóa" : "Khóa phòng"}
             </Button>
           </DialogFooter>

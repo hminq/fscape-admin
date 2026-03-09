@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Mail, Phone, Shield, Lock, Save, Loader2, Plus, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, User, Envelope, Phone, ShieldCheck, Lock, FloppyDisk, CircleNotch, Plus, Eye, EyeSlash } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -171,7 +171,7 @@ export default function CreateAccountPage() {
                                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground"
                                     onClick={() => setShowPassword(!showPassword)}
                                 >
-                                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    {showPassword ? <EyeSlash className="size-4" /> : <Eye className="size-4" />}
                                 </Button>
                             </div>
                         </div>
@@ -192,7 +192,7 @@ export default function CreateAccountPage() {
                                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 >
-                                    {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    {showConfirmPassword ? <EyeSlash className="size-4" /> : <Eye className="size-4" />}
                                 </Button>
                             </div>
                         </div>
@@ -216,7 +216,7 @@ export default function CreateAccountPage() {
                         disabled={saving}
                         className="px-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
                     >
-                        {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Plus className="size-4 mr-2" />}
+                        {saving ? <CircleNotch className="size-4 animate-spin mr-2" /> : <Plus className="size-4 mr-2" />}
                         Xác nhận tạo tài khoản
                     </Button>
                 </div>

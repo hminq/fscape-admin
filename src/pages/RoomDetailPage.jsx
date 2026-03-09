@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Pencil, Trash2, MapPin, Layers, Home,
-    Mail, Phone, Loader2, DollarSign, Users, Maximize2,
-    FileText, CalendarDays, ClipboardList, User as UserIcon,
-    Box
-} from "lucide-react";
+    ArrowLeft, PencilSimple, Trash, MapPin, Layers, House,
+    Envelope, Phone, CircleNotch, DollarSign, Users, ArrowsOutSimple,
+    FileText, CalendarDots, ClipboardText, User as UserIcon,
+    Cube
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -83,7 +83,7 @@ export default function RoomDetailPage() {
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
-            <Loader2 className="animate-spin text-muted-foreground size-8" />
+            <CircleNotch className="animate-spin text-muted-foreground size-8" />
         </div>
     );
 
@@ -155,7 +155,7 @@ export default function RoomDetailPage() {
                 <div className="flex items-center gap-2">
                     <Button variant="outline" className="gap-2" onClick={() => navigate(`/rooms/${id}/edit`)}
                         disabled={isLocked}>
-                        <Pencil className="size-4" /> Chỉnh sửa
+                        <PencilSimple className="size-4" /> Chỉnh sửa
                     </Button>
                     {isLocked && (
                         <span className="text-xs text-amber-600 font-medium">
@@ -164,7 +164,7 @@ export default function RoomDetailPage() {
                     )}
                 </div>
                 <Button variant="destructive" className="gap-2" onClick={() => setConfirmDel(true)} disabled={isLocked}>
-                    <Trash2 className="size-4" /> Xóa phòng
+                    <Trash className="size-4" /> Xóa phòng
                 </Button>
             </div>
 
@@ -224,7 +224,7 @@ export default function RoomDetailPage() {
                         <ModelViewer url={room.image_3d_url} />
                     ) : (
                         <div className="rounded-xl border border-border bg-muted p-4 flex items-center gap-3">
-                            <Box className="size-6 text-muted-foreground" />
+                            <Cube className="size-6 text-muted-foreground" />
                             <div>
                                 <p className="text-sm font-medium">File 3D</p>
                                 <a href={room.image_3d_url} target="_blank" rel="noreferrer"
@@ -266,7 +266,7 @@ export default function RoomDetailPage() {
                                     {room.current_resident.first_name} {room.current_resident.last_name}
                                 </span>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                    <span className="flex items-center gap-1"><Mail className="size-3" />{room.current_resident.email}</span>
+                                    <span className="flex items-center gap-1"><Envelope className="size-3" />{room.current_resident.email}</span>
                                     {room.current_resident.phone && (
                                         <span className="flex items-center gap-1"><Phone className="size-3" />{room.current_resident.phone}</span>
                                     )}
@@ -317,7 +317,7 @@ export default function RoomDetailPage() {
                         <div className="space-y-2">
                             {room.resident_bookings.map(b => (
                                 <div key={b.id} className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
-                                    <CalendarDays className="size-4 text-muted-foreground shrink-0" />
+                                    <CalendarDots className="size-4 text-muted-foreground shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold">{b.booking_number}</p>
                                         <p className="text-xs text-muted-foreground">
@@ -342,7 +342,7 @@ export default function RoomDetailPage() {
                         <div className="space-y-2">
                             {room.resident_requests.map(r => (
                                 <div key={r.id} className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
-                                    <ClipboardList className="size-4 text-muted-foreground shrink-0" />
+                                    <ClipboardText className="size-4 text-muted-foreground shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate">{r.title || r.request_number}</p>
                                         <p className="text-xs text-muted-foreground">{r.request_type} · {fmtDate(r.created_at)}</p>
@@ -367,7 +367,7 @@ export default function RoomDetailPage() {
                     <DialogFooter className="justify-center gap-2 sm:justify-center">
                         <Button variant="outline" onClick={() => setConfirmDel(false)} disabled={saving}>Hủy</Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={saving} className="gap-2">
-                            {saving && <Loader2 className="size-4 animate-spin" />}
+                            {saving && <CircleNotch className="size-4 animate-spin" />}
                             Xóa phòng
                         </Button>
                     </DialogFooter>

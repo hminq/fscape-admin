@@ -14,7 +14,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
+import { X, Minus, Plus, Crosshair as Locate, ArrowsOutSimple as Maximize, CircleNotch as Loader2 } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Upload, Save, X, Plus, Loader2,
+    ArrowLeft, Upload, FloppyDisk, X, Plus, CircleNotch,
     Image as ImageIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -338,7 +338,7 @@ export default function CreateRoomPage() {
             <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
                 <Button variant="outline" onClick={() => navigate("/rooms")} disabled={saving} className="bg-background">Hủy</Button>
                 <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+                    {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
                     Tạo phòng
                 </Button>
             </div>

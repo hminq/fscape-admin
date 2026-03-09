@@ -1,12 +1,12 @@
 import {
-  Home,
+  House,
   Lock,
   Users,
-  CalendarDays,
+  CalendarDots,
   Activity,
   DollarSign,
   UserPlus,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,7 +36,7 @@ const bookings = [
 ];
 
 const stats = [
-  { label: "Tổng số phòng", value: "170", change: "+8.2%", icon: Home, color: "bg-primary/10 text-primary" },
+  { label: "Tổng số phòng", value: "170", change: "+8.2%", icon: House, color: "bg-primary/10 text-primary" },
   { label: "Phòng đã thuê", value: "142", change: "+12.5%", icon: Lock, color: "bg-blue-100 text-blue-600" },
   { label: "Doanh thu tháng", value: "192M đ", change: "+15.3%", icon: DollarSign, color: "bg-red-100 text-red-600" },
   { label: "Tổng sinh viên", value: "168", change: "+6.7%", icon: Users, color: "bg-amber-100 text-amber-600" },

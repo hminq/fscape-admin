@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    ArrowLeft, Upload, Save, X, Loader2, Image as ImageIcon,
-} from "lucide-react";
+    ArrowLeft, Upload, FloppyDisk, X, CircleNotch, Image as ImageIcon,
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -297,7 +297,7 @@ export default function EditRoomPage() {
     };
 
     if (loading) return (
-        <div className="py-20 flex justify-center"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>
+        <div className="py-20 flex justify-center"><CircleNotch className="size-8 animate-spin text-muted-foreground" /></div>
     );
 
     const isLocked = lockReasons.length > 0;
@@ -415,7 +415,7 @@ export default function EditRoomPage() {
             <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
                 <Button variant="outline" onClick={() => navigate(`/rooms/${id}`)} disabled={saving} className="bg-background">Hủy</Button>
                 <Button onClick={handleSave} disabled={saving || isLocked}>
-                    {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}
+                    {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
                     Lưu thay đổi
                 </Button>
             </div>

@@ -1,14 +1,14 @@
 import {
-  Home,
+  House,
   Lock,
   Users,
   Activity,
   DollarSign,
   Wrench,
   AlertCircle,
-  CheckCircle2,
+  CheckCircle,
   Clock,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 
 const stats = [
-  { label: "Tổng số phòng", value: "48", change: "+2", icon: Home, color: "bg-primary/10 text-primary" },
+  { label: "Tổng số phòng", value: "48", change: "+2", icon: House, color: "bg-primary/10 text-primary" },
   { label: "Phòng đã thuê", value: "41", change: "+3", icon: Lock, color: "bg-blue-100 text-blue-600" },
   { label: "Doanh thu tháng", value: "52M đ", change: "+8.1%", icon: DollarSign, color: "bg-red-100 text-red-600" },
   { label: "Cư dân hiện tại", value: "56", change: "+4", icon: Users, color: "bg-amber-100 text-amber-600" },
@@ -51,7 +51,7 @@ const roomOccupancy = [
 const STATUS_MAP = {
   pending: { label: "Chờ xử lý", icon: Clock, class: "text-amber-600 bg-amber-50 border-amber-200" },
   in_progress: { label: "Đang xử lý", icon: Wrench, class: "text-blue-600 bg-blue-50 border-blue-200" },
-  completed: { label: "Hoàn thành", icon: CheckCircle2, class: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  completed: { label: "Hoàn thành", icon: CheckCircle, class: "text-emerald-600 bg-emerald-50 border-emerald-200" },
 };
 
 function OccupancyBar({ floor, total, occupied }) {
