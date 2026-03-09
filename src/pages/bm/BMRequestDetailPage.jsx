@@ -7,7 +7,7 @@ import {
   MapPin,
   Wrench,
   Clock,
-  MessageSquare,
+  Chat as MessageSquare,
   Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";

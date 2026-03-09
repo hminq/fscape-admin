@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Plus, CircleNotch, Package, Buildings, Layers, Banknote,
+    ArrowLeft, Plus, CircleNotch, Package, Buildings, Stack as Layers, Money as Banknote,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

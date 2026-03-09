@@ -73,7 +73,6 @@ const navItems = [
     to: "/invoices",
     children: [
       { label: "Danh sách", to: "/invoices" },
-      { label: "Tạo hóa đơn", to: "/invoices/create" },
     ],
   },
   {
@@ -82,7 +81,6 @@ const navItems = [
     to: "/requests",
     children: [
       { label: "Danh sách yêu cầu", to: "/requests" },
-      { label: "Tạo mới", to: "/requests/create" },
     ],
   },
   {

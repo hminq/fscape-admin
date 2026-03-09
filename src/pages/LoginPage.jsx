@@ -9,7 +9,6 @@ import fscapeLogo from "@/assets/fscape-logo.svg";
 
 const ROLE_HOME = {
   ADMIN: "/",
-  STAFF: "/staff",
   BUILDING_MANAGER: "/building-manager",
 };
 
@@ -249,7 +248,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@fscape.com"
+                placeholder="admin@fscape.vn"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

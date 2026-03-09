@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft, FloppyDisk, CircleNotch, Eye, Code, FileText,
-    Variable, Star,
+    BracketsCurly as Variable, Star,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

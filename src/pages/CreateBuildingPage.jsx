@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Upload, ImagePlus, X, FloppyDisk, CircleNotch,
-  MapPin, Layers, Image as ImageIcon,
+  Upload, X, FloppyDisk, CircleNotch,
+  MapPin, Stack as Layers, Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -226,16 +226,12 @@ export default function CreateBuildingPage() {
 
   useEffect(() => {
     (async () => {
-      try {
-        const [locRes, mngRes] = await Promise.all([
-          apiJson("/api/locations?limit=100&is_active=true"),
-          apiJson("/api/admin/users/available-managers")
-        ]);
-        setLocations(locRes.data || []);
-        setManagers(mngRes.data || []);
-      } catch {
-        /* silent */
-      }
+      const [locResult, mngResult] = await Promise.allSettled([
+        apiJson("/api/locations?limit=100&is_active=true"),
+        apiJson("/api/users/available-managers"),
+      ]);
+      if (locResult.status === "fulfilled") setLocations(locResult.value.data || []);
+      if (mngResult.status === "fulfilled") setManagers(mngResult.value.data || []);
     })();
   }, []);
 
@@ -351,7 +347,7 @@ export default function CreateBuildingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -365,7 +361,7 @@ export default function CreateBuildingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {managers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
+                    <SelectItem key={m.id} value={String(m.id)}>
                       {m.first_name} {m.last_name} ({m.email})
                     </SelectItem>
                   ))}

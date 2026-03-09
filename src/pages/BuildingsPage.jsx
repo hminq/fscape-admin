@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, Eye,
-  Buildings, ArrowLeft, Layers, CircleNotch,
-  ImagePlus, X, CaretLeft, CaretRight,
-  GraduationCap, User as UserIcon, Phone, Envelope,
+  ArrowLeft, Stack as Layers, CircleNotch,
+  ImageSquare as ImagePlus, X, CaretLeft, CaretRight,
+  User as UserIcon, Phone, Envelope,
   ToggleLeft, ToggleRight, FloppyDisk, Users
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
@@ -21,8 +21,6 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
 import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -751,12 +749,38 @@ function EditFacilityPicker({ selectedIds, onChange }) {
   );
 }
 
-/* ── LocationSection (with per-section paging) ── */
+/* ── LocationSection (self-fetching, server-side paging) ── */
 
-function LocationSection({ locId, name, buildings, onView, onToggle, onStaff }) {
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(buildings.length / PER_SECTION);
-  const visible = buildings.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
+function LocationSection({ locId, name, search, filterActive, onView, onToggle, onStaff, refreshKey }) {
+  const [buildings, setBuildings] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBuildings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ location_id: locId, page, limit: PER_SECTION });
+      if (search.trim()) params.set("search", search.trim());
+      if (filterActive === "active") params.set("is_active", "true");
+      if (filterActive === "inactive") params.set("is_active", "false");
+      const res = await apiJson(`/api/buildings?${params}`);
+      setBuildings(res.data || []);
+      setTotalPages(res.totalPages || 1);
+      setTotal(res.total || 0);
+    } catch {
+      setBuildings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [locId, page, search, filterActive]);
+
+  useEffect(() => { fetchBuildings(); }, [fetchBuildings, refreshKey]);
+  useEffect(() => { setPage(1); }, [search, filterActive]);
+
+  if (!loading && total === 0) return null;
+
   const showPaging = totalPages > 1;
 
   return (
@@ -768,18 +792,20 @@ function LocationSection({ locId, name, buildings, onView, onToggle, onStaff }) 
           </div>
           <div>
             <h2 className="text-[15px] font-semibold leading-tight">{name}</h2>
-            <p className="text-sm font-medium text-muted-foreground">{buildings.length} kết quả</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {loading ? "Đang tải..." : `${total} kết quả`}
+            </p>
           </div>
         </div>
 
         {showPaging && (
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
+            <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
+              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
                 <CaretLeft className="size-4" />
               </Button>
-              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
                 <CaretRight className="size-4" />
               </Button>
             </div>
@@ -787,17 +813,23 @@ function LocationSection({ locId, name, buildings, onView, onToggle, onStaff }) 
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {visible.map((b) => (
-          <BuildingCard
-            key={b.id}
-            building={b}
-            onView={onView}
-            onToggle={onToggle}
-            onStaff={onStaff}
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <CircleNotch className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {buildings.map((b) => (
+            <BuildingCard
+              key={b.id}
+              building={b}
+              onView={onView}
+              onToggle={onToggle}
+              onStaff={onStaff}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -806,93 +838,59 @@ function LocationSection({ locId, name, buildings, onView, onToggle, onStaff }) 
 
 export default function BuildingsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
-  /* data */
-  const [allBuildings, setAllBuildings] = useState([]);
+  /* refresh coordination */
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => { setRefreshKey((k) => k + 1); }, []);
+
+  /* locations list (for filter dropdown + section rendering) */
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  /* filters */
-  const [search, setSearch] = useState("");
-  const [filterActive, setFilterActive] = useState("all");
-  const [filterLocation, setFilterLocation] = useState("all");
-
-  /* dialogs */
-  const [confirmToggle, setConfirmToggle] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  /* ─ fetch locations ─ */
   useEffect(() => {
     (async () => {
       try {
         const res = await apiJson("/api/locations?limit=100&is_active=true");
         setLocations(res.data || []);
-      } catch {
-        /* silent */
-      }
+      } catch { /* silent */ }
     })();
   }, []);
 
-  /* ─ fetch all buildings ─ */
-  const fetchBuildings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  /* stats from /api/buildings/stats */
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, by_location: [] });
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await apiJson("/api/buildings?limit=200");
-      setAllBuildings(res.data || []);
-    } catch {
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
-    } finally {
-      setLoading(false);
-    }
+      const res = await apiJson("/api/buildings/stats");
+      setStats(res.data || { total: 0, active: 0, inactive: 0, by_location: [] });
+    } catch { /* silent */ }
   }, []);
+  useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
 
-  useEffect(() => { fetchBuildings(); }, [fetchBuildings]);
+  const locationCounts = useMemo(
+    () => stats.by_location.map(({ name, count }) => ({ name, count })),
+    [stats.by_location]
+  );
 
-  /* ─ client-side filtering ─ */
-  const filtered = useMemo(() => allBuildings.filter((b) => {
-    if (filterActive === "active" && !b.is_active) return false;
-    if (filterActive === "inactive" && b.is_active) return false;
-    if (filterLocation !== "all" && b.location_id !== filterLocation) return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (!b.name?.toLowerCase().includes(q) && !b.address?.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }), [allBuildings, filterActive, filterLocation, search]);
+  /* filters */
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterActive, setFilterActive] = useState("all");
+  const [filterLocation, setFilterLocation] = useState("all");
 
-  /* ─ group by location ─ */
-  const locationGroups = useMemo(() => {
-    const grouped = filtered.reduce((acc, b) => {
-      const locName = b.location?.name || "Chưa phân khu vực";
-      const locId = b.location_id || "_none";
-      if (!acc[locId]) acc[locId] = { name: locName, buildings: [] };
-      acc[locId].buildings.push(b);
-      return acc;
-    }, {});
-    return Object.entries(grouped).sort(([, a], [, b]) => a.name.localeCompare(b.name, "vi"));
-  }, [filtered]);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
-  /* ─ stats ─ */
-  const totalCount = allBuildings.length;
-  const activeCount = allBuildings.filter((b) => b.is_active).length;
-  const inactiveCount = totalCount - activeCount;
+  /* which locations to render sections for — driven by stats (locations that have buildings) */
+  const visibleLocations = useMemo(() => {
+    const locs = stats.by_location.map((l) => ({ id: l.location_id, name: l.name }));
+    if (filterLocation !== "all") return locs.filter((l) => l.id === filterLocation);
+    return locs;
+  }, [stats.by_location, filterLocation]);
 
-  const locationCounts = useMemo(() => {
-    const counts = {};
-    allBuildings.forEach((b) => {
-      const locName = b.location?.name || "Khác";
-      counts[locName] = (counts[locName] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, count]) => ({ name, count }));
-  }, [allBuildings]);
-
-  /* ─ CRUD handlers ─ */
+  /* dialogs */
+  const [confirmToggle, setConfirmToggle] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [toggleError, setToggleError] = useState(null);
 
   const handleToggleConfirm = async () => {
@@ -901,7 +899,7 @@ export default function BuildingsPage() {
     try {
       await api.patch(`/api/buildings/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
-      fetchBuildings();
+      refresh();
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {
@@ -917,10 +915,10 @@ export default function BuildingsPage() {
         locations={locations}
         onDeleteSuccess={() => {
           setSelectedId(null);
-          fetchBuildings();
+          refresh();
         }}
         onUpdateSuccess={() => {
-          fetchBuildings();
+          refresh();
         }}
       />
     );
@@ -940,7 +938,7 @@ export default function BuildingsPage() {
       </div>
 
       {/* Summary */}
-      <BuildingSummary active={activeCount} inactive={inactiveCount} locationCounts={locationCounts} filterActive={filterActive} />
+      <BuildingSummary active={stats.active} inactive={stats.inactive} locationCounts={locationCounts} filterActive={filterActive} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -984,41 +982,22 @@ export default function BuildingsPage() {
         </div>
       </div>
 
-      {/* Building list grouped by location */}
-      <div>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchBuildings}>
-              Thử lại
-            </Button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            Không tìm thấy tòa nhà nào.
-          </div>
-        ) : (
-          <div className="space-y-10">
-            {locationGroups.map(([locId, group]) => (
-              <LocationSection
-                key={locId}
-                locId={locId}
-                name={group.name}
-                buildings={group.buildings}
-                onView={(b) => setSelectedId(b.id)}
-                onToggle={setConfirmToggle}
-                onStaff={(b) => navigate(`/buildings/${b.id}/staff`)}
-              />
-            ))}
-          </div>
-        )}
+      {/* Building list — one LocationSection per visible location */}
+      <div className="space-y-10">
+        {visibleLocations.map((loc) => (
+          <LocationSection
+            key={loc.id}
+            locId={loc.id}
+            name={loc.name}
+            search={debouncedSearch}
+            filterActive={filterActive}
+            onView={(b) => setSelectedId(b.id)}
+            onToggle={setConfirmToggle}
+            onStaff={(b) => navigate(`/buildings/${b.id}/staff`)}
+            refreshKey={refreshKey}
+          />
+        ))}
       </div>
-
-
 
       {/* Confirm Toggle */}
       <Dialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) { setConfirmToggle(null); setToggleError(null); } }}>

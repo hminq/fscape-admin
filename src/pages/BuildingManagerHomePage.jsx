@@ -2,10 +2,10 @@ import {
   House,
   Lock,
   Users,
-  Activity,
-  DollarSign,
+  ChartLine,
+  CurrencyDollar,
   Wrench,
-  AlertCircle,
+  WarningCircle,
   CheckCircle,
   Clock,
 } from "@phosphor-icons/react";
@@ -23,14 +23,14 @@ import {
 const stats = [
   { label: "Tổng số phòng", value: "48", change: "+2", icon: House, color: "bg-primary/10 text-primary" },
   { label: "Phòng đã thuê", value: "41", change: "+3", icon: Lock, color: "bg-blue-100 text-blue-600" },
-  { label: "Doanh thu tháng", value: "52M đ", change: "+8.1%", icon: DollarSign, color: "bg-red-100 text-red-600" },
+  { label: "Doanh thu tháng", value: "52M đ", change: "+8.1%", icon: CurrencyDollar, color: "bg-red-100 text-red-600" },
   { label: "Cư dân hiện tại", value: "56", change: "+4", icon: Users, color: "bg-amber-100 text-amber-600" },
 ];
 
 const bottomStats = [
-  { label: "Tỉ lệ lấp đầy", value: "85.4%", icon: Activity, color: "bg-primary/10 text-primary" },
+  { label: "Tỉ lệ lấp đầy", value: "85.4%", icon: ChartLine, color: "bg-primary/10 text-primary" },
   { label: "Yêu cầu đang xử lý", value: "7", icon: Wrench, color: "bg-amber-100 text-amber-600" },
-  { label: "Hợp đồng sắp hết hạn", value: "3", icon: AlertCircle, color: "bg-red-100 text-red-600" },
+  { label: "Hợp đồng sắp hết hạn", value: "3", icon: WarningCircle, color: "bg-red-100 text-red-600" },
 ];
 
 const recentRequests = [

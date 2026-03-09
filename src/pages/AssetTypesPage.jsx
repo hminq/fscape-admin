@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     Plus, MagnifyingGlass, PencilSimple, Trash, Package, ToggleLeft, ToggleRight,
-    CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Banknote,
+    CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Money as Banknote,
     CaretLeft, CaretRight,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";

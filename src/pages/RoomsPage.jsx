@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, MagnifyingGlass, Eye, MapPin, Layers, House,
+  Plus, MagnifyingGlass, Eye, MapPin, Stack as Layers, House,
   CaretLeft, CaretRight, CircleNotch, ToggleLeft, ToggleRight
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
@@ -143,7 +143,7 @@ function RoomCard({ room, onView, onToggle }) {
   const imageUrl = room.images?.[0]?.image_url || room.thumbnail_url || room.images?.[0] || defaultRoomImg;
 
   return (
-    <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-shadow hover:shadow-md flex flex-row group">
+    <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-shadow hover:shadow-md flex flex-row h-[140px] group">
       {/* Image — left side, fixed width */}
       <div className="w-36 shrink-0 overflow-hidden bg-muted">
         <img src={imageUrl} alt={room.room_number} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" onError={e => e.target.src = defaultRoomImg} />

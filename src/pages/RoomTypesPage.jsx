@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Plus, MagnifyingGlass, PencilSimple, Trash, House, ToggleLeft, ToggleRight,
     CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye,
-    Bed, Bathtub, ArrowsOutSimple, Users, Banknote, CaretLeft, CaretRight,
+    Bed, Bathtub, ArrowsOutSimple, Users, Money as Banknote, CaretLeft, CaretRight,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

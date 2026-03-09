@@ -1,7 +1,7 @@
 import { useState, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Environment, Center } from "@react-three/drei";
-import { Cube, ArrowsMove } from "@phosphor-icons/react";
+import { Cube, ArrowsOutCardinal as ArrowsMove } from "@phosphor-icons/react";
 
 /**
  * Check if URL points to a loadable 3D file (GLB/GLTF).

@@ -6,7 +6,7 @@ import {
   CircleNotch,
   ArrowCounterClockwise,
   Warning,
-  PenLine,
+  PencilLine as PenLine,
   DownloadSimple,
 } from "@phosphor-icons/react";
 import { api, apiRequest } from "@/lib/apiClient";

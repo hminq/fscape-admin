@@ -5,7 +5,7 @@ import {
   Clock,
   Eye,
   CircleNotch,
-  PenLine,
+  PencilLine,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
@@ -109,7 +109,7 @@ export default function BMContractsPendingPage() {
                     size="sm"
                     onClick={() => navigate(`/building-manager/contracts/${c.id}/sign`)}
                   >
-                    <PenLine className="mr-1.5 size-4" />
+                    <PencilLine className="mr-1.5 size-4" />
                     Xem & Ký
                   </Button>
                 ) : (

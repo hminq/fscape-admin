@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, PencilSimple, Trash, MapPin, Layers, House,
-    Envelope, Phone, CircleNotch, DollarSign, Users, ArrowsOutSimple,
+    ArrowLeft, PencilSimple, Trash, MapPin, Stack as Layers, House,
+    Envelope, Phone, CircleNotch, CurrencyDollar, Users, ArrowsOutSimple,
     FileText, CalendarDots, ClipboardText, User as UserIcon,
     Cube
 } from "@phosphor-icons/react";
