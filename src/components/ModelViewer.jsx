@@ -1,7 +1,7 @@
 import { useState, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Environment, Center } from "@react-three/drei";
-import { Box, Move } from "lucide-react";
+import { Cube, ArrowsOutCardinal as ArrowsMove } from "@phosphor-icons/react";
 
 /**
  * Check if URL points to a loadable 3D file (GLB/GLTF).
@@ -36,7 +36,7 @@ export default function ModelViewer({ url, height = "h-80", className = "" }) {
     if (loadError) {
         return (
             <div className={`w-full ${height} rounded-xl border border-border bg-muted flex flex-col items-center justify-center gap-2 text-muted-foreground ${className}`}>
-                <Box className="size-8" />
+                <Cube className="size-8" />
                 <p className="text-sm">Không thể tải mô hình 3D</p>
                 <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Tải file về</a>
             </div>
@@ -58,7 +58,7 @@ export default function ModelViewer({ url, height = "h-80", className = "" }) {
                 />
             </Canvas>
             <div className="absolute bottom-2 right-2 flex items-center gap-1.5 text-[10px] text-muted-foreground bg-background/80 backdrop-blur-sm rounded-md px-2 py-1 border border-border">
-                <Move className="size-3" /> Kéo để xoay · Cuộn để zoom
+                <ArrowsMove className="size-3" /> Kéo để xoay · Cuộn để zoom
             </div>
         </div>
     );

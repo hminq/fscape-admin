@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    ArrowLeft, Save, Loader2, Eye, Code, FileText,
-    Variable, Star,
-} from "lucide-react";
+    ArrowLeft, FloppyDisk, CircleNotch, Eye, Code, FileText,
+    BracketsCurly as Variable, Star,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,7 +147,7 @@ export default function ContractTemplateEditorPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <CircleNotch className="size-6 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -169,7 +169,7 @@ export default function ContractTemplateEditorPage() {
                     </div>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="gap-2 px-5 shadow-md shadow-primary/20">
-                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                    {saving ? <CircleNotch className="size-4 animate-spin" /> : <FloppyDisk className="size-4" />}
                     {isEdit ? "Lưu thay đổi" : "Tạo mẫu"}
                 </Button>
             </div>

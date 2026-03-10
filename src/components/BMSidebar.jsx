@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
-  DoorOpen,
+  SquaresFour,
+  Door,
   Package,
   FileText,
-  MessageSquareMore,
-  ScrollText,
-  ChevronDown,
+  ChatCircleText,
+  Scroll,
+  CaretDown,
   Users,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
@@ -18,12 +18,12 @@ const BM_PREFIX = "/building-manager";
 const navItems = [
   {
     label: "Tổng quan",
-    icon: LayoutDashboard,
+    icon: SquaresFour,
     to: BM_PREFIX,
   },
   {
     label: "Phòng",
-    icon: DoorOpen,
+    icon: Door,
     to: `${BM_PREFIX}/rooms`,
   },
   {
@@ -33,7 +33,7 @@ const navItems = [
   },
   {
     label: "Yêu cầu",
-    icon: MessageSquareMore,
+    icon: ChatCircleText,
     to: `${BM_PREFIX}/requests`,
     children: [
       { label: "Danh sách", to: `${BM_PREFIX}/requests` },
@@ -56,7 +56,7 @@ const navItems = [
   },
   {
     label: "Nhật ký",
-    icon: ScrollText,
+    icon: Scroll,
     to: `${BM_PREFIX}/logs`,
   },
 ];
@@ -101,7 +101,7 @@ function SidebarItem({ item }) {
       >
         <item.icon className="size-5 shrink-0" />
         <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown
+        <CaretDown
           className={cn(
             "size-3.5 transition-transform duration-200",
             open ? "rotate-0" : "-rotate-90"

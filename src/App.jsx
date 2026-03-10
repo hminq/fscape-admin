@@ -27,7 +27,6 @@ import ContractTemplateEditorPage from "./pages/ContractTemplateEditorPage";
 import RequestsPage from "./pages/RequestsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import SystemLogsPage from "./pages/SystemLogsPage";
-import StaffHomePage from "./pages/StaffHomePage";
 import BMLayout from "./layouts/BMLayout";
 import BuildingManagerHomePage from "./pages/BuildingManagerHomePage";
 import BMRoomsPage from "./pages/bm/BMRoomsPage";
@@ -49,11 +48,6 @@ export default function App() {
         <Route path="/403" element={<ForbiddenPage />} />
 
         <Route element={<ProtectedRoute />}>
-          {/* STAFF */}
-          <Route element={<RoleRoute allowedRoles={["STAFF"]} />}>
-            <Route path="/staff" element={<StaffHomePage />} />
-          </Route>
-
           {/* BUILDING_MANAGER */}
           <Route element={<RoleRoute allowedRoles={["BUILDING_MANAGER"]} />}>
             <Route path="/building-manager" element={<BMLayout />}>

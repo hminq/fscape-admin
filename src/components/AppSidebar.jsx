@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
+  SquaresFour,
   Users,
-  Building2,
-  DoorOpen,
+  Buildings,
+  Door,
   Package,
   FileText,
   Receipt,
-  MessageSquareMore,
-  ScrollText,
-  ChevronDown,
-} from "lucide-react";
+  ChatCircleText,
+  Scroll,
+  CaretDown,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
 const navItems = [
   {
     label: "Tổng quan",
-    icon: LayoutDashboard,
+    icon: SquaresFour,
     to: "/",
   },
   {
@@ -31,7 +31,7 @@ const navItems = [
   },
   {
     label: "Tòa nhà",
-    icon: Building2,
+    icon: Buildings,
     to: "/buildings",
     children: [
       { label: "Danh sách", to: "/buildings" },
@@ -42,7 +42,7 @@ const navItems = [
   },
   {
     label: "Phòng",
-    icon: DoorOpen,
+    icon: Door,
     to: "/rooms",
     children: [
       { label: "Danh sách", to: "/rooms" },
@@ -73,21 +73,19 @@ const navItems = [
     to: "/invoices",
     children: [
       { label: "Danh sách", to: "/invoices" },
-      { label: "Tạo hóa đơn", to: "/invoices/create" },
     ],
   },
   {
     label: "Yêu cầu",
-    icon: MessageSquareMore,
+    icon: ChatCircleText,
     to: "/requests",
     children: [
       { label: "Danh sách yêu cầu", to: "/requests" },
-      { label: "Tạo mới", to: "/requests/create" },
     ],
   },
   {
     label: "Nhật ký",
-    icon: ScrollText,
+    icon: Scroll,
     to: "/logs",
     children: [
       { label: "Hoạt động", to: "/logs" },
@@ -138,7 +136,7 @@ function SidebarItem({ item }) {
       >
         <item.icon className="size-5 shrink-0" />
         <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown
+        <CaretDown
           className={cn(
             "size-3.5 transition-transform duration-200",
             open ? "rotate-0" : "-rotate-90"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Pencil, Trash2, MapPin, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Eye, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Buildings, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,10 +89,10 @@ function LocationSummary({ total, active, inactive }) {
 }
 
 function SortIcon({ field, sortField, sortDir }) {
-  if (sortField !== field) return <ChevronsUpDown className="size-3.5 ml-1 opacity-40" />;
+  if (sortField !== field) return <CaretUpDown className="size-3.5 ml-1 opacity-40" />;
   return sortDir === "asc"
-    ? <ChevronUp className="size-3.5 ml-1 text-primary" />
-    : <ChevronDown className="size-3.5 ml-1 text-primary" />;
+    ? <CaretUp className="size-3.5 ml-1 text-primary" />
+    : <CaretDown className="size-3.5 ml-1 text-primary" />;
 }
 
 /* ── Location Detail Dialog (view / edit / delete) ── */
@@ -180,7 +180,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                 <Button type="submit" disabled={saving}>
-                  {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                  {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                   Lưu thay đổi
                 </Button>
               </DialogFooter>
@@ -200,7 +200,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
             <DialogFooter className="justify-center gap-2 sm:justify-center">
               <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
               <Button variant="destructive" disabled={saving} onClick={() => onDelete(location.id)}>
-                {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                 Xóa
               </Button>
             </DialogFooter>
@@ -235,13 +235,13 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
               {/* Buildings */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="size-4 text-muted-foreground" />
+                  <Buildings className="size-4 text-muted-foreground" />
                   <span className="text-xs font-semibold">Tòa nhà</span>
                   <span className="text-xs text-muted-foreground">({buildings.length})</span>
                 </div>
                 {loadingDetail ? (
                   <div className="flex justify-center py-3">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <CircleNotch className="size-4 animate-spin text-muted-foreground" />
                   </div>
                 ) : buildings.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Chưa có tòa nhà nào.</p>
@@ -264,10 +264,10 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                 className="gap-1.5"
                 onClick={() => setConfirmDel(true)}
               >
-                <Trash2 className="size-3.5" /> Xóa
+                <Trash className="size-3.5" /> Xóa
               </Button>
               <Button size="sm" className="gap-1.5" onClick={startEdit}>
-                <Pencil className="size-3.5" /> Chỉnh sửa
+                <PencilSimple className="size-3.5" /> Chỉnh sửa
               </Button>
             </DialogFooter>
           </>
@@ -333,7 +333,7 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Thêm khu vực
             </Button>
           </DialogFooter>
@@ -486,7 +486,7 @@ export default function LocationsPage() {
       {/* Search + filter */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Tìm kiếm khu vực..."
             value={search}
@@ -517,7 +517,7 @@ export default function LocationsPage() {
       <Card className="overflow-hidden py-0 gap-0">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
           <div className="py-14 text-center">
@@ -621,10 +621,10 @@ export default function LocationsPage() {
                   <span className="text-sm font-medium">{page}/{totalPages}</span>
                   <div className="flex items-center gap-1">
                     <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                      <ChevronLeft className="size-4" />
+                      <CaretLeft className="size-4" />
                     </Button>
                     <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                      <ChevronRight className="size-4" />
+                      <CaretRight className="size-4" />
                     </Button>
                   </div>
                 </div>
@@ -676,7 +676,7 @@ export default function LocationsPage() {
               disabled={saving}
               onClick={handleToggleConfirm}
             >
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>

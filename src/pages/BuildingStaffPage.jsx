@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    Search, Loader2, UserPlus, UserMinus, MapPin,
-    Mail, Phone, ArrowLeft, Users
-} from "lucide-react";
+    MagnifyingGlass, CircleNotch, UserPlus, UserMinus, MapPin,
+    Envelope, Phone, ArrowLeft, Users
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -130,7 +130,7 @@ export default function BuildingStaffPage() {
                 <div>
                     <span className="font-semibold text-sm">{user.first_name} {user.last_name}</span>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                        {user.email && <span className="flex items-center gap-1"><Mail className="size-3" />{user.email}</span>}
+                        {user.email && <span className="flex items-center gap-1"><Envelope className="size-3" />{user.email}</span>}
                         {user.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{user.phone}</span>}
                     </div>
                 </div>
@@ -145,7 +145,7 @@ export default function BuildingStaffPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <CircleNotch className="size-6 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -203,7 +203,7 @@ export default function BuildingStaffPage() {
 
             {staffLoading ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" /> Đang tải nhân sự...
+                    <CircleNotch className="size-4 animate-spin" /> Đang tải nhân sự...
                 </div>
             ) : (
                 <>
@@ -259,14 +259,14 @@ export default function BuildingStaffPage() {
                         </DialogTitle>
                     </DialogHeader>
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input placeholder="Tìm theo tên hoặc email..." value={assignSearch}
                             onChange={(e) => setAssignSearch(e.target.value)} className="pl-9" />
                     </div>
                     <div className="max-h-[320px] overflow-y-auto space-y-1.5 pr-1">
                         {availLoading ? (
                             <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                                <Loader2 className="size-4 animate-spin" /> Đang tải...
+                                <CircleNotch className="size-4 animate-spin" /> Đang tải...
                             </div>
                         ) : filteredAvail.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">
@@ -286,7 +286,7 @@ export default function BuildingStaffPage() {
                                     </div>
                                     <Button size="sm" className="gap-1 h-7 text-xs"
                                         disabled={assigning === u.id} onClick={() => handleAssign(u.id)}>
-                                        {assigning === u.id ? <Loader2 className="size-3 animate-spin" /> : <UserPlus className="size-3" />}
+                                        {assigning === u.id ? <CircleNotch className="size-3 animate-spin" /> : <UserPlus className="size-3" />}
                                         Gán
                                     </Button>
                                 </div>
@@ -312,7 +312,7 @@ export default function BuildingStaffPage() {
                     <DialogFooter className="justify-center gap-2 sm:justify-center">
                         <Button variant="outline" onClick={() => setConfirmRemove(null)}>Hủy</Button>
                         <Button variant="destructive" disabled={removing} onClick={handleRemoveConfirmed}>
-                            {removing && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                            {removing && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                             Gỡ
                         </Button>
                     </DialogFooter>

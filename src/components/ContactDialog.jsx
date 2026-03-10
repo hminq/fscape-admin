@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Envelope as Mail, Phone } from "@phosphor-icons/react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";

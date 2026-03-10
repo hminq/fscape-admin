@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Search, Loader2, ChevronLeft, ChevronRight, Eye,
-  User, X, ScrollText,
-} from "lucide-react";
+  MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
+  User, X, Scroll,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,7 +220,7 @@ export default function AuditLogsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm theo tên hoặc email..." value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
@@ -271,10 +271,10 @@ export default function AuditLogsPage() {
             <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -284,11 +284,11 @@ export default function AuditLogsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <ScrollText className="size-10 mx-auto mb-3 opacity-30" />
+          <Scroll className="size-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm">Không có nhật ký nào</p>
         </div>
       ) : (

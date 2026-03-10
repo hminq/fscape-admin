@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Loader2,
+  CircleNotch,
   User,
   MapPin,
   Wrench,
   Clock,
-  MessageSquare,
+  Chat as MessageSquare,
   Image as ImageIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -55,7 +55,7 @@ export default function BMRequestDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CircleNotch className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }

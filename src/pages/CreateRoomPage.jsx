@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Upload, Save, X, Plus, Loader2,
-    Image as ImageIcon,
-} from "lucide-react";
+    ArrowLeft, Upload, FloppyDisk, X, Plus, CircleNotch,
+    Image as ImageIcon, Stack as Layers, House,
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,10 +137,181 @@ function GalleryUploader({ images, onChange }) {
     );
 }
 
+/* ── Room number preview (client-side, mirrors server util) ── */
+
+function generateRoomNumbersPreview(floor, count, existing = []) {
+    const taken = new Set(existing);
+    const results = [];
+    for (let seq = 1; results.length < count; seq++) {
+        const candidate = `${floor}${String(seq).padStart(2, '0')}`;
+        if (!taken.has(candidate)) {
+            results.push(candidate);
+            taken.add(candidate);
+        } else {
+            for (let code = 65; code <= 90; code++) {
+                const suffixed = candidate + String.fromCharCode(code);
+                if (!taken.has(suffixed)) {
+                    results.push(suffixed);
+                    taken.add(suffixed);
+                    break;
+                }
+            }
+        }
+    }
+    return results;
+}
+
+/* ── Batch form sub-component ─────────────────────────────── */
+
+function BatchForm({ buildings, roomTypes, saving, onSave, onCancel }) {
+    const [batch, setBatch] = useState({ building_id: "", room_type_id: "", floor: "", count: "" });
+    const [existingNumbers, setExistingNumbers] = useState([]);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+
+    const [thumbFile, setThumbFile] = useState(null);
+    const [thumbPreview, setThumbPreview] = useState(null);
+    const [img3dFile, setImg3dFile] = useState(null);
+    const [img3dPreview, setImg3dPreview] = useState(null);
+    const [blueprintFile, setBlueprintFile] = useState(null);
+    const [blueprintPreview, setBlueprintPreview] = useState(null);
+    const [galleryImages, setGalleryImages] = useState([]);
+
+    const set = (k, v) => setBatch(p => ({ ...p, [k]: v }));
+
+    useEffect(() => {
+        if (!batch.building_id) { setExistingNumbers([]); return; }
+        let cancelled = false;
+        setLoadingPreview(true);
+        api.get(`/api/rooms?building_id=${batch.building_id}&limit=1000`)
+            .then(res => { if (!cancelled) setExistingNumbers((res.data || []).map(r => r.room_number)); })
+            .catch(() => { if (!cancelled) setExistingNumbers([]); })
+            .finally(() => { if (!cancelled) setLoadingPreview(false); });
+        return () => { cancelled = true; };
+    }, [batch.building_id]);
+
+    const floor = parseInt(batch.floor) || 0;
+    const count = Math.min(Math.max(parseInt(batch.count) || 0, 0), 50);
+    const preview = (floor > 0 && count > 0) ? generateRoomNumbersPreview(floor, count, existingNumbers) : [];
+
+    const canSave = batch.building_id && batch.room_type_id && floor > 0 && count > 0;
+
+    const handleSubmit = () => {
+        onSave({ ...batch, thumbFile, img3dFile, blueprintFile, galleryImages });
+    };
+
+    return (
+        <div className="space-y-6">
+            <FormSection title="Tạo hàng loạt">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <Label>Tòa nhà *</Label>
+                        <Select value={batch.building_id} onValueChange={(v) => set("building_id", v)}>
+                            <SelectTrigger><SelectValue placeholder="Chọn tòa nhà" /></SelectTrigger>
+                            <SelectContent>
+                                {buildings.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Loại phòng *</Label>
+                        <Select value={batch.room_type_id} onValueChange={(v) => set("room_type_id", v)}>
+                            <SelectTrigger><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger>
+                            <SelectContent>
+                                {roomTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <Label>Tầng *</Label>
+                        <div className="relative">
+                            <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <Input type="number" min="1" placeholder="VD: 3"
+                                value={batch.floor} onChange={(e) => set("floor", e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Số lượng phòng * <span className="text-muted-foreground font-normal">(tối đa 50)</span></Label>
+                        <div className="relative">
+                            <House className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <Input type="number" min="1" max="50" placeholder="VD: 10"
+                                value={batch.count} onChange={(e) => set("count", e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
+                </div>
+            </FormSection>
+
+            {/* Images — shared across all batch rooms */}
+            <FormSection title="Hình ảnh (áp dụng cho tất cả phòng)">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SingleImageUploader
+                        label="Ảnh đại diện (Thumbnail)"
+                        hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_thumbnail.maxSizeMB}MB.`}
+                        preview={thumbPreview}
+                        onSelect={(f) => { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }}
+                        onRemove={() => { setThumbFile(null); setThumbPreview(null); }}
+                    />
+                    <GalleryUploader images={galleryImages} onChange={setGalleryImages} />
+                </div>
+            </FormSection>
+
+            <FormSection title="Mô hình 3D &amp; Bản vẽ (Tùy chọn)">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SingleImageUploader
+                        label="File 3D (OBJ / GLTF / GLB)"
+                        hint={`Định dạng: .obj, .gltf, .glb. Tối đa ${UPLOAD_CFG.room_3d.maxSizeMB}MB.`}
+                        preview={img3dPreview}
+                        accept={UPLOAD_CFG.room_3d.accept}
+                        onSelect={(f) => { setImg3dFile(f); setImg3dPreview(f.name); }}
+                        onRemove={() => { setImg3dFile(null); setImg3dPreview(null); }}
+                    />
+                    <SingleImageUploader
+                        label="Bản vẽ (Blueprint)"
+                        hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_blueprint.maxSizeMB}MB.`}
+                        preview={blueprintPreview}
+                        onSelect={(f) => { setBlueprintFile(f); setBlueprintPreview(URL.createObjectURL(f)); }}
+                        onRemove={() => { setBlueprintFile(null); setBlueprintPreview(null); }}
+                    />
+                </div>
+            </FormSection>
+
+            {/* Preview */}
+            {preview.length > 0 && (
+                <FormSection title={`Xem trước — ${preview.length} phòng sẽ được tạo`}>
+                    {loadingPreview ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                            <CircleNotch className="size-4 animate-spin" /> Đang kiểm tra phòng hiện có...
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            {preview.map(num => (
+                                <span key={num} className="px-3 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-mono font-medium">
+                                    {num}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </FormSection>
+            )}
+
+            {/* Sticky Action Bar */}
+            <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
+                <Button variant="outline" onClick={onCancel} disabled={saving} className="bg-background">Hủy</Button>
+                <Button onClick={handleSubmit} disabled={saving || !canSave}>
+                    {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+                    Tạo {count > 0 ? `${count} phòng` : "phòng"}
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 /* ── Main Page ─────────────────────────────────────────────── */
 
 export default function CreateRoomPage() {
     const navigate = useNavigate();
+    const [mode, setMode] = useState("single");
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
         room_number: "", room_type_id: "", building_id: "", floor: "", status: "AVAILABLE",
@@ -179,7 +350,7 @@ export default function CreateRoomPage() {
 
     const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-    const handleSave = async () => {
+    const handleSaveSingle = async () => {
         if (!form.room_number || !form.building_id || !form.room_type_id || !form.floor) {
             alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
             return;
@@ -187,28 +358,24 @@ export default function CreateRoomPage() {
 
         setSaving(true);
         try {
-            // Upload thumbnail
             let thumbnail_url = null;
             if (thumbFile) {
                 const res = await uploadFiles("room_thumbnail", [thumbFile]);
                 thumbnail_url = res.urls?.[0] || res.data?.url || null;
             }
 
-            // Upload 3D image
             let image_3d_url = null;
             if (img3dFile) {
                 const res = await uploadFiles("room_3d", [img3dFile]);
                 image_3d_url = res.urls?.[0] || res.data?.url || null;
             }
 
-            // Upload blueprint
             let blueprint_url = null;
             if (blueprintFile) {
                 const res = await uploadFiles("room_blueprint", [blueprintFile]);
                 blueprint_url = res.urls?.[0] || res.data?.url || null;
             }
 
-            // Upload gallery
             let gallery_urls = [];
             const galleryFiles = galleryImages.filter((g) => g.file).map((g) => g.file);
             if (galleryFiles.length > 0) {
@@ -237,6 +404,55 @@ export default function CreateRoomPage() {
         }
     };
 
+    const handleSaveBatch = async (batch) => {
+        setSaving(true);
+        try {
+            let thumbnail_url = null;
+            if (batch.thumbFile) {
+                const res = await uploadFiles("room_thumbnail", [batch.thumbFile]);
+                thumbnail_url = res.urls?.[0] || res.data?.url || null;
+            }
+
+            let image_3d_url = null;
+            if (batch.img3dFile) {
+                const res = await uploadFiles("room_3d", [batch.img3dFile]);
+                image_3d_url = res.urls?.[0] || res.data?.url || null;
+            }
+
+            let blueprint_url = null;
+            if (batch.blueprintFile) {
+                const res = await uploadFiles("room_blueprint", [batch.blueprintFile]);
+                blueprint_url = res.urls?.[0] || res.data?.url || null;
+            }
+
+            let gallery_urls = [];
+            const galleryFiles = (batch.galleryImages || []).filter(g => g.file).map(g => g.file);
+            if (galleryFiles.length > 0) {
+                const res = await uploadFiles("room_gallery", galleryFiles);
+                gallery_urls = res.urls || res.data?.urls || [];
+            }
+
+            await apiJson("/api/rooms/batch", {
+                method: "POST",
+                body: {
+                    building_id: batch.building_id,
+                    room_type_id: batch.room_type_id,
+                    floor: parseInt(batch.floor),
+                    count: parseInt(batch.count),
+                    thumbnail_url,
+                    image_3d_url,
+                    blueprint_url,
+                    gallery_images: gallery_urls,
+                },
+            });
+            navigate("/rooms");
+        } catch (err) {
+            alert(err.message || "Đã xảy ra lỗi khi tạo phòng hàng loạt.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-24">
             {/* Header */}
@@ -250,98 +466,132 @@ export default function CreateRoomPage() {
                 </div>
             </div>
 
-            <div className="space-y-6">
-                {/* Basic Information */}
-                <FormSection title="Thông tin cơ bản">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label>Tên / Mã phòng *</Label>
-                            <Input placeholder="VD: A-210" value={form.room_number}
-                                onChange={(e) => handleChange("room_number", e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Loại phòng *</Label>
-                            <Select value={form.room_type_id} onValueChange={(v) => handleChange("room_type_id", v)}>
-                                <SelectTrigger><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger>
-                                <SelectContent>
-                                    {roomTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="space-y-1.5 col-span-2">
-                            <Label>Tòa nhà *</Label>
-                            <Select value={form.building_id} onValueChange={(v) => handleChange("building_id", v)}>
-                                <SelectTrigger><SelectValue placeholder="Chọn tòa nhà" /></SelectTrigger>
-                                <SelectContent>
-                                    {buildings.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Tầng *</Label>
-                            <Input type="number" placeholder="VD: 5" value={form.floor}
-                                onChange={(e) => handleChange("floor", e.target.value)} className="text-center" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Trạng thái</Label>
-                            <Select value={form.status} onValueChange={(v) => handleChange("status", v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="AVAILABLE">Còn trống</SelectItem>
-                                    <SelectItem value="MAINTENANCE">Bảo trì</SelectItem>
-                                    <SelectItem value="LOCKED">Khóa</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </FormSection>
-
-                {/* Images */}
-                <FormSection title="Hình ảnh">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <SingleImageUploader
-                            label="Ảnh đại diện (Thumbnail)"
-                            hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_thumbnail.maxSizeMB}MB.`}
-                            preview={thumbPreview}
-                            onSelect={(f) => { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }}
-                            onRemove={() => { setThumbFile(null); setThumbPreview(null); }}
-                        />
-                        <GalleryUploader images={galleryImages} onChange={setGalleryImages} />
-                    </div>
-                </FormSection>
-
-                {/* 3D + Blueprint */}
-                <FormSection title="Mô hình 3D &amp; Bản vẽ (Tùy chọn)">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <SingleImageUploader
-                            label="File 3D (OBJ / GLTF / GLB)"
-                            hint={`Định dạng: .obj, .gltf, .glb. Tối đa ${UPLOAD_CFG.room_3d.maxSizeMB}MB.`}
-                            preview={img3dPreview}
-                            accept={UPLOAD_CFG.room_3d.accept}
-                            onSelect={(f) => { setImg3dFile(f); setImg3dPreview(f.name); }}
-                            onRemove={() => { setImg3dFile(null); setImg3dPreview(null); }}
-                        />
-                        <SingleImageUploader
-                            label="Bản vẽ (Blueprint)"
-                            hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_blueprint.maxSizeMB}MB.`}
-                            preview={blueprintPreview}
-                            onSelect={(f) => { setBlueprintFile(f); setBlueprintPreview(URL.createObjectURL(f)); }}
-                            onRemove={() => { setBlueprintFile(null); setBlueprintPreview(null); }}
-                        />
-                    </div>
-                </FormSection>
+            {/* Mode toggle */}
+            <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit">
+                {[
+                    { key: "single", label: "Tạo từng phòng" },
+                    { key: "batch", label: "Tạo hàng loạt" },
+                ].map(m => (
+                    <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => setMode(m.key)}
+                        className={cn(
+                            "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
+                            mode === m.key
+                                ? "bg-background text-foreground shadow-sm"
+                                : "text-muted-foreground hover:text-foreground",
+                        )}
+                    >
+                        {m.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Sticky Action Bar */}
-            <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
-                <Button variant="outline" onClick={() => navigate("/rooms")} disabled={saving} className="bg-background">Hủy</Button>
-                <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
-                    Tạo phòng
-                </Button>
-            </div>
+            {mode === "batch" ? (
+                <BatchForm
+                    buildings={buildings}
+                    roomTypes={roomTypes}
+                    saving={saving}
+                    onSave={handleSaveBatch}
+                    onCancel={() => navigate("/rooms")}
+                />
+            ) : (
+                <>
+                    <div className="space-y-6">
+                        {/* Basic Information */}
+                        <FormSection title="Thông tin cơ bản">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label>Tên / Mã phòng *</Label>
+                                    <Input placeholder="VD: A-210" value={form.room_number}
+                                        onChange={(e) => handleChange("room_number", e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Loại phòng *</Label>
+                                    <Select value={form.room_type_id} onValueChange={(v) => handleChange("room_type_id", v)}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger>
+                                        <SelectContent>
+                                            {roomTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-1.5 col-span-2">
+                                    <Label>Tòa nhà *</Label>
+                                    <Select value={form.building_id} onValueChange={(v) => handleChange("building_id", v)}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn tòa nhà" /></SelectTrigger>
+                                        <SelectContent>
+                                            {buildings.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Tầng *</Label>
+                                    <Input type="number" placeholder="VD: 5" value={form.floor}
+                                        onChange={(e) => handleChange("floor", e.target.value)} className="text-center" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Trạng thái</Label>
+                                    <Select value={form.status} onValueChange={(v) => handleChange("status", v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="AVAILABLE">Còn trống</SelectItem>
+                                            <SelectItem value="MAINTENANCE">Bảo trì</SelectItem>
+                                            <SelectItem value="LOCKED">Khóa</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </FormSection>
+
+                        {/* Images */}
+                        <FormSection title="Hình ảnh">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <SingleImageUploader
+                                    label="Ảnh đại diện (Thumbnail)"
+                                    hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_thumbnail.maxSizeMB}MB.`}
+                                    preview={thumbPreview}
+                                    onSelect={(f) => { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }}
+                                    onRemove={() => { setThumbFile(null); setThumbPreview(null); }}
+                                />
+                                <GalleryUploader images={galleryImages} onChange={setGalleryImages} />
+                            </div>
+                        </FormSection>
+
+                        {/* 3D + Blueprint */}
+                        <FormSection title="Mô hình 3D &amp; Bản vẽ (Tùy chọn)">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <SingleImageUploader
+                                    label="File 3D (OBJ / GLTF / GLB)"
+                                    hint={`Định dạng: .obj, .gltf, .glb. Tối đa ${UPLOAD_CFG.room_3d.maxSizeMB}MB.`}
+                                    preview={img3dPreview}
+                                    accept={UPLOAD_CFG.room_3d.accept}
+                                    onSelect={(f) => { setImg3dFile(f); setImg3dPreview(f.name); }}
+                                    onRemove={() => { setImg3dFile(null); setImg3dPreview(null); }}
+                                />
+                                <SingleImageUploader
+                                    label="Bản vẽ (Blueprint)"
+                                    hint={`JPG/PNG. Tối đa ${UPLOAD_CFG.room_blueprint.maxSizeMB}MB.`}
+                                    preview={blueprintPreview}
+                                    onSelect={(f) => { setBlueprintFile(f); setBlueprintPreview(URL.createObjectURL(f)); }}
+                                    onRemove={() => { setBlueprintFile(null); setBlueprintPreview(null); }}
+                                />
+                            </div>
+                        </FormSection>
+                    </div>
+
+                    {/* Sticky Action Bar */}
+                    <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
+                        <Button variant="outline" onClick={() => navigate("/rooms")} disabled={saving} className="bg-background">Hủy</Button>
+                        <Button onClick={handleSaveSingle} disabled={saving}>
+                            {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+                            Tạo phòng
+                        </Button>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

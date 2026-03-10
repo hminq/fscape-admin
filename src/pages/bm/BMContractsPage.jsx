@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FileText,
-  Search,
-  Loader2,
+  MagnifyingGlass,
+  CircleNotch,
   Eye,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+  CaretLeft,
+  CaretRight,
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -214,7 +214,7 @@ export default function BMContractsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Tìm theo mã HĐ, khách hàng, phòng..."
             value={search}
@@ -236,7 +236,7 @@ export default function BMContractsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
         <div className="py-14 text-center">
@@ -264,11 +264,11 @@ export default function BMContractsPage() {
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="outline" className="size-8" disabled={page === 0}
                     onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                    <ChevronLeft className="size-4" />
+                    <CaretLeft className="size-4" />
                   </Button>
                   <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1}
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
-                    <ChevronRight className="size-4" />
+                    <CaretRight className="size-4" />
                   </Button>
                 </div>
               </div>

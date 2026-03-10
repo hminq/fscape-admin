@@ -4,9 +4,9 @@ import {
   CheckCircle,
   Clock,
   Eye,
-  Loader2,
-  PenLine,
-} from "lucide-react";
+  CircleNotch,
+  PencilLine,
+} from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ export default function BMContractsPendingPage() {
 
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
         <div className="py-14 text-center">
@@ -109,7 +109,7 @@ export default function BMContractsPendingPage() {
                     size="sm"
                     onClick={() => navigate(`/building-manager/contracts/${c.id}/sign`)}
                   >
-                    <PenLine className="mr-1.5 size-4" />
+                    <PencilLine className="mr-1.5 size-4" />
                     Xem & Ký
                   </Button>
                 ) : (

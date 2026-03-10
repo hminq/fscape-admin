@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Search, Loader2, ChevronLeft, ChevronRight, Eye,
-  X, ScrollText,
-} from "lucide-react";
+  MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
+  X, Scroll,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -226,10 +226,10 @@ export default function SystemLogsPage() {
             <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -239,11 +239,11 @@ export default function SystemLogsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <ScrollText className="size-10 mx-auto mb-3 opacity-30" />
+          <Scroll className="size-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm">Không có nhật ký hệ thống nào</p>
         </div>
       ) : (

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Plus, Loader2, Package, Building2, Layers, Banknote,
-} from "lucide-react";
+    ArrowLeft, Plus, CircleNotch, Package, Buildings, Stack as Layers, Money as Banknote,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,7 +137,7 @@ export default function CreateAssetPage() {
                         <Select value={form.buildingId || undefined} onValueChange={(v) => handleChange("buildingId", v)}>
                             <SelectTrigger className={errors.buildingId ? "border-destructive" : ""}>
                                 <div className="flex items-center gap-2">
-                                    <Building2 className="size-3.5 text-muted-foreground" />
+                                    <Buildings className="size-3.5 text-muted-foreground" />
                                     <SelectValue placeholder="Chọn tòa nhà" />
                                 </div>
                             </SelectTrigger>
@@ -209,7 +209,7 @@ export default function CreateAssetPage() {
             <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" onClick={() => navigate("/assets")} disabled={saving}>Hủy</Button>
                 <Button onClick={handleSave} disabled={saving} className="gap-2 px-6 shadow-md shadow-primary/20">
-                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                    {saving ? <CircleNotch className="size-4 animate-spin" /> : <Plus className="size-4" />}
                     Tạo {form.quantity > 1 ? `${form.quantity} tài sản` : "tài sản"}
                 </Button>
             </div>

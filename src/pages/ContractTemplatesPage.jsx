@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    Plus, Search, Loader2, FileText, Eye, ChevronLeft, ChevronRight,
-    Star, Trash2, Pencil, ToggleLeft, ToggleRight,
-} from "lucide-react";
+    Plus, MagnifyingGlass, CircleNotch, FileText, Eye, CaretLeft, CaretRight,
+    Star, Trash, PencilSimple, ToggleLeft, ToggleRight,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
                         <DialogFooter className="justify-center gap-2">
                             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
                             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-                                {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+                                {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                                 Vô hiệu hóa
                             </Button>
                         </DialogFooter>
@@ -143,10 +143,10 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
                         <DialogFooter className="gap-2 sm:justify-between">
                             <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 gap-1.5"
                                 onClick={() => setConfirmDel(true)}>
-                                <Trash2 className="size-3.5" /> Vô hiệu hóa
+                                <Trash className="size-3.5" /> Vô hiệu hóa
                             </Button>
                             <Button size="sm" className="gap-1.5" onClick={() => onEdit(template)}>
-                                <Pencil className="size-3.5" /> Chỉnh sửa
+                                <PencilSimple className="size-3.5" /> Chỉnh sửa
                             </Button>
                         </DialogFooter>
                     </>
@@ -218,7 +218,7 @@ export default function ContractTemplatesPage() {
             {/* Filters */}
             <div className="flex items-center gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input placeholder="Tìm kiếm mẫu..." value={search}
                         onChange={(e) => { setSearch(e.target.value); setPage(0); }} className="pl-9" />
                 </div>
@@ -240,7 +240,7 @@ export default function ContractTemplatesPage() {
             {/* Table */}
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                    <CircleNotch className="size-6 animate-spin text-muted-foreground" />
                 </div>
             ) : error ? (
                 <div className="py-14 text-center">
@@ -259,10 +259,10 @@ export default function ContractTemplatesPage() {
                                 <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
                                 <div className="flex items-center gap-1">
                                     <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                                        <ChevronLeft className="size-4" />
+                                        <CaretLeft className="size-4" />
                                     </Button>
                                     <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                                        <ChevronRight className="size-4" />
+                                        <CaretRight className="size-4" />
                                     </Button>
                                 </div>
                             </div>

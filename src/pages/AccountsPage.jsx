@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Users, Loader2, Mail, Phone, Save,
-  ToggleLeft, ToggleRight, Shield, UserCog, UserCheck,
-  ChevronLeft, ChevronRight, Eye, Copy, Check, CircleCheck,
-  Building2,
-} from "lucide-react";
+  Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone, FloppyDisk,
+  ToggleLeft, ToggleRight, ShieldCheck, UserGear as UserCog, UserCheck,
+  CaretLeft, CaretRight, Eye, Copy, Check, CheckCircle,
+  Buildings,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ const fmt = (iso) => {
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 
 const ROLE_MAP = {
-  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: Shield },
+  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: ShieldCheck },
   BUILDING_MANAGER: { label: "Quản lý tòa nhà", color: "text-chart-2 border-chart-2/20 bg-chart-2/5", dot: "bg-chart-2", icon: UserCog },
   STAFF: { label: "Nhân viên", color: "text-chart-3 border-chart-3/20 bg-chart-3/5", dot: "bg-chart-3", icon: UserCheck },
   RESIDENT: { label: "Cư dân", color: "text-chart-4 border-chart-4/20 bg-chart-4/5", dot: "bg-chart-4", icon: Users },
@@ -191,7 +191,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
         <DialogContent className="max-w-sm text-center">
           <div className="flex flex-col items-center gap-4 py-2">
             <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <CircleCheck className="size-7 text-primary" />
+              <CheckCircle className="size-7 text-primary" />
             </div>
             <div>
               <p className="text-lg font-semibold">Tạo tài khoản thành công</p>
@@ -273,7 +273,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
               Tạo tài khoản
             </Button>
           </DialogFooter>
@@ -331,7 +331,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
 
         <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2"><Mail className="size-3.5" /> Email</span>
+            <span className="text-muted-foreground flex items-center gap-2"><Envelope className="size-3.5" /> Email</span>
             <span className="font-medium">{account.email}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -339,7 +339,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
             <span className="font-medium">{account.phone || "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2"><Shield className="size-3.5" /> Trạng thái</span>
+            <span className="text-muted-foreground flex items-center gap-2"><ShieldCheck className="size-3.5" /> Trạng thái</span>
             <span className={`flex items-center gap-1.5 font-medium ${account.is_active ? "text-success" : "text-muted-foreground"}`}>
               <span className={`size-2 rounded-full ${account.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
               {account.is_active ? "Hoạt động" : "Vô hiệu hóa"}
@@ -347,7 +347,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
           </div>
           {account.building_id && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2"><Building2 className="size-3.5" /> Tòa nhà</span>
+              <span className="text-muted-foreground flex items-center gap-2"><Buildings className="size-3.5" /> Tòa nhà</span>
               <span className="font-medium truncate max-w-[180px]">{buildingName || "—"}</span>
             </div>
           )}
@@ -362,16 +362,45 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
   );
 }
 
-/* ── Role Section (grouped table) ──────────── */
+/* ── Role Section (self-fetching, server-side pagination) ── */
 
 const PER_SECTION = 8;
 
-function RoleSection({ role, accounts, onToggle, onView }) {
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(accounts.length / PER_SECTION);
-  const visible = accounts.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
+function RoleSection({ role, search, filterActive, onToggle, onView, refreshKey }) {
+  const [accounts, setAccounts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
   const roleMeta = ROLE_MAP[role] || {};
   const Icon = roleMeta.icon || Users;
+
+  const fetchAccounts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ role, page, limit: PER_SECTION });
+      if (search.trim()) params.set("search", search.trim());
+      if (filterActive === "active") params.set("is_active", "true");
+      if (filterActive === "inactive") params.set("is_active", "false");
+      const res = await apiJson(`/api/users?${params}`);
+      const body = res.data || res;
+      setAccounts(body.data || []);
+      setTotalPages(body.totalPages || 1);
+      setTotal(body.total || 0);
+    } catch {
+      setAccounts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [role, page, search, filterActive]);
+
+  useEffect(() => { fetchAccounts(); }, [fetchAccounts, refreshKey]);
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => { setPage(1); }, [search, filterActive]);
+
+  if (!loading && total === 0) return null;
 
   return (
     <section>
@@ -381,17 +410,19 @@ function RoleSection({ role, accounts, onToggle, onView }) {
             <Icon className="size-3.5 text-primary" />
           </div>
           <h2 className="text-[15px] font-semibold">{roleMeta.label || role}</h2>
-          <span className="text-sm font-medium text-muted-foreground">{accounts.length} kết quả</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            {loading ? <CircleNotch className="size-3.5 animate-spin inline" /> : `${total} kết quả`}
+          </span>
         </div>
         {totalPages > 1 && (
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
+            <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                <ChevronLeft className="size-4" />
+              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                <CaretLeft className="size-4" />
               </Button>
-              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                <ChevronRight className="size-4" />
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -410,18 +441,24 @@ function RoleSection({ role, accounts, onToggle, onView }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map((acc, idx) => {
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <CircleNotch className="size-5 animate-spin text-muted-foreground mx-auto" />
+                </TableCell>
+              </TableRow>
+            ) : accounts.map((acc, idx) => {
               const st = STATUS[acc.is_active] || STATUS["true"];
               return (
                 <TableRow key={acc.id}>
                   <TableCell className="pl-4 text-muted-foreground text-xs">
-                    {page * PER_SECTION + idx + 1}
+                    {(page - 1) * PER_SECTION + idx + 1}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium text-sm">{fullName(acc)}</span>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1"><Mail className="size-3" /> {acc.email}</span>
+                        <span className="flex items-center gap-1"><Envelope className="size-3" /> {acc.email}</span>
                         {acc.phone && <span className="flex items-center gap-1"><Phone className="size-3" /> {acc.phone}</span>}
                       </div>
                     </div>
@@ -466,11 +503,7 @@ function RoleSection({ role, accounts, onToggle, onView }) {
 /* ── Main Page ─────────────────────────────── */
 
 export default function AccountsPage() {
-  const [allAccounts, setAllAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState("all");
 
@@ -478,53 +511,32 @@ export default function AccountsPage() {
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [detailAcc, setDetailAcc] = useState(null);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const [stats, setStats] = useState(null);
+
+  // Bump to trigger all RoleSections to re-fetch
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => { setRefreshKey((k) => k + 1); }, []);
+
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await apiJson("/api/users");
-      setAllAccounts(res.data?.data || []);
-    } catch {
-      setError("Không thể tải dữ liệu.");
-    } finally {
-      setLoading(false);
+      const res = await apiJson("/api/users/stats");
+      setStats(res.data || null);
+    } catch (err) {
+      console.error("Failed to fetch user stats:", err);
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
 
-  /* derived data */
-  const filtered = useMemo(() => allAccounts.filter((a) => {
-    if (filterActive === "active" && !a.is_active) return false;
-    if (filterActive === "inactive" && a.is_active) return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      const name = fullName(a).toLowerCase();
-      if (
-        !name.includes(q) &&
-        !a.email?.toLowerCase().includes(q) &&
-        !a.phone?.includes(q)
-      ) return false;
-    }
-    return true;
-  }), [allAccounts, filterActive, search]);
-
-  const roleGroups = useMemo(() => {
-    const grouped = {};
-    for (const acc of filtered) {
-      if (!grouped[acc.role]) grouped[acc.role] = [];
-      grouped[acc.role].push(acc);
-    }
-    return ROLE_ORDER.filter((r) => grouped[r]?.length > 0).map((r) => ({ role: r, accounts: grouped[r] }));
-  }, [filtered]);
-
-  const totalCount = allAccounts.length;
-  const activeCount = allAccounts.filter((a) => a.is_active).length;
+  const totalCount = stats?.total ?? 0;
+  const activeCount = stats?.active ?? 0;
   const roleCounts = useMemo(() => {
-    const c = { ADMIN: 0, BUILDING_MANAGER: 0, STAFF: 0, RESIDENT: 0, CUSTOMER: 0 };
-    allAccounts.forEach((a) => { if (c[a.role] !== undefined) c[a.role]++; });
-    return c;
-  }, [allAccounts]);
+    const base = { ADMIN: 0, BUILDING_MANAGER: 0, STAFF: 0, RESIDENT: 0, CUSTOMER: 0 };
+    if (stats?.by_role) {
+      for (const { role, count } of stats.by_role) base[role] = count;
+    }
+    return base;
+  }, [stats]);
 
   /* actions */
   const [toggleError, setToggleError] = useState(null);
@@ -535,13 +547,20 @@ export default function AccountsPage() {
     try {
       await api.patch(`/api/users/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
-      fetchAll();
+      refresh();
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật.");
     } finally {
       setSaving(false);
     }
   };
+
+  // Debounce search to avoid firing API calls on every keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -567,7 +586,7 @@ export default function AccountsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm tài khoản..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -586,39 +605,26 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {/* List grouped by role */}
-      <div>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
-          </div>
-        ) : roleGroups.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">Không tìm thấy tài khoản nào.</div>
-        ) : (
-          <div className="space-y-8">
-            {roleGroups.map(({ role, accounts }) => (
-              <RoleSection
-                key={role}
-                role={role}
-                accounts={accounts}
-                onToggle={setConfirmToggle}
-                onView={setDetailAcc}
-              />
-            ))}
-          </div>
-        )}
+      {/* List — one section per role */}
+      <div className="space-y-8">
+        {ROLE_ORDER.map((role) => (
+          <RoleSection
+            key={role}
+            role={role}
+            search={debouncedSearch}
+            filterActive={filterActive}
+            onToggle={setConfirmToggle}
+            onView={setDetailAcc}
+            refreshKey={refreshKey}
+          />
+        ))}
       </div>
 
       {/* Create dialog */}
       <CreateAccountDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        onSaved={() => { fetchAll(); }}
+        onSaved={refresh}
       />
 
       {/* Detail dialog */}
@@ -647,7 +653,7 @@ export default function AccountsPage() {
             <Button
               variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
-              {saving && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>

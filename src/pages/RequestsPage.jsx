@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Search, Loader2, ChevronLeft, ChevronRight, Eye,
-  DoorOpen, User, MessageSquareMore,
-} from "lucide-react";
+  MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
+  Door, User, ChatCircleText,
+} from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +162,7 @@ function RequestDetailDialog({ open, onOpenChange, requestId }) {
 
         {loading || !detail ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CircleNotch className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <div className="space-y-4">
@@ -189,7 +189,7 @@ function RequestDetailDialog({ open, onOpenChange, requestId }) {
               </div>
               {detail.room && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5"><DoorOpen className="size-3.5" /> Phòng</span>
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Door className="size-3.5" /> Phòng</span>
                   <span className="font-medium">
                     {detail.room.room_number}{detail.room.floor != null && ` — Tầng ${detail.room.floor}`}
                   </span>
@@ -379,7 +379,7 @@ export default function RequestsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm theo tiêu đề hoặc mã yêu cầu..." value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
@@ -415,10 +415,10 @@ export default function RequestsPage() {
             <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="size-4" />
+                <CaretLeft className="size-4" />
               </Button>
               <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="size-4" />
+                <CaretRight className="size-4" />
               </Button>
             </div>
           </div>
@@ -428,7 +428,7 @@ export default function RequestsPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
         <div className="py-14 text-center">

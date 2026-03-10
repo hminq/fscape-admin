@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
