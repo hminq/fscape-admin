@@ -22,7 +22,7 @@ const STATUS_CFG = {
     AVAILABLE: { label: "Còn trống", bg: "bg-success", text: "text-success" },
     OCCUPIED: { label: "Đã thuê", bg: "bg-primary", text: "text-primary" },
     MAINTENANCE: { label: "Bảo trì", bg: "bg-amber-500", text: "text-amber-500" },
-    LOCKED: { label: "Khóa", bg: "bg-destructive", text: "text-destructive" },
+    LOCKED: { label: "Tạm khóa", bg: "bg-destructive", text: "text-destructive" },
 };
 
 const fmtPrice = (p) => p ? parseFloat(p).toLocaleString("vi-VN") : "—";

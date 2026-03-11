@@ -151,6 +151,7 @@ export default function EditRoomPage() {
     const { id } = useParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const [form, setForm] = useState({
         room_number: "", room_type_id: "", building_id: "", floor: "", status: "AVAILABLE",
@@ -236,11 +237,27 @@ export default function EditRoomPage() {
         fetchData();
     }, [id]);
 
-    const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+    const handleChange = (k, v) => {
+        setForm((p) => ({ ...p, [k]: v }));
+        if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+    };
 
     const handleSave = async () => {
-        if (!form.room_number || !form.building_id || !form.room_type_id || !form.floor) {
-            alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+        const e = {};
+        if (!form.room_number?.trim()) e.room_number = "Tên / Mã phòng là bắt buộc";
+        if (!form.room_type_id) e.room_type_id = "Vui lòng chọn loại phòng";
+        if (!form.building_id) e.building_id = "Vui lòng chọn tòa nhà";
+        if (!form.floor) e.floor = "Tầng là bắt buộc";
+
+        if (Object.keys(e).length > 0) {
+            setErrors(e);
+            const firstError = Object.keys(e)[0];
+            const el = document.getElementById(firstError);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                const input = el.tagName === "INPUT" ? el : el.querySelector("input, button");
+                if (input) input.focus();
+            }
             return;
         }
         setSaving(true);
@@ -331,34 +348,53 @@ export default function EditRoomPage() {
                     <fieldset disabled={isLocked} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label>Tên / Mã phòng *</Label>
-                                <Input placeholder="VD: A-210" value={form.room_number}
-                                    onChange={(e) => handleChange("room_number", e.target.value)} />
+                                <Label className={errors.room_number ? "text-destructive" : ""}>Tên / Mã phòng *</Label>
+                                <Input
+                                    id="room_number"
+                                    placeholder="VD: A-210"
+                                    value={form.room_number}
+                                    onChange={(e) => handleChange("room_number", e.target.value)}
+                                    className={errors.room_number ? "border-destructive" : ""}
+                                />
+                                {errors.room_number && <p className="text-[11px] text-destructive">{errors.room_number}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Loại phòng *</Label>
+                                <Label className={errors.room_type_id ? "text-destructive" : ""}>Loại phòng *</Label>
                                 <Select value={form.room_type_id} onValueChange={(v) => handleChange("room_type_id", v)}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger>
+                                    <SelectTrigger id="room_type_id" className={errors.room_type_id ? "border-destructive" : ""}>
+                                        <SelectValue placeholder="Chọn loại phòng" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         {roomTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                                {errors.room_type_id && <p className="text-[11px] text-destructive">{errors.room_type_id}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="space-y-1.5 col-span-2">
-                                <Label>Tòa nhà *</Label>
+                                <Label className={errors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
                                 <Select value={form.building_id} onValueChange={(v) => handleChange("building_id", v)}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn tòa nhà" /></SelectTrigger>
+                                    <SelectTrigger id="building_id" className={errors.building_id ? "border-destructive" : ""}>
+                                        <SelectValue placeholder="Chọn tòa nhà" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         {buildings.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                                {errors.building_id && <p className="text-[11px] text-destructive">{errors.building_id}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Tầng *</Label>
-                                <Input type="number" placeholder="VD: 5" value={form.floor}
-                                    onChange={(e) => handleChange("floor", e.target.value)} className="text-center" />
+                                <Label className={errors.floor ? "text-destructive" : ""}>Tầng *</Label>
+                                <Input
+                                    id="floor"
+                                    type="number"
+                                    placeholder="VD: 5"
+                                    value={form.floor}
+                                    onChange={(e) => handleChange("floor", e.target.value)}
+                                    className={cn("text-center", errors.floor && "border-destructive")}
+                                />
+                                {errors.floor && <p className="text-[11px] text-destructive">{errors.floor}</p>}
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Trạng thái</Label>
@@ -367,7 +403,7 @@ export default function EditRoomPage() {
                                     <SelectContent>
                                         <SelectItem value="AVAILABLE">Còn trống</SelectItem>
                                         <SelectItem value="MAINTENANCE">Bảo trì</SelectItem>
-                                        <SelectItem value="LOCKED">Khóa</SelectItem>
+                                        <SelectItem value="LOCKED">Tạm khóa</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

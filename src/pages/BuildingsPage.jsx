@@ -276,9 +276,9 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = {};
-    if (!form.name?.trim()) validationErrors.name = true;
-    if (!form.location_id) validationErrors.location_id = true;
-    if (!form.address?.trim()) validationErrors.address = true;
+    if (!form.name?.trim()) validationErrors.name = "Tên tòa nhà là bắt buộc";
+    if (!form.location_id) validationErrors.location_id = "Vui lòng chọn khu vực";
+    if (!form.address?.trim()) validationErrors.address = "Địa chỉ là bắt buộc";
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -441,12 +441,13 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           <Card className="p-5 space-y-5 shadow-none border-border">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Tên tòa nhà *</Label>
+                <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
                 <Input id="edit-name" value={form.name || ""} onChange={(e) => setFormField("name", e.target.value)}
                   className={errors.name ? "border-destructive" : ""} />
+                {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label>Khu vực *</Label>
+                <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
                 <Select value={form.location_id || ""} onValueChange={(v) => setFormField("location_id", v)}>
                   <SelectTrigger id="edit-location_id" className={errors.location_id ? "border-destructive" : ""}>
                     <SelectValue placeholder="Chọn khu vực" />
@@ -457,13 +458,15 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Địa chỉ *</Label>
+              <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
               <Input id="edit-address" value={form.address || ""} onChange={(e) => setFormField("address", e.target.value)}
                 className={errors.address ? "border-destructive" : ""} />
+              {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
             </div>
 
             <div className="space-y-1.5">

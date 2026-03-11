@@ -113,7 +113,7 @@ function StatusBar({ globalRooms = [] }) {
         {pAvail > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> {Math.round(pAvail)}% Còn trống</span>}
         {pOcc > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary" /> {Math.round(pOcc)}% Đã thuê</span>}
         {pMaint > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-amber-500" /> {Math.round(pMaint)}% Bảo trì</span>}
-        {pLock > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-destructive" /> {Math.round(pLock)}% Khóa</span>}
+        {pLock > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-destructive" /> {Math.round(pLock)}% Tạm khóa</span>}
       </div>
     </div>
   );
@@ -138,7 +138,7 @@ function RoomCard({ room, onView, onToggle }) {
   const statusLabel = isAvailable ? "Còn trống"
     : isOccupied ? "Đã thuê"
       : isMaintenance ? "Bảo trì"
-        : "Vô hiệu hóa";
+        : "Tạm khóa";
 
   const imageUrl = room.images?.[0]?.image_url || room.thumbnail_url || room.images?.[0] || defaultRoomImg;
 
@@ -175,7 +175,7 @@ function RoomCard({ room, onView, onToggle }) {
           <Button
             size="icon" variant="ghost" className="size-7 shrink-0"
             onClick={() => onToggle(room)}
-            title={isLocked ? "Mở khóa" : "Khóa phòng"}
+            title={isLocked ? "Mở khóa" : "Tạm khóa phòng"}
             disabled={isOccupied}
           >
             {isLocked ? <ToggleLeft className="size-4 text-muted-foreground" /> : <ToggleRight className="size-4 text-success" />}
@@ -415,13 +415,13 @@ export default function RoomsPage() {
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>
-              {confirmToggle?.status === 'LOCKED' ? "Mở khóa phòng" : "Khóa phòng"}
+              {confirmToggle?.status === 'LOCKED' ? "Mở khóa phòng" : "Tạm khóa phòng"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.status === 'LOCKED'
               ? <>Bạn có chắc muốn <strong className="text-foreground">mở khóa</strong> phòng <strong className="text-foreground">&quot;{confirmToggle?.room_number}&quot;</strong>?</>
-              : <>Bạn có chắc muốn <strong className="text-foreground">khóa</strong> phòng <strong className="text-foreground">&quot;{confirmToggle?.room_number}&quot;</strong>?</>
+              : <>Bạn có chắc muốn <strong className="text-foreground">tạm khóa</strong> phòng <strong className="text-foreground">&quot;{confirmToggle?.room_number}&quot;</strong>?</>
             }
           </p>
           {toggleError && <p className="text-sm text-destructive">{toggleError}</p>}
@@ -433,7 +433,7 @@ export default function RoomsPage() {
               onClick={handleToggleConfirm}
             >
               {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.status === 'LOCKED' ? "Mở khóa" : "Khóa phòng"}
+              {confirmToggle?.status === 'LOCKED' ? "Mở khóa" : "Tạm khóa phòng"}
             </Button>
           </DialogFooter>
         </DialogContent>
