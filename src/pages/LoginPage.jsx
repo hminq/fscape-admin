@@ -45,6 +45,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -54,6 +55,25 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setFieldErrors({ email: "", password: "" });
+
+    let hasError = false;
+    const newFieldErrors = { email: "", password: "" };
+
+    if (!email.trim()) {
+      newFieldErrors.email = "Email không được để trống";
+      hasError = true;
+    }
+    if (!password.trim()) {
+      newFieldErrors.password = "Mật khẩu không được để trống";
+      hasError = true;
+    }
+
+    if (hasError) {
+      setFieldErrors(newFieldErrors);
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await apiJson("/api/auth/internal/login", {
@@ -75,7 +95,13 @@ export default function LoginPage() {
 
       navigate(ROLE_HOME[u.role] ?? "/");
     } catch (err) {
-      setError(err?.message || "Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.");
+      const msgMap = {
+        "Email not found": "Email hoặc mật khẩu không chính xác, vui lòng thử lại",
+        "Incorrect password": "Email hoặc mật khẩu không chính xác, vui lòng thử lại",
+        "This account is not allowed to login here. Please use customer login": "Tài khoản này không có quyền truy cập trang quản trị.",
+        "Account is inactive. Please contact administrator": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+      };
+      setError(msgMap[err.message] || err.message || "Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -251,9 +277,13 @@ export default function LoginPage() {
                 placeholder="admin@fscape.vn"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 style={{ height: 44 }}
               />
+              {fieldErrors.email && (
+                <span style={{ color: "var(--destructive)", fontSize: "0.75rem", fontWeight: 500 }}>
+                  {fieldErrors.email}
+                </span>
+              )}
             </div>
 
             {/* Password field */}
@@ -270,7 +300,6 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   style={{ height: 44, paddingRight: "2.75rem" }}
                 />
                 <button
@@ -294,6 +323,11 @@ export default function LoginPage() {
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
+              {fieldErrors.password && (
+                <span style={{ color: "var(--destructive)", fontSize: "0.75rem", fontWeight: 500 }}>
+                  {fieldErrors.password}
+                </span>
+              )}
             </div>
 
             {/* Error */}
@@ -404,17 +438,17 @@ export default function LoginPage() {
             © 2025 FScape. Hệ thống dành riêng cho quản trị viên.
           </p>
         </div>
-      </div>
+      </div >
 
       {/* Responsive: hide left panel on small screens */}
-      <style>{`
+      < style > {`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .login-left-panel { display: none !important; }
         }
-      `}</style>
+      `}</style >
 
       <ContactDialog open={contactOpen} onOpenChange={setContactOpen} />
-    </div>
+    </div >
   );
 }

@@ -261,7 +261,26 @@ export default function CreateBuildingPage() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    // 0. Manual validation for scrolling
+    const e = {};
+    if (!form.name.trim()) e.name = "Tên tòa nhà là bắt buộc";
+    if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
+    if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
+    if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
+
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      const firstError = Object.keys(e)[0];
+      const el = document.getElementById(firstError);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Focusing the element if it's an input
+        const input = el.tagName === "INPUT" ? el : el.querySelector("input, button");
+        if (input) input.focus();
+      }
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -332,6 +351,7 @@ export default function CreateBuildingPage() {
             <div className="space-y-1.5">
               <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
               <Input
+                id="name"
                 placeholder="VD: FScape Cầu Giấy"
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
@@ -342,7 +362,7 @@ export default function CreateBuildingPage() {
             <div className="space-y-1.5">
               <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
               <Select value={form.location_id} onValueChange={(v) => set("location_id", v)}>
-                <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
+                <SelectTrigger id="location_id" className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
                 </SelectTrigger>
                 <SelectContent>
@@ -356,7 +376,7 @@ export default function CreateBuildingPage() {
             <div className="space-y-1.5 col-span-2 md:col-span-1">
               <Label className={errors.manager_id ? "text-destructive" : ""}>Người quản lý *</Label>
               <Select value={form.manager_id} onValueChange={(v) => set("manager_id", v)}>
-                <SelectTrigger className={errors.manager_id ? "border-destructive" : ""}>
+                <SelectTrigger id="manager_id" className={errors.manager_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn quản lý tòa nhà" />
                 </SelectTrigger>
                 <SelectContent>
@@ -379,6 +399,7 @@ export default function CreateBuildingPage() {
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
+                id="address"
                 placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
                 value={form.address}
                 onChange={(e) => set("address", e.target.value)}

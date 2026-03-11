@@ -8,7 +8,7 @@
  *   filter   — "all" | "active" | "inactive"
  *   label    — entity label for count mode, e.g. "tòa nhà" or "tài khoản"
  */
-export default function StatusBar({ active, inactive, filter, label = "" }) {
+export default function StatusBar({ active, inactive, filter, label = "", inactiveLabel = "vô hiệu hóa" }) {
     const total = active + inactive;
     const activePct = total > 0 ? Math.round((active / total) * 100) : 0;
 
@@ -33,7 +33,7 @@ export default function StatusBar({ active, inactive, filter, label = "" }) {
                             <span className="size-1.5 rounded-full bg-success" /> {activePct}% hoạt động
                         </span>
                         <span className="flex items-center gap-1.5">
-                            <span className="size-1.5 rounded-full bg-muted-foreground/30" /> {100 - activePct}% vô hiệu
+                            <span className="size-1.5 rounded-full bg-muted-foreground/30" /> {100 - activePct}% {inactiveLabel.split(' ')[0]}
                         </span>
                     </>
                 ) : filter === "active" ? (
@@ -42,7 +42,7 @@ export default function StatusBar({ active, inactive, filter, label = "" }) {
                     </span>
                 ) : (
                     <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
-                        <span className="size-1.5 rounded-full bg-muted-foreground/30" /> {inactive} {label} vô hiệu hóa
+                        <span className="size-1.5 rounded-full bg-muted-foreground/30" /> {inactive} {label} {inactiveLabel}
                     </span>
                 )}
             </div>

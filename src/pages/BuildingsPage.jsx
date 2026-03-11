@@ -108,7 +108,7 @@ function BuildingSummary({ active, inactive, locationCounts, filterActive }) {
 
         <div className="w-px h-12 bg-border shrink-0" />
 
-        <StatusBar active={active} inactive={inactive} filter={filterActive} label="tòa nhà" />
+        <StatusBar active={active} inactive={inactive} filter={filterActive} label="tòa nhà" inactiveLabel="ngừng hoạt động" />
       </div>
     </div>
   );
@@ -134,7 +134,7 @@ function BuildingCard({ building, onView, onToggle, onStaff }) {
           <span className="flex items-center gap-1.5 shrink-0">
             <span className={`size-2 rounded-full ${building.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
             <span className={`text-[11px] font-medium ${building.is_active ? "text-success" : "text-muted-foreground"}`}>
-              {building.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+              {building.is_active ? "Hoạt động" : "Ngừng hoạt động"}
             </span>
           </span>
         </div>
@@ -163,7 +163,7 @@ function BuildingCard({ building, onView, onToggle, onStaff }) {
           </Button>
           <Button
             size="icon" variant="ghost" className="size-9"
-            title={building.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+            title={building.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
             onClick={() => onToggle(building)}
           >
             {building.is_active
@@ -193,6 +193,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [zoomImage, setZoomImage] = useState(null);
   const thumbInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
@@ -274,7 +275,23 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    const validationErrors = {};
+    if (!form.name?.trim()) validationErrors.name = true;
+    if (!form.location_id) validationErrors.location_id = true;
+    if (!form.address?.trim()) validationErrors.address = true;
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      const firstError = Object.keys(validationErrors)[0];
+      const el = document.getElementById(`edit-${firstError}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = el.tagName === "INPUT" ? el : el.querySelector("input, button");
+        if (input) input.focus();
+      }
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -386,7 +403,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               <span className="flex items-center gap-1.5 text-[11px] font-semibold">
                 <span className={`size-2 rounded-full ${building.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                 <span className={building.is_active ? "text-success" : "text-muted-foreground"}>
-                  {building.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                  {building.is_active ? "Hoạt động" : "Ngừng hoạt động"}
                 </span>
               </span>
             )}
@@ -425,13 +442,13 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Tên tòa nhà *</Label>
-                <Input value={form.name || ""} onChange={(e) => setFormField("name", e.target.value)}
+                <Input id="edit-name" value={form.name || ""} onChange={(e) => setFormField("name", e.target.value)}
                   className={errors.name ? "border-destructive" : ""} />
               </div>
               <div className="space-y-1.5">
                 <Label>Khu vực *</Label>
                 <Select value={form.location_id || ""} onValueChange={(v) => setFormField("location_id", v)}>
-                  <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
+                  <SelectTrigger id="edit-location_id" className={errors.location_id ? "border-destructive" : ""}>
                     <SelectValue placeholder="Chọn khu vực" />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,7 +462,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
 
             <div className="space-y-1.5">
               <Label>Địa chỉ *</Label>
-              <Input value={form.address || ""} onChange={(e) => setFormField("address", e.target.value)}
+              <Input id="edit-address" value={form.address || ""} onChange={(e) => setFormField("address", e.target.value)}
                 className={errors.address ? "border-destructive" : ""} />
             </div>
 
@@ -621,7 +638,8 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
                 {gallery.map((src, idx) => (
                   <div
                     key={idx}
-                    className="aspect-square rounded-lg overflow-hidden bg-muted border border-border"
+                    className="aspect-square rounded-lg overflow-hidden bg-muted border border-border cursor-zoom-in"
+                    onClick={() => setZoomImage(src)}
                   >
                     <img
                       src={src}
@@ -687,6 +705,18 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               Xóa
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zoom Image Dialog */}
+      <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
+        <DialogContent className="max-w-5xl p-1 bg-transparent border-none shadow-none">
+          <img
+            src={zoomImage}
+            alt="Zoomed"
+            className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
+            onError={(e) => { e.target.src = defaultBuildingImg; }}
+          />
         </DialogContent>
       </Dialog>
     </div>
@@ -1004,12 +1034,12 @@ export default function BuildingsPage() {
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>
-              {confirmToggle?.is_active ? "Vô hiệu hóa tòa nhà" : "Kích hoạt tòa nhà"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động tòa nhà" : "Kích hoạt tòa nhà"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.is_active
-              ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> tòa nhà <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+              ? <>Bạn có chắc muốn <strong className="text-foreground">ngừng hoạt động</strong> tòa nhà <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
               : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> tòa nhà <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
             }
           </p>
@@ -1024,7 +1054,7 @@ export default function BuildingsPage() {
               onClick={handleToggleConfirm}
             >
               {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>

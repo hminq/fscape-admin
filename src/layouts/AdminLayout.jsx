@@ -81,13 +81,6 @@ export default function AdminLayout() {
                 {/* Actions */}
                 <div className="border-t border-border p-1">
                   <button
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
-                  >
-                    <User className="size-4" />
-                    Hồ sơ cá nhân
-                  </button>
-                  <button
                     onClick={() => {
                       setUserMenuOpen(false);
                       logout();
