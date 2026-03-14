@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Upload, X, FloppyDisk, CircleNotch,
   MapPin, Stack as Layers, Image as ImageIcon,
+  Plus, CheckCircle, Copy, Check, Envelope, Phone
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +13,30 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader,
+  DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { apiJson, apiRequest } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 import MapPicker from "@/components/MapPicker";
 
 /* ── upload helper ─────────────────────────── */
+
+const translateError = (msg) => {
+  if (!msg) return null;
+  const m = String(msg).toLowerCase();
+  if (m.includes("email already exists")) return "Email này đã được đăng ký trong hệ thống.";
+  if (m.includes("phone must be")) return "Số điện thoại không hợp lệ (9-15 số).";
+  if (m.includes("already exists")) {
+    if (m.includes("location")) return "Khu vực này đã tồn tại.";
+    return "Thông tin này đã tồn tại trong hệ thống.";
+  }
+  if (m.includes("required")) return "Vui lòng điền đầy đủ các thông tin bắt buộc.";
+  if (m.includes("not found")) return "Không tìm thấy dữ liệu yêu cầu.";
+  if (m.includes("failed to fetch") || m.includes("network error")) return "Lỗi mạng, vui lòng kiểm tra kết nối.";
+  return msg;
+};
 
 async function uploadFiles(category, files) {
   const fd = new FormData();
@@ -194,6 +214,207 @@ function FacilityPicker({ selected, onChange }) {
   );
 }
 
+/* ── QuickCreateManagerDialog ──────────────── */
+
+function QuickCreateManagerDialog({ open, onOpenChange, onSaved }) {
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "BUILDING_MANAGER" });
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ first_name: "", last_name: "", email: "", phone: "", role: "BUILDING_MANAGER" });
+    setErrors({});
+    setResult(null);
+    setGlobalError(null);
+  }, [open]);
+
+  const [globalError, setGlobalError] = useState(null);
+
+  const validate = () => {
+    const e = {};
+    if (!form.first_name?.trim()) e.first_name = true;
+    if (!form.last_name?.trim()) e.last_name = true;
+    if (!form.email?.trim()) e.email = true;
+    if (!form.phone?.trim()) e.phone = true;
+    setErrors(e);
+    if (Object.keys(e).length > 0) {
+      setGlobalError("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+    }
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    setGlobalError(null);
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      const res = await apiJson("/api/users", {
+        method: "POST",
+        body: {
+          ...form,
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+        },
+      });
+      setResult(res.data ?? res);
+    } catch (err) {
+      setGlobalError(translateError(err.message) || "Đã xảy ra lỗi khi tạo tài khoản.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (result) {
+    return (
+      <Dialog open={open} onOpenChange={(v) => { if(!v) onSaved(result); }}>
+        <DialogContent className="max-w-sm text-center">
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle className="size-7 text-primary" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold">Tài khoản đã tạo xong</p>
+              <p className="text-xs text-muted-foreground mt-1">{result.email}</p>
+            </div>
+            <div className="w-full rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+              <p className="text-[11px] text-muted-foreground">Mật khẩu của quản lý mới:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg bg-background border px-3 py-1.5 text-sm font-mono font-bold tracking-wider">
+                  {result.generated_password}
+                </code>
+                <Button size="icon" variant="outline" className="size-8" onClick={() => {
+                  navigator.clipboard.writeText(result.generated_password);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}>
+                  {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+                </Button>
+              </div>
+            </div>
+            <Button className="w-full" onClick={() => onSaved(result)}>Tiếp tục tạo tòa nhà</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Thêm quản lý mới</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className={errors.first_name ? "text-destructive" : ""}>Họ *</Label>
+              <Input value={form.first_name} onChange={(e) => setForm(p => ({...p, first_name: e.target.value}))} className={errors.first_name ? "border-destructive" : ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className={errors.last_name ? "text-destructive" : ""}>Tên *</Label>
+              <Input value={form.last_name} onChange={(e) => setForm(p => ({...p, last_name: e.target.value}))} className={errors.last_name ? "border-destructive" : ""} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email *</Label>
+            <Input type="email" value={form.email} onChange={(e) => setForm(p => ({...p, email: e.target.value}))} className={errors.email ? "border-destructive" : ""} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className={errors.phone ? "text-destructive" : ""}>Số điện thoại *</Label>
+            <Input value={form.phone} onChange={(e) => setForm(p => ({...p, phone: e.target.value}))} className={errors.phone ? "border-destructive" : ""} />
+          </div>
+
+          {globalError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+              {globalError}
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+              Tạo quản lý
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── QuickCreateLocationDialog ─────────────── */
+
+function QuickCreateLocationDialog({ open, onOpenChange, onSaved }) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setError(null);
+  }, [open]);
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    if (!name.trim()) {
+      setError("Vui lòng nhập tên khu vực");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await apiJson("/api/locations", {
+        method: "POST",
+        body: { name: name.trim(), is_active: true },
+      });
+      onSaved(res.data ?? res);
+    } catch (err) {
+      setError(translateError(err.message) || "Đã xảy ra lỗi khi tạo khu vực.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Thêm khu vực mới</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label>Tên khu vực *</Label>
+            <Input 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="VD: TP. Thủ Đức"
+              className={error ? "border-destructive" : ""} 
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+              {error}
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+              Tạo khu vực
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ── CreateBuildingPage ────────────────────── */
 
 export default function CreateBuildingPage() {
@@ -201,6 +422,9 @@ export default function CreateBuildingPage() {
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState([]);
   const [managers, setManagers] = useState([]);
+  const [showCreateManager, setShowCreateManager] = useState(false);
+  const [showCreateLocation, setShowCreateLocation] = useState(false);
+  const [globalError, setGlobalError] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -223,21 +447,93 @@ export default function CreateBuildingPage() {
   const [galleryImages, setGalleryImages] = useState([]);
 
   const [errors, setErrors] = useState({});
+  const [geoStatus, setGeoStatus] = useState("idle"); // idle | loading | error | success
+
+  const fetchLocations = async () => {
+    try {
+      const res = await apiJson("/api/locations?limit=100&is_active=true");
+      setLocations(res.data || []);
+    } catch { /* silent */ }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const res = await apiJson("/api/users/available-managers");
+      setManagers(res.data || []);
+    } catch { /* silent */ }
+  };
 
   useEffect(() => {
-    (async () => {
-      const [locResult, mngResult] = await Promise.allSettled([
-        apiJson("/api/locations?limit=100&is_active=true"),
-        apiJson("/api/users/available-managers"),
-      ]);
-      if (locResult.status === "fulfilled") setLocations(locResult.value.data || []);
-      if (mngResult.status === "fulfilled") setManagers(mngResult.value.data || []);
-    })();
+    fetchLocations();
+    fetchManagers();
   }, []);
 
   const set = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
     if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+    if (k === "address") setErrors((p) => ({ ...p, addressInvalid: undefined }));
+  };
+
+  const geocodeTimeoutRef = useRef(null);
+
+  const handleGeocode = (address, immediate = false) => {
+    if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current);
+    if (!address?.trim()) {
+      setGeoStatus("idle");
+      setForm(p => ({ ...p, latitude: "", longitude: "" }));
+      return;
+    }
+
+    const perform = async () => {
+      setGeoStatus("loading");
+      const clean = (str) => str
+        .replace(/,?\s*Việt Nam$/i, "")
+        .replace(/\b(Phường|Quận|Thành phố|Tp\.?|Tỉnh|Huyện|Xã)\b/gi, "")
+        .replace(/\s*,\s*/g, ", ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const fetchLoc = async (q) => {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=vn&accept-language=vi`;
+        const res = await fetch(url);
+        return res.json();
+      };
+
+      try {
+        let query = clean(address);
+        let data = await fetchLoc(query);
+
+        if (data.length === 0 && query.includes(",")) {
+          const parts = query.split(",");
+          if (parts.length > 2) {
+            const simplified = `${parts[0]}, ${parts[parts.length - 1]}`;
+            data = await fetchLoc(simplified);
+          }
+        }
+
+        if (data.length > 0) {
+          const { lat, lon } = data[0];
+          setForm(p => ({
+            ...p,
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lon)
+          }));
+          setGeoStatus("success");
+          setErrors(p => ({ ...p, address: undefined, addressInvalid: undefined }));
+        } else {
+          setGeoStatus("error");
+          setForm(p => ({ ...p, latitude: "", longitude: "" }));
+        }
+      } catch (err) {
+        setGeoStatus("error");
+      }
+    };
+
+    if (immediate) {
+      perform();
+    } else {
+      geocodeTimeoutRef.current = setTimeout(perform, 1000);
+    }
   };
 
   const validate = () => {
@@ -246,6 +542,10 @@ export default function CreateBuildingPage() {
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
     if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
     if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
+    if (geoStatus === "error" || !form.latitude) e.addressInvalid = "Địa chỉ không phù hợp";
+    const floors = Number(form.total_floors);
+    if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
+    else if (isNaN(floors) || floors < 1 || floors > 80) e.total_floors = "Số tầng phải từ 1 đến 80";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -267,6 +567,10 @@ export default function CreateBuildingPage() {
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
     if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
     if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
+    if (geoStatus === "error" || !form.latitude) e.addressInvalid = "Địa chỉ không phù hợp";
+    const floorsNum = Number(form.total_floors);
+    if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
+    else if (isNaN(floorsNum) || floorsNum < 1 || floorsNum > 80) e.total_floors = "Số tầng phải từ 1 đến 80";
 
     if (Object.keys(e).length > 0) {
       setErrors(e);
@@ -328,7 +632,8 @@ export default function CreateBuildingPage() {
       await apiJson("/api/buildings", { method: "POST", body: payload });
       navigate("/buildings");
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
+      setGlobalError(translateError(err.message) || "Đã xảy ra lỗi khi tạo tòa nhà.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSaving(false);
     }
@@ -341,6 +646,13 @@ export default function CreateBuildingPage() {
         <h1 className="text-2xl font-bold tracking-tight">Thêm tòa nhà mới</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Điền thông tin để khởi tạo tòa nhà FScape mới.</p>
       </div>
+
+      {globalError && (
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <X className="size-4" />
+          {globalError}
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* ─ Thông tin cơ bản ─ */}
@@ -361,7 +673,16 @@ export default function CreateBuildingPage() {
             </div>
             <div className="space-y-1.5">
               <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
-              <Select value={form.location_id} onValueChange={(v) => set("location_id", v)}>
+              <Select
+                value={form.location_id}
+                onValueChange={(v) => {
+                  if (v === "QUICK_ADD_LOC") {
+                    setShowCreateLocation(true);
+                  } else {
+                    set("location_id", v);
+                  }
+                }}
+              >
                 <SelectTrigger id="location_id" className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
                 </SelectTrigger>
@@ -369,13 +690,32 @@ export default function CreateBuildingPage() {
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
                   ))}
+                  <div className="h-px bg-border my-1" />
+                  <SelectItem
+                    value="QUICK_ADD_LOC"
+                    className="focus:bg-primary/10 focus:text-primary font-bold text-primary cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                       <Plus className="size-3.5" weight="bold" />
+                       TẠO KHU VỰC MỚI
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
             </div>
             <div className="space-y-1.5 col-span-2 md:col-span-1">
               <Label className={errors.manager_id ? "text-destructive" : ""}>Người quản lý *</Label>
-              <Select value={form.manager_id} onValueChange={(v) => set("manager_id", v)}>
+              <Select
+                value={form.manager_id}
+                onValueChange={(v) => {
+                  if (v === "QUICK_ADD") {
+                    setShowCreateManager(true);
+                  } else {
+                    set("manager_id", v);
+                  }
+                }}
+              >
                 <SelectTrigger id="manager_id" className={errors.manager_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn quản lý tòa nhà" />
                 </SelectTrigger>
@@ -386,8 +726,20 @@ export default function CreateBuildingPage() {
                     </SelectItem>
                   ))}
                   {managers.length === 0 && (
-                    <div className="py-2 text-center text-xs text-muted-foreground w-full">Không có quản lý trống</div>
+                    <div className="py-2 px-2 text-center italic text-[11px] text-muted-foreground">
+                      Không còn quản lý nào trống
+                    </div>
                   )}
+                  <div className="h-px bg-border my-1" />
+                  <SelectItem
+                    value="QUICK_ADD"
+                    className="focus:bg-primary/10 focus:text-primary font-bold text-primary cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                       <Plus className="size-3.5" weight="bold" />
+                       TẠO QUẢN LÝ MỚI
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {errors.manager_id && <p className="text-[11px] text-destructive">{errors.manager_id}</p>}
@@ -395,18 +747,45 @@ export default function CreateBuildingPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
+            <Label className={(errors.address || errors.addressInvalid) ? "text-destructive" : ""}>
+              Địa chỉ * {geoStatus === "loading" && <CircleNotch className="inline size-3 animate-spin ml-1 text-primary" />}
+            </Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 id="address"
-                placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                placeholder="VD: 144 Xuân Thủy, Cầu Giấy... (Nhấn Enter để định vị)"
                 value={form.address}
-                onChange={(e) => set("address", e.target.value)}
-                className={cn("pl-9", errors.address && "border-destructive")}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set("address", val);
+                  if (val.trim().length > 2) {
+                    handleGeocode(val);
+                  } else {
+                    setGeoStatus("idle");
+                    setForm(p => ({ ...p, latitude: "", longitude: "" }));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleGeocode(form.address, true);
+                  }
+                }}
+                className={cn(
+                  "pl-9", 
+                  (errors.address || geoStatus === "error" || errors.addressInvalid) && "border-destructive",
+                  geoStatus === "success" && "border-success/50"
+                )}
               />
             </div>
             {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
+            {geoStatus === "error" && !errors.address && (
+              <p className="text-[11px] text-destructive font-medium">Địa chỉ không phù hợp hoặc không tìm thấy trên bản đồ</p>
+            )}
+            {geoStatus === "success" && (
+              <p className="text-[11px] text-success font-medium">Đã tìm thấy vị trí trên bản đồ</p>
+            )}
           </div>
 
           <MapPicker
@@ -420,16 +799,21 @@ export default function CreateBuildingPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label>Số tầng</Label>
+              <Label className={errors.total_floors ? "text-destructive" : ""}>Số tầng *</Label>
               <div className="relative">
                 <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
-                  type="number" min="1" placeholder="VD: 8"
+                  id="total_floors"
+                  type="number" 
+                  min="1" 
+                  max="80"
+                  placeholder="VD: 8"
                   value={form.total_floors}
                   onChange={(e) => set("total_floors", e.target.value)}
-                  className="pl-9"
+                  className={cn("pl-9", errors.total_floors && "border-destructive")}
                 />
               </div>
+              {errors.total_floors && <p className="text-[11px] text-destructive">{errors.total_floors}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Vĩ độ</Label>
@@ -504,6 +888,26 @@ export default function CreateBuildingPage() {
           </Button>
         </div>
       </div>
+
+      <QuickCreateManagerDialog
+        open={showCreateManager}
+        onOpenChange={setShowCreateManager}
+        onSaved={async (newManager) => {
+          setShowCreateManager(false);
+          await fetchManagers();
+          set("manager_id", String(newManager.id));
+        }}
+      />
+
+      <QuickCreateLocationDialog
+        open={showCreateLocation}
+        onOpenChange={setShowCreateLocation}
+        onSaved={async (newLoc) => {
+          setShowCreateLocation(false);
+          await fetchLocations();
+          set("location_id", String(newLoc.id));
+        }}
+      />
     </div>
   );
 }
