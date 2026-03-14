@@ -1,9 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, GraduationCap,
-  ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings,
-  CaretLeft, CaretRight,
-} from "@phosphor-icons/react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, GraduationCap, ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +19,25 @@ import {
 } from "@/components/ui/select";
 import { api, apiJson } from "@/lib/apiClient";
 import MapPicker from "@/components/MapPicker";
-import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
+import { cn } from "@/lib/utils";
+
 
 
 /* ── helpers ───────────────────────────────── */
 
 const STATUS = {
   true: { label: "Hoạt động" },
-  false: { label: "Vô hiệu hóa" },
+  false: { label: "Ngừng hoạt động" },
+};
+
+const translateError = (msg) => {
+  if (!msg) return null;
+  if (msg.includes("already exists")) {
+    const nameMatch = msg.match(/"([^"]+)"/);
+    const name = nameMatch ? nameMatch[1] : "";
+    return `Trường đại học${name ? ` "${name}"` : ""} đã tồn tại.`;
+  }
+  return msg;
 };
 
 /* ── DonutChart ─────────────────────────────── */
@@ -82,7 +90,7 @@ function UniSummary({ total, active, inactive }) {
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
-              <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
+              <span className="text-xs text-muted-foreground">Ngừng hoạt động</span>
               <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
             </div>
           </div>
@@ -137,7 +145,7 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold">
                   <span className={`size-2 rounded-full ${uni.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                   <span className={uni.is_active ? "text-success" : "text-muted-foreground"}>
-                    {uni.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                    {uni.is_active ? "Hoạt động" : "Ngừng hoạt động"}
                   </span>
                 </span>
               </DialogTitle>
@@ -163,7 +171,7 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
               {/* Map */}
               {uni.latitude && uni.longitude && (
                 <div className="h-[180px] rounded-lg overflow-hidden border border-border">
-                  <Map center={[Number(uni.longitude), Number(uni.latitude)]} zoom={14}>
+                  <Map center={[Number(uni.longitude), Number(uni.latitude)]} zoom={15}>
                     <MapMarker latitude={Number(uni.latitude)} longitude={Number(uni.longitude)}>
                       <MarkerContent>
                         <MapPin className="size-6 text-white fill-primary -translate-y-1/2 drop-shadow-md" />
@@ -230,6 +238,8 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [geoStatus, setGeoStatus] = useState("idle"); // idle | loading | error | success
 
   useEffect(() => {
     if (!open) return;
@@ -245,17 +255,99 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
       setForm({ name: "", address: "", latitude: "", longitude: "", location_id: "" });
     }
     setErrors({});
+    setSubmitError(null);
+    setGeoStatus("idle");
   }, [open, mode, initialData]);
 
   const set = (k, v) => {
-    setForm((p) => ({ ...p, [k]: v }));
     if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+    if (k === "address") setErrors((p) => ({ ...p, addressInvalid: undefined }));
+    setSubmitError(null);
+
+    if (k === "address") {
+      const trimmed = v.trim();
+      if (trimmed.length === 0) {
+        setGeoStatus("idle");
+        setForm(p => ({ ...p, [k]: v, latitude: "", longitude: "" }));
+      } else if (trimmed.length > 2) {
+        setForm(p => ({ ...p, [k]: v }));
+        handleGeocode(trimmed);
+      } else {
+        // Text is there but too short to search, so we clear coords
+        setGeoStatus("idle");
+        setForm(p => ({ ...p, [k]: v, latitude: "", longitude: "" }));
+      }
+    } else {
+      setForm((p) => ({ ...p, [k]: v }));
+    }
+  };
+
+  const geocodeTimeoutRef = useRef(null);
+
+  const handleGeocode = (address, immediate = false) => {
+    if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current);
+    if (!address?.trim()) return;
+
+    const perform = async () => {
+      setGeoStatus("loading");
+      const clean = (str) => str
+        .replace(/,?\s*Việt Nam$/i, "")
+        .replace(/\b(Phường|Quận|Thành phố|Tp\.?|Tỉnh|Huyện|Xã)\b/gi, "")
+        .replace(/\s*,\s*/g, ", ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const fetchLoc = async (q) => {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=vn&accept-language=vi`;
+        const res = await fetch(url);
+        return res.json();
+      };
+
+      try {
+        // Stage 1: Try with cleaned but relatively full address
+        let query = clean(address);
+        let data = await fetchLoc(query);
+
+        // Stage 2: Fallback - if not found, try even simpler (first part + city)
+        if (data.length === 0 && query.includes(",")) {
+          const parts = query.split(",");
+          if (parts.length > 2) {
+            const simplified = `${parts[0]}, ${parts[parts.length - 1]}`;
+            data = await fetchLoc(simplified);
+          }
+        }
+
+        if (data.length > 0) {
+          const { lat, lon } = data[0];
+          setForm(p => ({
+            ...p,
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lon)
+          }));
+          setGeoStatus("success");
+        } else {
+          setGeoStatus("error");
+          setForm(p => ({ ...p, latitude: "", longitude: "" }));
+        }
+      } catch (err) {
+        setGeoStatus("error");
+      }
+    };
+
+    if (immediate) {
+      perform();
+    } else {
+      geocodeTimeoutRef.current = setTimeout(perform, 1000);
+    }
   };
 
   const validate = () => {
     const e = {};
     if (!form.name?.trim()) e.name = true;
     if (!form.location_id) e.location_id = true;
+    if (!form.address?.trim()) e.address = true;
+    if (geoStatus === "error" || !form.latitude) e.addressInvalid = "Địa chỉ không phù hợp";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -264,6 +356,7 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
+    setSubmitError(null);
     try {
       const body = {
         name: form.name.trim(),
@@ -280,7 +373,7 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
       }
       onSaved();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi.");
+      setSubmitError(translateError(err.message) || "Đã xảy ra lỗi.");
     } finally {
       setSaving(false);
     }
@@ -299,6 +392,9 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
               <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
                 placeholder="VD: Đại học Bách Khoa"
                 className={errors.name ? "border-destructive" : ""} />
+              {errors.name && (
+                <p className="text-[11px] text-destructive">Vui lòng nhập tên trường</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Khu vực *</Label>
@@ -312,22 +408,43 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
                   ))}
                 </SelectContent>
               </Select>
+              {errors.location_id && (
+                <p className="text-[11px] text-destructive">Vui lòng chọn khu vực</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Địa chỉ</Label>
-            <Input value={form.address || ""} onChange={(e) => set("address", e.target.value)}
-              placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM" />
+            <Label>Địa chỉ * {geoStatus === "loading" && <CircleNotch className="inline size-3 animate-spin ml-1 text-primary" />}</Label>
+            <Input
+              value={form.address || ""}
+              onChange={(e) => set("address", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleGeocode(form.address, true);
+                }
+              }}
+              placeholder="VD: 268 Lý Thường Kiệt... (Nhấn Enter để định vị)"
+              className={cn(
+                (errors.address || geoStatus === "error") ? "border-destructive" : "",
+                geoStatus === "success" ? "border-success/50" : ""
+              )}
+            />
+            {errors.address && (
+              <p className="text-[11px] text-destructive font-medium">Vui lòng nhập địa chỉ trường</p>
+            )}
+            {geoStatus === "error" && !errors.address && (
+              <p className="text-[11px] text-destructive font-medium">Địa chỉ không phù hợp hoặc không tìm thấy trên bản đồ</p>
+            )}
+            {geoStatus === "success" && (
+              <p className="text-[11px] text-success font-medium">Đã tìm thấy vị trí trên bản đồ</p>
+            )}
           </div>
 
           <MapPicker
             latitude={form.latitude}
             longitude={form.longitude}
-            onChange={(lat, lng) => {
-              set("latitude", lat);
-              setForm((p) => ({ ...p, longitude: lng }));
-            }}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -340,6 +457,12 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
               <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
             </div>
           </div>
+
+          {submitError && (
+            <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              {submitError}
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
@@ -425,7 +548,7 @@ function LocationSection({ name, universities, onView, onToggle }) {
                   <TableCell className="pr-4">
                     <div className="flex items-center justify-end gap-1">
                       <Button size="icon" variant="ghost" className="size-8"
-                        title={uni.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+                        title={uni.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
                         onClick={() => onToggle(uni)}>
                         {uni.is_active
                           ? <ToggleRight className="size-5 text-success" />
@@ -513,14 +636,17 @@ export default function UniversitiesPage() {
   const totalCount = allUnis.length;
   const activeCount = allUnis.filter((u) => u.is_active).length;
 
+  const [deleteError, setDeleteError] = useState(null);
+
   const handleDelete = async () => {
     setSaving(true);
+    setDeleteError(null);
     try {
       await apiJson(`/api/universities/${confirmDel.id}`, { method: "DELETE" });
       setConfirmDel(null);
       fetchAll();
     } catch (err) {
-      alert(err.message || "Không thể xóa.");
+      setDeleteError(translateError(err.message) || "Không thể xóa.");
     } finally {
       setSaving(false);
     }
@@ -536,7 +662,7 @@ export default function UniversitiesPage() {
       setConfirmToggle(null);
       fetchAll();
     } catch (err) {
-      setToggleError(err.message || "Không thể cập nhật.");
+      setToggleError(translateError(err.message) || "Không thể cập nhật.");
     } finally {
       setSaving(false);
     }
@@ -580,7 +706,7 @@ export default function UniversitiesPage() {
           {[
             { key: "all", label: "Tất cả" },
             { key: "active", label: "Hoạt động" },
-            { key: "inactive", label: "Không hoạt động" },
+            { key: "inactive", label: "Ngừng hoạt động" },
           ].map((f) => (
             <Button key={f.key} size="sm"
               variant={filterActive === f.key ? "default" : "outline"}
@@ -645,16 +771,18 @@ export default function UniversitiesPage() {
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>
-              {confirmToggle?.is_active ? "Vô hiệu hóa trường" : "Kích hoạt trường"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động trường" : "Kích hoạt trường"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.is_active
-              ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+              ? <>Bạn có chắc muốn <strong className="text-foreground">ngừng hoạt động</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
               : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> trường <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>}
           </p>
           {toggleError && (
-            <p className="text-sm text-destructive">{toggleError}</p>
+            <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              {toggleError}
+            </p>
           )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => { setConfirmToggle(null); setToggleError(null); }}>Hủy</Button>
@@ -662,14 +790,14 @@ export default function UniversitiesPage() {
               variant={confirmToggle?.is_active ? "destructive" : "default"}
               disabled={saving} onClick={handleToggle}>
               {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Confirm delete */}
-      <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+      <Dialog open={!!confirmDel} onOpenChange={(v) => { if (!v) { setConfirmDel(null); setDeleteError(null); } }}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>Xóa trường đại học</DialogTitle>
@@ -678,8 +806,13 @@ export default function UniversitiesPage() {
             Bạn có chắc muốn xóa trường <strong className="text-foreground">&quot;{confirmDel?.name}&quot;</strong>?
             Hành động này không thể hoàn tác.
           </p>
+          {deleteError && (
+            <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              {deleteError}
+            </p>
+          )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
-            <Button variant="outline" onClick={() => setConfirmDel(null)}>Hủy</Button>
+            <Button variant="outline" onClick={() => { setConfirmDel(null); setDeleteError(null); }}>Hủy</Button>
             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
               {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
               Xóa
