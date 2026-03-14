@@ -28,6 +28,19 @@ const fmt = (iso) => {
   });
 };
 
+const translateError = (msg) => {
+  if (!msg) return null;
+  if (msg.includes("already exists")) {
+    const nameMatch = msg.match(/"([^"]+)"/);
+    const name = nameMatch ? nameMatch[1] : "";
+    return `Khu vực${name ? ` "${name}"` : ""} đã tồn tại.`;
+  }
+  if (msg.includes("Associated data exists")) {
+    return "Không thể xóa: Vẫn còn dữ liệu liên quan đến khu vực này.";
+  }
+  return msg;
+};
+
 const EMPTY_FORM = { name: "", is_active: "true" };
 
 /* ── DonutChart ─────────────────────────────── */
@@ -78,7 +91,7 @@ function LocationSummary({ total, active, inactive }) {
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
-              <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
+              <span className="text-xs text-muted-foreground">Ngừng hoạt động</span>
               <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
             </div>
           </div>
@@ -97,7 +110,7 @@ function SortIcon({ field, sortField, sortDir }) {
 
 /* ── Location Detail Dialog (view / edit / delete) ── */
 
-function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, saving }) {
+function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, saving, error }) {
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [form, setForm] = useState(null);
@@ -172,10 +185,16 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true">Hoạt động</SelectItem>
-                    <SelectItem value="false">Không hoạt động</SelectItem>
+                    <SelectItem value="false">Ngừng hoạt động</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {error && (
+                <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+                  {error}
+                </p>
+              )}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
@@ -197,6 +216,11 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
               <strong className="text-foreground">&quot;{loc.name}&quot;</strong>?{" "}
               Hành động này không thể hoàn tác.
             </p>
+            {error && (
+              <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+                {error}
+              </p>
+            )}
             <DialogFooter className="justify-center gap-2 sm:justify-center">
               <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
               <Button variant="destructive" disabled={saving} onClick={() => onDelete(location.id)}>
@@ -214,7 +238,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold">
                   <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                   <span className={loc.is_active ? "text-success" : "text-muted-foreground"}>
-                    {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                    {loc.is_active ? "Hoạt động" : "Ngừng hoạt động"}
                   </span>
                 </span>
               </DialogTitle>
@@ -279,7 +303,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
 
 /* ── Create Dialog ─────────────────────────── */
 
-function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
+function LocationCreateDialog({ open, onOpenChange, onSave, saving, error }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
 
@@ -325,10 +349,16 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Hoạt động</SelectItem>
-                <SelectItem value="false">Không hoạt động</SelectItem>
+                <SelectItem value="false">Ngừng hoạt động</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {error && (
+            <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              {error}
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
@@ -409,15 +439,19 @@ export default function LocationsPage() {
 
 
 
+  const [createError, setCreateError] = useState(null);
+  const [updateError, setUpdateError] = useState(null);
+
   /* ─ CRUD ─ */
   const handleCreate = async (data) => {
     setSaving(true);
+    setCreateError(null);
     try {
       await api.post("/api/locations", data);
       setShowCreate(false);
       fetchLocations();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      setCreateError(translateError(err.message) || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -425,12 +459,13 @@ export default function LocationsPage() {
 
   const handleUpdate = async (id, data) => {
     setSaving(true);
+    setUpdateError(null);
     try {
       await api.put(`/api/locations/${id}`, data);
       setDetailLoc(null);
       fetchLocations();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      setUpdateError(translateError(err.message) || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -438,12 +473,13 @@ export default function LocationsPage() {
 
   const handleDelete = async (id) => {
     setSaving(true);
+    setUpdateError(null);
     try {
       await api.delete(`/api/locations/${id}`);
       setDetailLoc(null);
       fetchLocations();
     } catch (err) {
-      alert(err.message || "Không thể xóa khu vực. Vui lòng thử lại.");
+      setUpdateError(translateError(err.message) || "Không thể xóa khu vực. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -459,7 +495,7 @@ export default function LocationsPage() {
       setConfirmToggle(null);
       fetchLocations();
     } catch (err) {
-      setToggleError(err.message || "Không thể cập nhật trạng thái.");
+      setToggleError(translateError(err.message) || "Không thể cập nhật trạng thái.");
     } finally {
       setSaving(false);
     }
@@ -498,7 +534,7 @@ export default function LocationsPage() {
           {[
             { key: "all", label: "Tất cả" },
             { key: "active", label: "Hoạt động" },
-            { key: "inactive", label: "Không hoạt động" },
+            { key: "inactive", label: "Ngừng hoạt động" },
           ].map((fl) => (
             <Button
               key={fl.key}
@@ -575,7 +611,7 @@ export default function LocationsPage() {
                         <div className="flex items-center gap-2 text-xs">
                           <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                           <span className={loc.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                            {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                            {loc.is_active ? "Hoạt động" : "Ngừng hoạt động"}
                           </span>
                         </div>
                       </TableCell>
@@ -591,7 +627,7 @@ export default function LocationsPage() {
                           <Button
                             size="icon" variant="ghost"
                             className={`size-8 ${loc.is_active ? "text-success hover:text-success/80" : "text-muted-foreground"}`}
-                            title={loc.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+                            title={loc.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
                             onClick={() => setConfirmToggle(loc)}
                           >
                             {loc.is_active
@@ -637,19 +673,29 @@ export default function LocationsPage() {
       {/* Detail / Edit / Delete dialog */}
       <LocationDetailDialog
         open={!!detailLoc}
-        onOpenChange={(v) => !v && setDetailLoc(null)}
+        onOpenChange={(v) => {
+          if (!v) {
+            setDetailLoc(null);
+            setUpdateError(null);
+          }
+        }}
         location={detailLoc}
         onSave={handleUpdate}
         onDelete={handleDelete}
         saving={saving}
+        error={updateError}
       />
 
       {/* Create dialog */}
       <LocationCreateDialog
         open={showCreate}
-        onOpenChange={setShowCreate}
+        onOpenChange={(v) => {
+          setShowCreate(v);
+          if (!v) setCreateError(null);
+        }}
         onSave={handleCreate}
         saving={saving}
+        error={createError}
       />
 
       {/* Confirm toggle */}
@@ -657,17 +703,19 @@ export default function LocationsPage() {
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>
-              {confirmToggle?.is_active ? "Vô hiệu hóa khu vực" : "Kích hoạt khu vực"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động khu vực" : "Kích hoạt khu vực"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmToggle?.is_active
-              ? <>Bạn có chắc muốn <strong className="text-foreground">vô hiệu hóa</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
+              ? <>Bạn có chắc muốn <strong className="text-foreground">ngừng hoạt động</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
               : <>Bạn có chắc muốn <strong className="text-foreground">kích hoạt</strong> khu vực <strong className="text-foreground">&quot;{confirmToggle?.name}&quot;</strong>?</>
             }
           </p>
           {toggleError && (
-            <p className="text-sm text-destructive">{toggleError}</p>
+            <p className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              {toggleError}
+            </p>
           )}
           <DialogFooter className="justify-center gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => { setConfirmToggle(null); setToggleError(null); }}>Hủy</Button>
@@ -677,7 +725,7 @@ export default function LocationsPage() {
               onClick={handleToggleConfirm}
             >
               {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
+              {confirmToggle?.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
             </Button>
           </DialogFooter>
         </DialogContent>
