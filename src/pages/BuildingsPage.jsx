@@ -32,6 +32,50 @@ const thumb = (b) => b.thumbnail_url || defaultBuildingImg;
 
 const PER_SECTION = 6;
 
+async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.8 } = {}) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error("Canvas toBlob failed"));
+          const compressedFile = new File([blob], file.name, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        }, "image/jpeg", quality);
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+    };
+    reader.onerror = () => reject(new Error("FileReader failed"));
+  });
+}
+
 async function uploadFiles(category, files) {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
@@ -143,6 +187,27 @@ function BuildingCard({ building, onView, onToggle, onStaff }) {
           <MapPin className="size-3 shrink-0 mt-0.5" /> {building.address}
         </p>
 
+        <div className="flex items-center gap-2 py-0.5">
+          {building.manager ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src={building.manager.avatar_url || defaultUserImg}
+                alt=""
+                className="size-6 rounded-full object-cover shrink-0 ring-1 ring-border shadow-sm bg-muted"
+                onError={(e) => { e.target.src = defaultUserImg; }}
+              />
+              <span className="text-[11px] font-medium text-muted-foreground truncate">
+                {building.manager.last_name} {building.manager.first_name}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-muted-foreground/50">
+              <UserIcon className="size-4 shrink-0" />
+              <span className="text-[11px] italic font-medium">Chưa có quản lý</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {(building.total_floors ?? 0) > 0 && (
             <span className="flex items-center gap-1">
@@ -191,7 +256,9 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   const [galleryImages, setGalleryImages] = useState([]);
   const [facilityIds, setFacilityIds] = useState([]);
   const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
+   const [saving, setSaving] = useState(false);
+   const [savingStep, setSavingStep] = useState(""); // compressing, uploading, saving
+
   const [confirmDel, setConfirmDel] = useState(false);
   const [zoomImage, setZoomImage] = useState(null);
   const thumbInputRef = useRef(null);
@@ -293,24 +360,32 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
     }
 
     setSaving(true);
+    setSavingStep("compressing");
 
     try {
-      /* Upload new thumbnail if changed */
-      let thumbnail_url = thumbPreview;
-      if (thumbFile) {
-        const res = await uploadFiles("building_thumbnail", [thumbFile]);
-        thumbnail_url = res.urls?.[0] || null;
-      }
-
-      /* Upload new gallery images */
+      /* Upload images in parallel */
       const existingUrls = galleryImages.filter((g) => g.existing).map((g) => g.url);
       const newFiles = galleryImages.filter((g) => g.file).map((g) => g.file);
-      let galleryUrls = existingUrls;
-      if (newFiles.length > 0) {
-        const res = await uploadFiles("building_gallery", newFiles);
-        const uploaded = res.urls || [];
-        galleryUrls = [...existingUrls, ...uploaded];
-      }
+
+      console.log("[BuildingDetail] Optimizing images...");
+      
+      const [readyThumb, ...readyGallery] = await Promise.all([
+        thumbFile ? compressImage(thumbFile) : Promise.resolve(null),
+        ...newFiles.map(f => compressImage(f))
+      ]);
+
+      setSavingStep("uploading");
+      console.log("[BuildingDetail] Starting parallel uploads...");
+      const [thumbRes, galleryRes] = await Promise.all([
+        readyThumb ? uploadFiles("building_thumbnail", [readyThumb]) : Promise.resolve(null),
+        readyGallery.length > 0 ? uploadFiles("building_gallery", readyGallery) : Promise.resolve(null)
+      ]);
+
+      const thumbnail_url = thumbRes ? thumbRes.urls?.[0] : thumbPreview;
+      const galleryUrls = [...existingUrls, ...(galleryRes?.urls || [])];
+      
+      setSavingStep("saving");
+      console.log("[BuildingDetail] Uploads completed. Saving...");
 
       const payload = {
         name: form.name.trim(),
@@ -684,8 +759,19 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
           <Button variant="outline" onClick={cancelEditing} disabled={saving} className="bg-background">Hủy</Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
-            Lưu thay đổi
+            {saving ? (
+              <>
+                <CircleNotch className="size-4 animate-spin mr-1.5" />
+                {savingStep === "compressing" ? "Đang xử lý ảnh..." : 
+                 savingStep === "uploading" ? "Đang tải ảnh lên..." : 
+                 "Đang lưu..."}
+              </>
+            ) : (
+              <>
+                <FloppyDisk className="size-4 mr-1.5" />
+                Lưu thay đổi
+              </>
+            )}
           </Button>
         </div>
       )}

@@ -455,11 +455,19 @@ function RoleSection({ role, search, filterActive, onToggle, onView, refreshKey 
                     {(page - 1) * PER_SECTION + idx + 1}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium text-sm">{fullName(acc)}</span>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1"><Envelope className="size-3" /> {acc.email}</span>
-                        {acc.phone && <span className="flex items-center gap-1"><Phone className="size-3" /> {acc.phone}</span>}
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={acc.avatar_url || defaultUserImg}
+                        alt=""
+                        className="size-9 rounded-full object-cover shrink-0 ring-1 ring-border shadow-sm bg-muted"
+                        onError={(e) => { e.target.src = defaultUserImg; }}
+                      />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="font-semibold text-sm truncate">{fullName(acc)}</span>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 truncate">
+                          <span className="flex items-center gap-1"><Envelope className="size-3" /> {acc.email}</span>
+                          {acc.phone && <span className="flex items-center gap-1"><Phone className="size-3" /> {acc.phone}</span>}
+                        </div>
                       </div>
                     </div>
                   </TableCell>

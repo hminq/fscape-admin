@@ -38,6 +38,50 @@ const translateError = (msg) => {
   return msg;
 };
 
+async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.8 } = {}) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error("Canvas toBlob failed"));
+          const compressedFile = new File([blob], file.name, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        }, "image/jpeg", quality);
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+    };
+    reader.onerror = () => reject(new Error("FileReader failed"));
+  });
+}
+
 async function uploadFiles(category, files) {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
@@ -420,6 +464,8 @@ function QuickCreateLocationDialog({ open, onOpenChange, onSaved }) {
 export default function CreateBuildingPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [savingStep, setSavingStep] = useState(""); // compressing, uploading, creating
+
   const [locations, setLocations] = useState([]);
   const [managers, setManagers] = useState([]);
   const [showCreateManager, setShowCreateManager] = useState(false);
@@ -586,30 +632,35 @@ export default function CreateBuildingPage() {
     }
 
     setSaving(true);
+    setSavingStep("compressing");
 
     try {
-      /* 1. Upload thumbnail */
-      let thumbnail_url = null;
-      if (thumbFile) {
-        console.log("[CreateBuilding] Uploading thumbnail...", thumbFile.name);
-        const res = await uploadFiles("building_thumbnail", [thumbFile]);
-        console.log("[CreateBuilding] Thumbnail upload response:", res);
-        thumbnail_url = res.data?.url || res.url || null;
-      } else {
-        console.log("[CreateBuilding] No thumbnail file selected");
-      }
-
-      /* 2. Upload gallery */
-      let images = [];
+      /* 1 & 2. Compress and Upload images in parallel */
       const galleryFiles = galleryImages.filter((g) => g.file).map((g) => g.file);
-      if (galleryFiles.length > 0) {
-        console.log("[CreateBuilding] Uploading gallery...", galleryFiles.length, "files");
-        const res = await uploadFiles("building_gallery", galleryFiles);
-        console.log("[CreateBuilding] Gallery upload response:", res);
-        images = res.data?.urls || res.urls || [];
-      } else {
-        console.log("[CreateBuilding] No gallery files selected");
-      }
+      
+      console.log("[CreateBuilding] Optimizing images...");
+      
+      const compressTasks = [
+        thumbFile ? compressImage(thumbFile) : Promise.resolve(null),
+        ...galleryFiles.map(f => compressImage(f))
+      ];
+      
+      const compressedFiles = await Promise.all(compressTasks);
+      const readyThumb = compressedFiles[0];
+      const readyGallery = compressedFiles.slice(1);
+
+      setSavingStep("uploading");
+      console.log("[CreateBuilding] Starting parallel uploads...");
+      const [thumbRes, galleryRes] = await Promise.all([
+        readyThumb ? uploadFiles("building_thumbnail", [readyThumb]) : Promise.resolve({ urls: [] }),
+        readyGallery.length > 0 ? uploadFiles("building_gallery", readyGallery) : Promise.resolve({ urls: [] })
+      ]);
+
+      const thumbnail_url = thumbRes.urls?.[0] || null;
+      const images = galleryRes.urls || [];
+      
+      setSavingStep("creating");
+      console.log("[CreateBuilding] Uploads completed. Creating building record...");
 
       /* 3. Create building */
       const payload = {
@@ -883,8 +934,19 @@ export default function CreateBuildingPage() {
             Hủy
           </Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2 min-w-[140px]">
-            {saving ? <CircleNotch className="size-4 animate-spin" /> : <FloppyDisk className="size-4" />}
-            Lưu tòa nhà
+            {saving ? (
+              <>
+                <CircleNotch className="size-4 animate-spin" />
+                {savingStep === "compressing" ? "Đang xử lý ảnh..." : 
+                 savingStep === "uploading" ? "Đang tải ảnh lên..." : 
+                 "Đang lưu..."}
+              </>
+            ) : (
+              <>
+                <FloppyDisk className="size-4" />
+                Lưu tòa nhà
+              </>
+            )}
           </Button>
         </div>
       </div>
