@@ -17,7 +17,7 @@ import {
     Dialog, DialogContent, DialogHeader,
     DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { api } from "@/lib/apiClient";
+import { api, translateError } from "@/lib/apiClient";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -34,10 +34,11 @@ const fmtPrice = (v) => {
     return Number(v).toLocaleString("vi-VN") + " ₫";
 };
 
+
+
 const EMPTY_FORM = {
     name: "",
     description: "",
-    default_price: "",
 };
 
 function SortIcon({ field, sortField, sortDir }) {
@@ -128,21 +129,10 @@ function AssetTypeFormFields({ form, setForm, errors }) {
                 <Textarea
                     value={form.description}
                     onChange={set("description")}
-                    placeholder="Mô tả ngắn gọn..."
-                    rows={2}
+                    placeholder="Mô tả chi tiết về loại tài sản này..."
+                    className="resize-none"
+                    rows={4}
                 />
-            </div>
-
-            <div className="space-y-1.5">
-                <Label>Giá mặc định (₫)</Label>
-                <Input
-                    type="number" min="0" step="1000"
-                    value={form.default_price}
-                    onChange={set("default_price")}
-                    placeholder="0"
-                    className={errors.default_price ? "border-destructive" : ""}
-                />
-                {errors.default_price && <p className="text-[11px] text-destructive">{errors.default_price}</p>}
             </div>
         </>
     );
@@ -151,21 +141,19 @@ function AssetTypeFormFields({ form, setForm, errors }) {
 function validateForm(form) {
     const e = {};
     if (!form.name.trim()) e.name = true;
-    if (form.default_price !== "" && Number(form.default_price) < 0) e.default_price = "Giá phải >= 0";
     return e;
 }
 
 function formToPayload(form) {
     return {
         name: form.name.trim(),
-        description: form.description.trim() || null,
-        default_price: form.default_price !== "" ? Number(form.default_price) : 0,
+        description: form.description?.trim() || null,
     };
 }
 
 /* ── Detail Dialog (view / edit) ── */
 
-function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete, saving }) {
+function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete, saving, error }) {
     const [editing, setEditing] = useState(false);
     const [confirmDel, setConfirmDel] = useState(false);
     const [form, setForm] = useState(null);
@@ -179,7 +167,6 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
         setForm({
             name: assetType.name || "",
             description: assetType.description || "",
-            default_price: assetType.default_price ?? "",
         });
         setErrors({});
         setEditing(true);
@@ -205,6 +192,11 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                             <DialogTitle>Chỉnh sửa loại tài sản</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
+                            {error && (
+                                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                                    {error}
+                                </div>
+                            )}
                             <AssetTypeFormFields form={form} setForm={setForm} errors={errors} />
                             <DialogFooter className="pt-2">
                                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
@@ -218,17 +210,18 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                 ) : confirmDel ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle>Vô hiệu hóa loại tài sản</DialogTitle>
+                            <DialogTitle>Xóa loại tài sản</DialogTitle>
                         </DialogHeader>
                         <p className="text-sm text-muted-foreground text-center py-2">
-                            Bạn có chắc muốn vô hiệu hóa loại tài sản{" "}
+                            Bạn có chắc muốn xóa loại tài sản{" "}
                             <strong className="text-foreground">&quot;{at.name}&quot;</strong>?
+                            Hành động này không thể hoàn tác.
                         </p>
                         <DialogFooter className="justify-center gap-2">
                             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
                             <Button variant="destructive" disabled={saving} onClick={() => onDelete(at.id)}>
                                 {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-                                Vô hiệu hóa
+                                Xóa vĩnh viễn
                             </Button>
                         </DialogFooter>
                     </>
@@ -241,7 +234,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                                     ? "bg-success/15 text-success"
                                     : "bg-muted text-muted-foreground"
                                     }`}>
-                                    {at.is_active ? "Hoạt động" : "Vô hiệu"}
+                                    {at.is_active ? "Hoạt động" : "Vô hiệu hóa"}
                                 </span>
                             </DialogTitle>
                         </DialogHeader>
@@ -256,17 +249,17 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <Banknote className="size-3.5 text-muted-foreground" />
-                                        <p className="text-[11px] text-muted-foreground">Giá mặc định</p>
+                                        <Package className="size-3.5 text-muted-foreground" />
+                                        <p className="text-[11px] text-muted-foreground">ID</p>
                                     </div>
-                                    <p className="text-sm font-semibold">{fmtPrice(at.default_price)}</p>
+                                    <p className="text-xs font-mono font-medium truncate">{at.id}</p>
                                 </div>
                                 <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <Package className="size-3.5 text-muted-foreground" />
+                                        <ToggleRight className="size-3.5 text-muted-foreground" />
                                         <p className="text-[11px] text-muted-foreground">Trạng thái</p>
                                     </div>
-                                    <p className="text-sm font-semibold">{at.is_active ? "Hoạt động" : "Vô hiệu"}</p>
+                                    <p className="text-sm font-semibold">{at.is_active ? "Hoạt động" : "Vô hiệu hóa"}</p>
                                 </div>
                             </div>
 
@@ -287,7 +280,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                                 className="text-destructive hover:bg-destructive/10 gap-1.5"
                                 onClick={() => setConfirmDel(true)}
                             >
-                                <Trash className="size-3.5" /> Vô hiệu hóa
+                                <Trash className="size-3.5" /> Xóa loại tài sản
                             </Button>
                             <Button size="sm" className="gap-1.5" onClick={startEdit}>
                                 <PencilSimple className="size-3.5" /> Chỉnh sửa
@@ -302,7 +295,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
 
 /* ── Create Dialog ─────────────────────────── */
 
-function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
+function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving, error }) {
     const [form, setForm] = useState(EMPTY_FORM);
     const [errors, setErrors] = useState({});
 
@@ -325,6 +318,11 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <DialogTitle>Thêm loại tài sản mới</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 pt-1">
+                    {error && (
+                        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                            {error}
+                        </div>
+                    )}
                     <AssetTypeFormFields form={form} setForm={setForm} errors={errors} />
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
@@ -343,7 +341,8 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
 
 export default function AssetTypesPage() {
     const [types, setTypes] = useState([]);
-    const [total, setTotal] = useState(0);
+    const [total, setTotal] = useState(0); // Filtered results
+    const [totalOverall, setTotalOverall] = useState(0); // Overall system total
     const [totalActive, setTotalActive] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -359,6 +358,7 @@ export default function AssetTypesPage() {
     const [detailType, setDetailType] = useState(null);
     const [confirmToggle, setConfirmToggle] = useState(null);
     const [error, setError] = useState(null);
+    const [formError, setFormError] = useState(null);
     const [msgDialog, setMsgDialog] = useState(null);
 
     const limit = 10;
@@ -375,6 +375,7 @@ export default function AssetTypesPage() {
             const res = await api.get(`/api/asset-types?${params}`);
             setTypes(res.data || []);
             setTotal(res.total || 0);
+            setTotalOverall(res.totalOverall || 0);
             setTotalActive(res.active_count || 0);
             setPage(res.page || 1);
             setTotalPages(res.total_pages || res.totalPages || 1);
@@ -399,7 +400,6 @@ export default function AssetTypesPage() {
 
     const sorted = [...types].sort((a, b) => {
         if (!sortField) return 0;
-        if (sortField === "default_price") return sortDir === "asc" ? Number(a.default_price) - Number(b.default_price) : Number(b.default_price) - Number(a.default_price);
         const diff = new Date(a[sortField]) - new Date(b[sortField]);
         return sortDir === "asc" ? diff : -diff;
     });
@@ -408,12 +408,13 @@ export default function AssetTypesPage() {
 
     const handleCreate = async (data) => {
         setSaving(true);
+        setFormError(null);
         try {
             await api.post("/api/asset-types", data);
             setShowCreate(false);
             fetchTypes();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
+            setFormError(translateError(err.message) || "Đã xảy ra lỗi.");
         } finally {
             setSaving(false);
         }
@@ -421,12 +422,13 @@ export default function AssetTypesPage() {
 
     const handleUpdate = async (id, data) => {
         setSaving(true);
+        setFormError(null);
         try {
             await api.put(`/api/asset-types/${id}`, data);
             setDetailType(null);
             fetchTypes();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
+            setFormError(err.message || "Đã xảy ra lỗi.");
         } finally {
             setSaving(false);
         }
@@ -439,7 +441,7 @@ export default function AssetTypesPage() {
             setDetailType(null);
             fetchTypes();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Không thể vô hiệu hóa." });
+            setFormError(err.message || "Không thể xóa loại tài sản.");
         } finally {
             setSaving(false);
         }
@@ -474,7 +476,7 @@ export default function AssetTypesPage() {
             </div>
 
             {/* Summary */}
-            <AssetTypeSummary total={total} active={activeCount} inactive={total - activeCount} />
+            <AssetTypeSummary total={totalOverall} active={totalActive} inactive={totalOverall - totalActive} />
 
             {/* Search + filter */}
             <div className="flex items-center gap-3 flex-wrap">
@@ -495,7 +497,7 @@ export default function AssetTypesPage() {
                             variant={filterActive === k ? "default" : "outline"}
                             onClick={() => setFilterActive(k)}
                         >
-                            {k === "all" ? "Tất cả" : k === "active" ? "Hoạt động" : "Vô hiệu"}
+                            {k === "all" ? "Tất cả" : k === "active" ? "Hoạt động" : "Vô hiệu hóa"}
                         </Button>
                     ))}
                 </div>
@@ -539,9 +541,6 @@ export default function AssetTypesPage() {
                                 <TableRow className="bg-muted/30">
                                     <TableHead className="w-12 pl-4">#</TableHead>
                                     <TableHead>Loại tài sản</TableHead>
-                                    <TableHead className="cursor-pointer" onClick={() => handleSort("default_price")}>
-                                        <span className="inline-flex items-center">Giá mặc định <SortIcon field="default_price" sortField={sortField} sortDir={sortDir} /></span>
-                                    </TableHead>
                                     <TableHead className="cursor-pointer" onClick={() => handleSort("created_at")}>
                                         <span className="inline-flex items-center">Ngày tạo <SortIcon field="created_at" sortField={sortField} sortDir={sortDir} /></span>
                                     </TableHead>
@@ -561,11 +560,8 @@ export default function AssetTypesPage() {
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="font-bold text-[14px]">{t.name}</span>
-                                                    <span className="text-[11px] text-muted-foreground line-clamp-1 max-w-[260px]">{t.description || "Chưa có mô tả"}</span>
+                                                    <span className="text-[11px] text-muted-foreground line-clamp-1 max-w-[320px]">{t.description || "Chưa có mô tả"}</span>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="text-sm font-semibold">{fmtPrice(t.default_price)}</span>
                                             </TableCell>
                                             <TableCell>
                                                 <span className="text-xs text-muted-foreground">{fmt(t.created_at)}</span>
@@ -574,7 +570,7 @@ export default function AssetTypesPage() {
                                                 <div className="flex items-center gap-2 text-xs">
                                                     <span className={`size-2 rounded-full ${t.is_active ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-muted-foreground/30"}`} />
                                                     <span className={t.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                                                        {t.is_active ? "Hoạt động" : "Vô hiệu"}
+                                                        {t.is_active ? "Hoạt động" : "Vô hiệu hóa"}
                                                     </span>
                                                 </div>
                                             </TableCell>
@@ -598,8 +594,22 @@ export default function AssetTypesPage() {
                 )}
             </Card>
 
-            <AssetTypeDetailDialog open={!!detailType} onOpenChange={(v) => !v && setDetailType(null)} assetType={detailType} onSave={handleUpdate} onDelete={handleDelete} saving={saving} />
-            <AssetTypeCreateDialog open={showCreate} onOpenChange={setShowCreate} onSave={handleCreate} saving={saving} />
+            <AssetTypeDetailDialog
+                open={!!detailType}
+                onOpenChange={(v) => { if (!v) { setDetailType(null); setFormError(null); } }}
+                assetType={detailType}
+                onSave={handleUpdate}
+                onDelete={handleDelete}
+                saving={saving}
+                error={formError}
+            />
+            <AssetTypeCreateDialog
+                open={showCreate}
+                onOpenChange={(v) => { setShowCreate(v); setFormError(null); }}
+                onSave={handleCreate}
+                saving={saving}
+                error={formError}
+            />
 
             {/* Toggle confirm */}
             <Dialog open={!!confirmToggle} onOpenChange={(v) => !v && setConfirmToggle(null)}>

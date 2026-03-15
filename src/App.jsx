@@ -39,14 +39,18 @@ import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
 import BMContractSignPage from "./pages/bm/BMContractSignPage";
 import BMRequestAssignPage from "./pages/bm/BMRequestAssignPage";
 import BMRequestDetailPage from "./pages/bm/BMRequestDetailPage";
+import PublicAssetView from "./pages/PublicAssetView";
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        {/* 1. Public Routes (Always accessible) */}
+        <Route path="/public/assets/:id" element={<PublicAssetView />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
 
+        {/* 2. Protected Routes */}
         <Route element={<ProtectedRoute />}>
           {/* BUILDING_MANAGER */}
           <Route element={<RoleRoute allowedRoles={["BUILDING_MANAGER"]} />}>
@@ -97,7 +101,9 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 3. Fallbacks */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>
   );

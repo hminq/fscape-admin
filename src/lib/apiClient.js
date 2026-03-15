@@ -53,10 +53,9 @@ export async function apiJson(path, options = {}) {
       return;
     }
 
-    const message =
-      data && typeof data.message === "string"
-        ? data.message
-        : "Yêu cầu không thành công. Vui lòng thử lại.";
+    const rawMessage = data && typeof data.message === "string" ? data.message : "Yêu cầu không thành công";
+    const message = translateError(rawMessage);
+    
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
@@ -64,6 +63,38 @@ export async function apiJson(path, options = {}) {
   }
 
   return data;
+}
+
+export function translateError(msg) {
+  if (!msg) return "Đã xảy ra lỗi không xác định.";
+  const m = String(msg).toLowerCase();
+
+  // Auth
+  if (m.includes("invalid") && (m.includes("token") || m.includes("credential"))) return "Thông tin đăng nhập không hợp lệ.";
+  if (m.includes("deactivated")) return "Tài khoản của bạn đã bị vô hiệu hóa.";
+  if (m.includes("unauthorized") || m.includes("access denied")) return "Bạn không có quyền thực hiện hành động này.";
+
+  // CRUD & Data
+  if (m.includes("already exists")) {
+    if (m.includes("asset type")) return "Tên loại tài sản này đã tồn tại.";
+    if (m.includes("building")) return "Tên tòa nhà này đã tồn tại.";
+    return "Dữ liệu này đã tồn tại trong hệ thống.";
+  }
+
+  if (m.includes("not found")) {
+    if (m.includes("asset type")) return "Không tìm thấy loại tài sản.";
+    if (m.includes("asset")) return "Không tìm thấy tài sản.";
+    return "Không tìm thấy dữ liệu yêu cầu.";
+  }
+
+  if (m.includes("required")) return "Vui lòng điền đầy đủ các thông tin bắt buộc.";
+  if (m.includes("linked to") || m.includes("cannot delete")) return "Không thể xóa dữ liệu này vì đang có ràng buộc liên quan.";
+
+  // Network/Server
+  if (m.includes("failed to fetch") || m.includes("network error")) return "Lỗi kết nối mạng. Vui lòng kiểm tra lại.";
+  if (m.includes("internal server error") || m.includes("500")) return "Lỗi hệ thống từ máy chủ. Vui lòng thử lại sau.";
+
+  return msg; // Return original if no match
 }
 
 export const api = {

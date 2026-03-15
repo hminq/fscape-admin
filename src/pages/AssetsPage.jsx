@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   Plus, MagnifyingGlass, Package, Trash, CircleNotch, PencilSimple, QrCode,
   Buildings, CaretLeft, CaretRight, DownloadSimple, Printer,
-  Door, Eye,
+  Door, Eye, Bank,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,8 +35,9 @@ const fmt = (iso) => {
 };
 
 const STATUS_MAP = {
-  AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success" },
-  IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary" },
+  AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success", stroke: "stroke-success" },
+  IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary", stroke: "stroke-primary" },
+  MAINTENANCE: { label: "Bảo trì", dot: "bg-destructive", text: "text-destructive", stroke: "stroke-destructive" },
 };
 
 const STATUS_STROKE = {
@@ -42,7 +45,7 @@ const STATUS_STROKE = {
   IN_USE: "stroke-primary",
 };
 
-const STATUS_ORDER = ["AVAILABLE", "IN_USE"];
+const STATUS_ORDER = ["AVAILABLE", "IN_USE", "MAINTENANCE"];
 
 
 /* ── Summary Card ──────────────────────────── */
@@ -64,7 +67,7 @@ function AssetSummary({ total, statusCounts }) {
         <div className="w-px h-14 bg-border shrink-0" />
 
         <div className="flex items-center gap-4">
-          <StatusDonut entries={STATUS_ORDER.map((s) => ({ key: s, stroke: STATUS_STROKE[s], count: statusCounts[s] || 0 }))} size={64} />
+          <StatusDonut entries={STATUS_ORDER.map((s) => ({ key: s, stroke: STATUS_MAP[s].stroke, count: statusCounts[s] || 0 }))} size={64} />
           <div className="space-y-2">
             {STATUS_ORDER.map((s) => {
               const meta = STATUS_MAP[s];
@@ -88,7 +91,18 @@ function AssetSummary({ total, statusCounts }) {
 function QRDialog({ open, onOpenChange, asset }) {
   if (!asset) return null;
   const qrData = asset.qr_code || `FSCAPE_ASSET_${asset.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}`;
+
+  const handleDownload = () => {
+    const canvas = document.getElementById("qr-canvas");
+    if (!canvas) return;
+    const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `QR_${asset.name}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,16 +111,18 @@ function QRDialog({ open, onOpenChange, asset }) {
           <DialogTitle className="text-center">Mã QR Tài sản</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-6 space-y-4">
-          <div className="bg-white p-4 rounded-xl border-4 border-muted shadow-inner">
-            <img src={qrUrl} alt="QR Code" className="size-48" />
+          <div className="bg-white p-4 rounded-xl border-4 border-muted shadow-inner flex justify-center items-center">
+            <QRCodeCanvas id="qr-canvas" value={qrData} size={200} level="H" includeMargin={true} />
           </div>
-          <div className="text-center">
+          <div className="text-center w-full">
             <p className="font-bold text-lg">{asset.name}</p>
-            <p className="text-xs text-muted-foreground font-mono">{qrData}</p>
+            <p className="text-[10px] text-muted-foreground font-mono break-all mt-2 bg-muted p-2 rounded-md max-h-24 overflow-y-auto w-full">
+              {qrData}
+            </p>
           </div>
         </div>
         <DialogFooter className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => window.open(qrUrl)}>
+          <Button variant="outline" className="gap-2" onClick={handleDownload}>
             <DownloadSimple className="size-4" /> Tải về
           </Button>
           <Button className="gap-2" onClick={() => window.print()}>
@@ -126,9 +142,10 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   useEffect(() => {
-    if (open) { setEditing(false); setConfirmDel(false); }
+    if (open) { setEditing(false); setConfirmDel(false); setFormError(null); }
   }, [open]);
 
   const startEdit = () => {
@@ -137,9 +154,11 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
       building_id: asset.building_id || "",
       current_room_id: asset.current_room_id || "",
       status: asset.status || "AVAILABLE",
+      price: asset.price ?? "",
       notes: asset.notes || "",
     });
     setErrors({});
+    setFormError(null);
     setEditing(true);
   };
 
@@ -160,6 +179,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
     if (!form.building_id) errs.building_id = true;
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+    setFormError(null);
 
     setSaving(true);
     try {
@@ -170,12 +190,13 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
           building_id: form.building_id,
           current_room_id: form.current_room_id || null,
           status: form.status,
+          price: form.price !== "" ? Number(form.price) : null,
           notes: form.notes?.trim() || null,
         },
       });
       onSaved();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi.");
+      setFormError(err.message || "Đã xảy ra lỗi.");
     } finally {
       setSaving(false);
     }
@@ -187,7 +208,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
       await apiJson(`/api/assets/${asset.id}`, { method: "DELETE" });
       onDeleted();
     } catch (err) {
-      alert(err.message || "Không thể xóa.");
+      setFormError(err.message || "Không thể xóa.");
     } finally {
       setSaving(false);
     }
@@ -205,6 +226,11 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               <DialogTitle>Chỉnh sửa tài sản</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3 pt-1 max-h-[70vh] overflow-y-auto pr-1">
+              {formError && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                  {formError}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Tên tài sản *</Label>
                 <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
@@ -254,6 +280,19 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               </div>
 
               <div className="space-y-1.5">
+                <Label>Giá mua (₫)</Label>
+                <div className="relative">
+                  <Bank className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    type="number" min="0" step="1000"
+                    placeholder="0"
+                    value={form.price}
+                    onChange={(e) => set("price", e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Ghi chú</Label>
                 <Textarea value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} rows={2} />
               </div>
@@ -272,14 +311,22 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
             <DialogHeader>
               <DialogTitle>Xóa tài sản</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground text-center py-2">
-              Bạn có chắc muốn xóa tài sản{" "}
-              <strong className="text-foreground">&quot;{asset.name}&quot;</strong>?
-              Hành động này không thể hoàn tác.
-            </p>
-            <DialogFooter className="justify-center gap-2">
+            <div className="space-y-4 py-3 text-center">
+              {formError && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                  {formError}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Bạn có chắc muốn xóa tài sản{" "}
+                <strong className="text-foreground">&quot;{asset.name}&quot;</strong>?
+                <br />
+                Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <DialogFooter className="justify-center gap-2 pt-2">
               <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
-              <Button variant="destructive" disabled={saving} onClick={handleDelete}>
+              <Button variant="destructive" disabled={saving} onClick={handleDelete} className="min-w-[80px]">
                 {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
                 Xóa
               </Button>
@@ -299,6 +346,11 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
+              {asset.image_url && (
+                <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted">
+                  <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover" />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -313,6 +365,23 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
                     <p className="text-[11px] text-muted-foreground">Phòng</p>
                   </div>
                   <p className="text-sm font-semibold">{asset.room ? `Phòng ${asset.room.room_number}` : "Kho"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Bank className="size-3.5 text-muted-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Giá mua</p>
+                  </div>
+                  <p className="text-sm font-semibold">{asset.price ? Number(asset.price).toLocaleString("vi-VN") + " ₫" : "—"}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <QrCode className="size-3.5 text-muted-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Mã định danh</p>
+                  </div>
+                  <p className="text-[10px] font-mono font-medium truncate" title={asset.qr_code}>{asset.qr_code}</p>
                 </div>
               </div>
 
@@ -353,147 +422,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
   );
 }
 
-/* ── Batch Create Dialog ───────────────────── */
 
-function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
-  const [assetTypes, setAssetTypes] = useState([]);
-  const [form, setForm] = useState({ asset_type_id: "", building_id: "", quantity: "1" });
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setForm({ asset_type_id: "", building_id: "", quantity: "1" });
-    setErrors({});
-    setResult(null);
-    apiJson("/api/asset-types?limit=100&is_active=true").then((res) => {
-      setAssetTypes(res.data || []);
-    }).catch(() => { });
-  }, [open]);
-
-  const set = (k, v) => {
-    setForm((p) => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
-  };
-
-  const selectedType = assetTypes.find((t) => t.id === form.asset_type_id);
-
-  const validate = () => {
-    const e = {};
-    if (!form.asset_type_id) e.asset_type_id = true;
-    if (!form.building_id) e.building_id = true;
-    const qty = Number(form.quantity);
-    if (!qty || qty < 1 || qty > 100) e.quantity = "1–100";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = async (ev) => {
-    ev.preventDefault();
-    if (!validate()) return;
-    setSaving(true);
-    try {
-      const body = {
-        name: selectedType?.name || "Asset",
-        building_id: form.building_id,
-        asset_type_id: form.asset_type_id,
-        quantity: Number(form.quantity),
-      };
-      const res = await apiJson("/api/assets/batch", { method: "POST", body });
-      setResult(res);
-    } catch (err) {
-      setResult({ error: err.message || "Đã xảy ra lỗi." });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (result) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle>{result.error ? "Lỗi" : "Thành công"}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            {result.error || `Đã tạo ${result.count} tài sản "${selectedType?.name}".`}
-          </p>
-          <DialogFooter className="justify-center">
-            <Button onClick={() => { onOpenChange(false); if (!result.error) onSaved(); }}>Đóng</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Thêm tài sản hàng loạt</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Loại tài sản *</Label>
-            <Select value={form.asset_type_id || undefined} onValueChange={(v) => set("asset_type_id", v)}>
-              <SelectTrigger className={errors.asset_type_id ? "border-destructive" : ""}>
-                <SelectValue placeholder="Chọn loại tài sản" />
-              </SelectTrigger>
-              <SelectContent>
-                {assetTypes.map((at) => (
-                  <SelectItem key={at.id} value={at.id}>{at.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedType && (
-              <p className="text-[11px] text-muted-foreground">
-                Giá mặc định: {selectedType.default_price ? Number(selectedType.default_price).toLocaleString("vi-VN") + " ₫" : "—"}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Tòa nhà *</Label>
-            <Select value={form.building_id || undefined} onValueChange={(v) => set("building_id", v)}>
-              <SelectTrigger className={errors.building_id ? "border-destructive" : ""}>
-                <SelectValue placeholder="Chọn tòa nhà" />
-              </SelectTrigger>
-              <SelectContent>
-                {buildings.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Số lượng *</Label>
-            <Input type="number" min="1" max="100"
-              value={form.quantity}
-              onChange={(e) => set("quantity", e.target.value)}
-              className={errors.quantity ? "border-destructive" : ""} />
-            {errors.quantity && <p className="text-[11px] text-destructive">Số lượng phải từ 1 đến 100</p>}
-          </div>
-
-          <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs text-muted-foreground">
-            <p>• Tên tài sản lấy từ loại tài sản đã chọn</p>
-            <p>• Mỗi tài sản được gán mã QR duy nhất (FSCAPE-AST-...)</p>
-            <p>• Trạng thái mặc định: <strong className="text-foreground">Sẵn sàng</strong></p>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              Tạo {Number(form.quantity) > 1 ? `${form.quantity} tài sản` : "tài sản"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /* ── Building Section (grouped table) ──────── */
 
@@ -587,6 +516,7 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
 /* ── Main Page ─────────────────────────────── */
 
 export default function AssetsPage() {
+  const navigate = useNavigate();
   const [allAssets, setAllAssets] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -596,7 +526,6 @@ export default function AssetsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const [showCreate, setShowCreate] = useState(false);
   const [detailAsset, setDetailAsset] = useState(null);
   const [qrAsset, setQrAsset] = useState(null);
 
@@ -612,8 +541,9 @@ export default function AssetsPage() {
       setAllAssets(assetRes.data || []);
       setBuildings(buildRes.data || []);
       setRooms(roomRes.data || []);
-    } catch {
-      setError("Không thể tải dữ liệu.");
+    } catch (err) {
+      console.error("Fetch assets error:", err);
+      setError(err.message || "Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
@@ -644,8 +574,8 @@ export default function AssetsPage() {
 
   const totalCount = allAssets.length;
   const statusCounts = useMemo(() => {
-    const c = { AVAILABLE: 0, IN_USE: 0 };
-    allAssets.forEach((a) => { if (c[a.status] !== undefined) c[a.status]++; });
+    const c = { AVAILABLE: 0, IN_USE: 0, MAINTENANCE: 0 };
+    allAssets.forEach((a) => { if (a.status && c[a.status] !== undefined) c[a.status]++; });
     return c;
   }, [allAssets]);
 
@@ -657,7 +587,7 @@ export default function AssetsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Tài sản</h1>
           <p className="text-sm text-muted-foreground">Theo dõi trang thiết bị và cơ sở vật chất</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setShowCreate(true)}>
+        <Button className="gap-1.5" onClick={() => navigate("/assets/create")}>
           <Plus className="size-4" /> Thêm tài sản
         </Button>
       </div>
@@ -715,13 +645,7 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {/* Batch create dialog */}
-      <BatchCreateDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        buildings={buildings}
-        onSaved={fetchAll}
-      />
+
 
       {/* Detail dialog */}
       <AssetDetailDialog

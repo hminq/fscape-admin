@@ -121,48 +121,77 @@ function RoomTypeFormFields({ form, setForm, errors }) {
                     {errors.base_price && <p className="text-[11px] text-destructive">{errors.base_price}</p>}
                 </div>
                 <div className="space-y-1.5">
-                    <Label>Đặt cọc (tháng)</Label>
+                    <Label>Đặt cọc (tháng) *</Label>
                     <Input
                         type="number" min="0"
                         value={form.deposit_months}
                         onChange={set("deposit_months")}
+                        className={errors.deposit_months ? "border-destructive" : ""}
                     />
+                    {errors.deposit_months && <p className="text-[11px] text-destructive">{errors.deposit_months}</p>}
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                    <Label>Sức chứa tối thiểu</Label>
+                    <Label>Sức chứa tối thiểu *</Label>
                     <Input
-                        type="number" min="1"
+                        type="number" min="1" max="6"
                         value={form.capacity_min}
                         onChange={set("capacity_min")}
+                        className={errors.capacity_min ? "border-destructive" : ""}
                     />
+                    {errors.capacity_min && <p className="text-[11px] text-destructive">{errors.capacity_min}</p>}
                 </div>
                 <div className="space-y-1.5">
-                    <Label>Sức chứa tối đa</Label>
+                    <Label>Sức chứa tối đa *</Label>
                     <Input
-                        type="number" min="1"
+                        type="number" min="1" max="6"
                         value={form.capacity_max}
                         onChange={set("capacity_max")}
-                        className={errors.capacity ? "border-destructive" : ""}
+                        className={errors.capacity_max ? "border-destructive" : ""}
                     />
-                    {errors.capacity && <p className="text-[11px] text-destructive">{errors.capacity}</p>}
+                    {errors.capacity_max && <p className="text-[11px] text-destructive">{errors.capacity_max}</p>}
                 </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                    <Label>Phòng ngủ</Label>
-                    <Input type="number" min="0" value={form.bedrooms} onChange={set("bedrooms")} />
+                    <Label>Phòng ngủ *</Label>
+                    <Select value={String(form.bedrooms)} onValueChange={(v) => setForm(p => ({ ...p, bedrooms: v }))}>
+                        <SelectTrigger className={errors.bedrooms ? "border-destructive" : ""}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0">0</SelectItem>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {errors.bedrooms && <p className="text-[11px] text-destructive">{errors.bedrooms}</p>}
                 </div>
                 <div className="space-y-1.5">
-                    <Label>Phòng tắm</Label>
-                    <Input type="number" min="0" value={form.bathrooms} onChange={set("bathrooms")} />
+                    <Label>Phòng tắm *</Label>
+                    <Select value={String(form.bathrooms)} onValueChange={(v) => setForm(p => ({ ...p, bathrooms: v }))}>
+                        <SelectTrigger className={errors.bathrooms ? "border-destructive" : ""}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0">0</SelectItem>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {errors.bathrooms && <p className="text-[11px] text-destructive">{errors.bathrooms}</p>}
                 </div>
                 <div className="space-y-1.5">
-                    <Label>Diện tích (m²)</Label>
-                    <Input type="number" min="0" step="0.1" value={form.area_sqm} onChange={set("area_sqm")} placeholder="0" />
+                    <Label>Diện tích (m²) *</Label>
+                    <Input 
+                        type="number" min="1" max="100" step="0.1" 
+                        value={form.area_sqm} 
+                        onChange={set("area_sqm")} 
+                        placeholder="0"
+                        className={errors.area_sqm ? "border-destructive" : ""}
+                    />
+                    {errors.area_sqm && <p className="text-[11px] text-destructive">{errors.area_sqm}</p>}
                 </div>
             </div>
 
@@ -182,10 +211,33 @@ function RoomTypeFormFields({ form, setForm, errors }) {
 
 function validateForm(form) {
     const e = {};
-    if (!form.name.trim()) e.name = true;
+    if (!form.name.trim()) e.name = "Vui lòng nhập tên";
+    
     if (!form.base_price && form.base_price !== 0) e.base_price = "Vui lòng nhập giá";
     else if (Number(form.base_price) < 0) e.base_price = "Giá phải >= 0";
-    if (Number(form.capacity_min) > Number(form.capacity_max)) e.capacity = "Tối thiểu phải ≤ tối đa";
+
+    if (!form.deposit_months && form.deposit_months !== 0) e.deposit_months = "Vui lòng nhập số tháng đặt cọc";
+
+    const cMin = Number(form.capacity_min);
+    const cMax = Number(form.capacity_max);
+    
+    if (!form.capacity_min) e.capacity_min = "Bắt buộc";
+    else if (cMin < 1 || cMin > 6) e.capacity_min = "Từ 1-6";
+
+    if (!form.capacity_max) e.capacity_max = "Bắt buộc";
+    else if (cMax < 1 || cMax > 6) e.capacity_max = "Từ 1-6";
+    else if (cMin > cMax) e.capacity_max = "Tối đa phải >= tối thiểu";
+
+    if (form.bedrooms === undefined || form.bedrooms === "") e.bedrooms = "Bắt buộc";
+    if (form.bathrooms === undefined || form.bathrooms === "") e.bathrooms = "Bắt buộc";
+
+    if (!form.area_sqm) e.area_sqm = "Vui lòng nhập diện tích";
+    else {
+        const area = Number(form.area_sqm);
+        if (area <= 0) e.area_sqm = "Phải > 0m²";
+        else if (area > 100) e.area_sqm = "Tối đa 100m²";
+    }
+
     return e;
 }
 

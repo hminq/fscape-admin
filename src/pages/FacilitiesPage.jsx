@@ -28,13 +28,24 @@ const fmt = (iso) => {
   });
 };
 
+const translateError = (msg) => {
+  if (!msg) return null;
+  const m = String(msg).toLowerCase();
+  if (m.includes("already exists")) return "Tên tiện ích này đã tồn tại.";
+  if (m.includes("required")) return "Vui lòng điền đầy đủ thông tin.";
+  if (m.includes("failed to fetch") || m.includes("network error")) return "Lỗi kết nối mạng.";
+  return msg;
+};
+
 const EMPTY_FORM = { name: "", is_active: "true" };
 
 /* ── Summary ───────────────────────────────── */
 
 function DonutChart({ active, inactive, size = 72 }) {
-  const total = active + inactive;
-  const pct = total > 0 ? (active / total) * 100 : 0;
+  const nActive = Number(active) || 0;
+  const nInactive = Number(inactive) || 0;
+  const total = nActive + nInactive;
+  const pct = total > 0 ? (nActive / total) * 100 : 0;
   const r = 36;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
@@ -97,7 +108,7 @@ function SortIcon({ field, sortField, sortDir }) {
 
 /* ── Detail Dialog (view / edit / delete) ── */
 
-function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, saving }) {
+function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, saving, error }) {
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [form, setForm] = useState(null);
@@ -143,6 +154,11 @@ function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, 
               <DialogTitle>Chỉnh sửa tiện ích</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+              {error && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                  {error}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Tên tiện ích *</Label>
                 <Input
@@ -238,7 +254,7 @@ function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, 
 
 /* ── Create Dialog ─────────────────────────── */
 
-function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
+function FacilityCreateDialog({ open, onOpenChange, onSave, saving, error }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
 
@@ -266,6 +282,11 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
           <DialogTitle>Thêm tiện ích mới</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+              {error}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Tên tiện ích *</Label>
             <Input
@@ -307,6 +328,8 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
 export default function FacilitiesPage() {
   const [facilities, setFacilities] = useState([]);
   const [total, setTotal] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [inactiveCount, setInactiveCount] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -321,6 +344,7 @@ export default function FacilitiesPage() {
   const [detailItem, setDetailItem] = useState(null);
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [toggleError, setToggleError] = useState(null);
 
   const limit = 10;
@@ -335,10 +359,13 @@ export default function FacilitiesPage() {
       if (filterActive === "inactive") params.set("is_active", "false");
 
       const res = await api.get(`/api/facilities?${params}`);
+      console.log("[Facilities] API Response:", res);
       setFacilities(res.data || []);
-      setTotal(res.total || 0);
-      setPage(res.page || 1);
-      setTotalPages(res.total_pages || res.totalPages || 1);
+      setTotal(Number(res.total) || 0);
+      setActiveCount(Number(res.activeCount ?? res.active_count) || 0);
+      setInactiveCount(Number(res.inactiveCount ?? res.inactive_count) || 0);
+      setPage(Number(res.page) || 1);
+      setTotalPages(Number(res.total_pages || res.totalPages) || 1);
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -364,17 +391,17 @@ export default function FacilitiesPage() {
     return sortDir === "asc" ? diff : -diff;
   });
 
-  const activeCount = facilities.filter((f) => f.is_active).length;
 
   /* ─ CRUD ─ */
   const handleCreate = async (data) => {
     setSaving(true);
+    setFormError(null);
     try {
       await api.post("/api/facilities", data);
       setShowCreate(false);
       fetchFacilities();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      setFormError(translateError(err.message) || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -382,12 +409,13 @@ export default function FacilitiesPage() {
 
   const handleUpdate = async (id, data) => {
     setSaving(true);
+    setFormError(null);
     try {
       await api.put(`/api/facilities/${id}`, data);
       setDetailItem(null);
       fetchFacilities();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      setFormError(translateError(err.message) || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -395,12 +423,13 @@ export default function FacilitiesPage() {
 
   const handleDelete = async (id) => {
     setSaving(true);
+    setFormError(null);
     try {
       await api.delete(`/api/facilities/${id}`);
       setDetailItem(null);
       fetchFacilities();
     } catch (err) {
-      alert(err.message || "Không thể xóa tiện ích. Vui lòng thử lại.");
+      setFormError(translateError(err.message) || "Không thể xóa tiện ích. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -434,7 +463,7 @@ export default function FacilitiesPage() {
       </div>
 
       {/* Summary */}
-      <FacilitySummary total={total} active={activeCount} inactive={total - activeCount} />
+      <FacilitySummary total={total} active={activeCount} inactive={inactiveCount} />
 
       {/* Search + filter */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -588,19 +617,21 @@ export default function FacilitiesPage() {
       {/* Detail / Edit / Delete dialog */}
       <FacilityDetailDialog
         open={!!detailItem}
-        onOpenChange={(v) => !v && setDetailItem(null)}
+        onOpenChange={(v) => { if(!v) { setDetailItem(null); setFormError(null); } }}
         facility={detailItem}
         onSave={handleUpdate}
         onDelete={handleDelete}
         saving={saving}
+        error={formError}
       />
 
       {/* Create dialog */}
       <FacilityCreateDialog
         open={showCreate}
-        onOpenChange={setShowCreate}
+        onOpenChange={(v) => { setShowCreate(v); setFormError(null); }}
         onSave={handleCreate}
         saving={saving}
+        error={formError}
       />
 
       {/* Confirm toggle */}
