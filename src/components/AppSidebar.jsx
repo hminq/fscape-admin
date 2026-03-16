@@ -25,9 +25,7 @@ const navItems = [
     label: "Tài khoản",
     icon: Users,
     to: "/accounts",
-    children: [
-      { label: "Danh sách", to: "/accounts" },
-    ],
+    children: [{ label: "Danh sách", to: "/accounts" }],
   },
   {
     label: "Tòa nhà",
@@ -71,17 +69,13 @@ const navItems = [
     label: "Hóa đơn",
     icon: Receipt,
     to: "/invoices",
-    children: [
-      { label: "Danh sách", to: "/invoices" },
-    ],
+    children: [{ label: "Danh sách", to: "/invoices" }],
   },
   {
     label: "Yêu cầu",
     icon: ChatCircleText,
     to: "/requests",
-    children: [
-      { label: "Danh sách yêu cầu", to: "/requests" },
-    ],
+    children: [{ label: "Danh sách", to: "/requests" }],
   },
   {
     label: "Nhật ký",
@@ -97,7 +91,8 @@ const navItems = [
 function SidebarItem({ item }) {
   const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
-  const isActive = location.pathname === item.to ||
+  const isActive =
+    location.pathname === item.to ||
     item.children?.some((child) => location.pathname === child.to);
   const [open, setOpen] = useState(isActive);
 
@@ -112,7 +107,7 @@ function SidebarItem({ item }) {
             "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
             isActive
               ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
           )
         }
       >
@@ -131,7 +126,7 @@ function SidebarItem({ item }) {
           "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
           isActive
             ? "font-medium text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/50 hover:text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/50 hover:text-sidebar-accent-foreground",
         )}
       >
         <item.icon className="size-5 shrink-0" />
@@ -139,7 +134,7 @@ function SidebarItem({ item }) {
         <CaretDown
           className={cn(
             "size-3.5 transition-transform duration-200",
-            open ? "rotate-0" : "-rotate-90"
+            open ? "rotate-0" : "-rotate-90",
           )}
         />
       </button>
@@ -147,7 +142,7 @@ function SidebarItem({ item }) {
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
       >
         <div className="overflow-hidden">
@@ -162,7 +157,7 @@ function SidebarItem({ item }) {
                     "block rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
                     isActive
                       ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/40 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/40 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                   )
                 }
               >

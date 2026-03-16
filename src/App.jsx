@@ -22,8 +22,11 @@ import FacilitiesPage from "./pages/FacilitiesPage";
 
 import CreateAssetPage from "./pages/CreateAssetPage";
 import RoomDetailPage from "./pages/RoomDetailPage";
+import ContractsPage from "./pages/ContractsPage";
+import ContractDetailPage from "./pages/ContractDetailPage";
 import ContractTemplatesPage from "./pages/ContractTemplatesPage";
 import ContractTemplateEditorPage from "./pages/ContractTemplateEditorPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import RequestsPage from "./pages/RequestsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import SystemLogsPage from "./pages/SystemLogsPage";
@@ -87,9 +90,12 @@ export default function App() {
               <Route path="assets" element={<AssetsPage />} />
               <Route path="assets/create" element={<CreateAssetPage />} />
               <Route path="assets/types" element={<AssetTypesPage />} />
+              <Route path="contracts" element={<ContractsPage />} />
+              <Route path="contracts/:id" element={<ContractDetailPage />} />
               <Route path="contracts/templates" element={<ContractTemplatesPage />} />
               <Route path="contracts/templates/create" element={<ContractTemplateEditorPage />} />
               <Route path="contracts/templates/:id/edit" element={<ContractTemplateEditorPage />} />
+              <Route path="invoices" element={<InvoicesPage />} />
               <Route path="requests" element={<RequestsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />
