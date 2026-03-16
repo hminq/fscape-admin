@@ -47,59 +47,59 @@ function SortIcon({ field, sortField, sortDir }) {
         : <CaretDown className="size-3.5 ml-1 text-primary" />;
 }
 
-/* ── DonutChart ─────────────────────────────── */
+/* ── Status Bar (inline, filter-reactive) ──── */
 
-function DonutChart({ active, inactive, size = 72 }) {
-    const total = active + inactive;
-    const pct = total > 0 ? (active / total) * 100 : 0;
-    const r = 36;
-    const circ = 2 * Math.PI * r;
-    const offset = circ - (pct / 100) * circ;
+function AssetTypeStatusBar({ byStatus, total = 0, filter = "all" }) {
+    const hasData = byStatus != null;
+    const active = filter === "all" ? (byStatus?.active || 0) : filter === "active" ? (byStatus?.active || 0) : 0;
+    const inactive = filter === "all" ? (byStatus?.inactive || 0) : filter === "inactive" ? (byStatus?.inactive || 0) : 0;
+    const filteredTotal = filter === "all" ? total : filter === "active" ? (byStatus?.active || 0) : (byStatus?.inactive || 0);
+
+    const pActive = filteredTotal > 0 ? (active / filteredTotal) * 100 : 0;
+    const pInactive = filteredTotal > 0 ? (inactive / filteredTotal) * 100 : 0;
+
+    const filterLabel = filter === "active" ? "hoạt động" : filter === "inactive" ? "vô hiệu" : null;
 
     return (
-        <div className="relative" style={{ width: size, height: size }}>
-            <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-                <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
-                <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10"
-                    strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-                    className="stroke-success transition-all duration-500" />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold leading-none">{total > 0 ? Math.round(pct) : 0}%</span>
+        <div className="flex-1 min-w-[180px] space-y-2.5">
+            <div className="flex items-center text-xs">
+                <span className="text-muted-foreground">Trạng thái</span>
+            </div>
+            <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+                <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${pActive}%` }} />
+                <div className="h-full bg-muted-foreground/40 transition-all duration-500" style={{ width: `${pInactive}%` }} />
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                {!hasData && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> Đang chờ dữ liệu...</span>}
+                {hasData && filteredTotal === 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> 0 loại tài sản {filterLabel}</span>}
+                {active > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> {Math.round(pActive)}% hoạt động ({active})</span>}
+                {inactive > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> {Math.round(pInactive)}% vô hiệu ({inactive})</span>}
             </div>
         </div>
     );
 }
 
-function AssetTypeSummary({ total, active, inactive }) {
+function AssetTypeSummary({ stats, filterActive }) {
+    const total = stats?.total || 0;
+    const byStatus = stats?.by_status || null;
+    const filteredTotal = filterActive === "all" ? total
+        : filterActive === "active" ? (byStatus?.active || 0)
+            : (byStatus?.inactive || 0);
+
     return (
         <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-6 p-5">
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 min-w-[150px]">
                     <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                         <Package className="size-5 text-primary" />
                     </div>
                     <div>
-                        <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+                        <p className="text-3xl font-bold leading-none tracking-tight">{filteredTotal}</p>
                         <p className="text-sm text-muted-foreground mt-1">Loại tài sản</p>
                     </div>
                 </div>
                 <div className="w-px h-14 bg-border shrink-0" />
-                <div className="flex items-center gap-4">
-                    <DonutChart active={active} inactive={inactive} size={64} />
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-success shrink-0" />
-                            <span className="text-xs text-muted-foreground">Hoạt động</span>
-                            <span className="text-xs font-semibold ml-auto pl-2">{active}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-muted-foreground/30 shrink-0" />
-                            <span className="text-xs text-muted-foreground">Vô hiệu hóa</span>
-                            <span className="text-xs font-semibold ml-auto pl-2">{inactive}</span>
-                        </div>
-                    </div>
-                </div>
+                <AssetTypeStatusBar byStatus={byStatus} total={total} filter={filterActive} />
             </div>
         </div>
     );
@@ -328,8 +328,8 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <AssetTypeFormFields form={form} setForm={setForm} errors={errors} />
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-                        <Button type="submit" disabled={saving}>
-                            {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+                        <Button type="submit" disabled={saving} className="gap-1.5">
+                            {saving ? <CircleNotch className="size-4 animate-spin" /> : <Plus className="size-4" />}
                             Thêm loại tài sản
                         </Button>
                     </DialogFooter>
@@ -344,7 +344,7 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
 export default function AssetTypesPage() {
     const [types, setTypes] = useState([]);
     const [total, setTotal] = useState(0);
-    const [totalActive, setTotalActive] = useState(0);
+    const [stats, setStats] = useState(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
@@ -363,6 +363,12 @@ export default function AssetTypesPage() {
 
     const limit = 10;
 
+    const fetchStats = () => {
+        api.get("/api/asset-types/stats")
+            .then(res => setStats(res.data || res))
+            .catch(console.error);
+    };
+
     const fetchTypes = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -375,7 +381,6 @@ export default function AssetTypesPage() {
             const res = await api.get(`/api/asset-types?${params}`);
             setTypes(res.data || []);
             setTotal(res.total || 0);
-            setTotalActive(res.active_count || 0);
             setPage(res.page || 1);
             setTotalPages(res.total_pages || res.totalPages || 1);
         } catch {
@@ -385,6 +390,7 @@ export default function AssetTypesPage() {
         }
     }, [page, search, filterActive]);
 
+    useEffect(() => { fetchStats(); }, []);
     useEffect(() => { fetchTypes(); }, [fetchTypes]);
     useEffect(() => { setPage(1); }, [search, filterActive]);
 
@@ -404,14 +410,13 @@ export default function AssetTypesPage() {
         return sortDir === "asc" ? diff : -diff;
     });
 
-    const activeCount = totalActive;
-
     const handleCreate = async (data) => {
         setSaving(true);
         try {
             await api.post("/api/asset-types", data);
             setShowCreate(false);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
         } finally {
@@ -425,6 +430,7 @@ export default function AssetTypesPage() {
             await api.put(`/api/asset-types/${id}`, data);
             setDetailType(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
         } finally {
@@ -438,6 +444,7 @@ export default function AssetTypesPage() {
             await api.delete(`/api/asset-types/${id}`);
             setDetailType(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             setMsgDialog({ title: "Lỗi", message: err.message || "Không thể vô hiệu hóa." });
         } finally {
@@ -453,6 +460,7 @@ export default function AssetTypesPage() {
             });
             setConfirmToggle(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             setMsgDialog({ title: "Lỗi", message: err.message || "Không thể cập nhật." });
         } finally {
@@ -474,7 +482,7 @@ export default function AssetTypesPage() {
             </div>
 
             {/* Summary */}
-            <AssetTypeSummary total={total} active={activeCount} inactive={total - activeCount} />
+            <AssetTypeSummary stats={stats} filterActive={filterActive} />
 
             {/* Search + filter */}
             <div className="flex items-center gap-3 flex-wrap">

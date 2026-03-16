@@ -42,7 +42,6 @@ const EMPTY_FORM = {
     name: "",
     description: "",
     base_price: "",
-    deposit_months: "1",
     capacity_min: "1",
     capacity_max: "1",
     bedrooms: "1",
@@ -58,9 +57,45 @@ function SortIcon({ field, sortField, sortDir }) {
         : <CaretDown className="size-3.5 ml-1 text-primary" />;
 }
 
-import StatusBar from "@/components/StatusBar";
+/* ── Status Bar (inline, filter-reactive) ──── */
 
-function RoomTypeSummary({ total, active, inactive, filterActive }) {
+function RoomTypeStatusBar({ byStatus, total = 0, filter = "all" }) {
+    const hasData = byStatus != null;
+    const active = filter === "all" ? (byStatus?.active || 0) : filter === "active" ? (byStatus?.active || 0) : 0;
+    const inactive = filter === "all" ? (byStatus?.inactive || 0) : filter === "inactive" ? (byStatus?.inactive || 0) : 0;
+    const filteredTotal = filter === "all" ? total : filter === "active" ? (byStatus?.active || 0) : (byStatus?.inactive || 0);
+
+    const pActive = filteredTotal > 0 ? (active / filteredTotal) * 100 : 0;
+    const pInactive = filteredTotal > 0 ? (inactive / filteredTotal) * 100 : 0;
+
+    const filterLabel = filter === "active" ? "hoạt động" : filter === "inactive" ? "vô hiệu" : null;
+
+    return (
+        <div className="flex-1 min-w-[180px] space-y-2.5">
+            <div className="flex items-center text-xs">
+                <span className="text-muted-foreground">Trạng thái</span>
+            </div>
+            <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+                <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${pActive}%` }} />
+                <div className="h-full bg-muted-foreground/40 transition-all duration-500" style={{ width: `${pInactive}%` }} />
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                {!hasData && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> Đang chờ dữ liệu...</span>}
+                {hasData && filteredTotal === 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> 0 loại phòng {filterLabel}</span>}
+                {active > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> {Math.round(pActive)}% hoạt động ({active})</span>}
+                {inactive > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> {Math.round(pInactive)}% vô hiệu ({inactive})</span>}
+            </div>
+        </div>
+    );
+}
+
+function RoomTypeSummary({ stats, filterActive }) {
+    const total = stats?.total || 0;
+    const byStatus = stats?.by_status || {};
+    const filteredTotal = filterActive === "all" ? total
+        : filterActive === "active" ? (byStatus.active || 0)
+            : (byStatus.inactive || 0);
+
     return (
         <div className="rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-6 p-5">
@@ -69,12 +104,12 @@ function RoomTypeSummary({ total, active, inactive, filterActive }) {
                         <House className="size-5 text-primary" />
                     </div>
                     <div>
-                        <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+                        <p className="text-3xl font-bold leading-none tracking-tight">{filteredTotal}</p>
                         <p className="text-sm text-muted-foreground mt-1">Loại phòng</p>
                     </div>
                 </div>
                 <div className="w-px h-14 bg-border shrink-0" />
-                <StatusBar active={active} inactive={inactive} filter={filterActive} label="loại phòng" />
+                <RoomTypeStatusBar byStatus={byStatus} total={total} filter={filterActive} />
             </div>
         </div>
     );
@@ -82,7 +117,7 @@ function RoomTypeSummary({ total, active, inactive, filterActive }) {
 
 /* ── Shared form fields ────────────────────── */
 
-function RoomTypeFormFields({ form, setForm, errors }) {
+function RoomTypeFormFields({ form, setForm, errors, hideStatus = false }) {
     const set = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
     return (
@@ -108,26 +143,16 @@ function RoomTypeFormFields({ form, setForm, errors }) {
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                    <Label>Giá cơ bản (₫) *</Label>
-                    <Input
-                        type="number" min="0" step="1000"
-                        value={form.base_price}
-                        onChange={set("base_price")}
-                        placeholder="0"
-                        className={errors.base_price ? "border-destructive" : ""}
-                    />
-                    {errors.base_price && <p className="text-[11px] text-destructive">{errors.base_price}</p>}
-                </div>
-                <div className="space-y-1.5">
-                    <Label>Đặt cọc (tháng)</Label>
-                    <Input
-                        type="number" min="0"
-                        value={form.deposit_months}
-                        onChange={set("deposit_months")}
-                    />
-                </div>
+            <div className="space-y-1.5">
+                <Label>Giá cơ bản (₫) *</Label>
+                <Input
+                    type="number" min="0" step="1000"
+                    value={form.base_price}
+                    onChange={set("base_price")}
+                    placeholder="0"
+                    className={errors.base_price ? "border-destructive" : ""}
+                />
+                {errors.base_price && <p className="text-[11px] text-destructive">{errors.base_price}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -166,16 +191,18 @@ function RoomTypeFormFields({ form, setForm, errors }) {
                 </div>
             </div>
 
-            <div className="space-y-1.5">
-                <Label>Trạng thái</Label>
-                <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="true">Hoạt động</SelectItem>
-                        <SelectItem value="false">Không hoạt động</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            {!hideStatus && (
+                <div className="space-y-1.5">
+                    <Label>Trạng thái</Label>
+                    <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="true">Hoạt động</SelectItem>
+                            <SelectItem value="false">Không hoạt động</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
         </>
     );
 }
@@ -194,7 +221,6 @@ function formToPayload(form) {
         name: form.name.trim(),
         description: form.description.trim() || null,
         base_price: Number(form.base_price),
-        deposit_months: Number(form.deposit_months) || 1,
         capacity_min: Number(form.capacity_min) || 1,
         capacity_max: Number(form.capacity_max) || 1,
         bedrooms: Number(form.bedrooms) || 0,
@@ -224,7 +250,6 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
             name: roomType.name || "",
             description: roomType.description || "",
             base_price: roomType.base_price ?? "",
-            deposit_months: String(roomType.deposit_months ?? 1),
             capacity_min: String(roomType.capacity_min ?? 1),
             capacity_max: String(roomType.capacity_max ?? 1),
             bedrooms: String(roomType.bedrooms ?? 1),
@@ -313,7 +338,6 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                                     { icon: ArrowsOutSimple, label: "Diện tích", value: rt.area_sqm ? `${rt.area_sqm} m²` : "—" },
                                     { icon: Bed, label: "Phòng ngủ", value: rt.bedrooms ?? "—" },
                                     { icon: Bathtub, label: "Phòng tắm", value: rt.bathrooms ?? "—" },
-                                    { icon: Banknote, label: "Đặt cọc", value: rt.deposit_months ? `${rt.deposit_months} tháng` : "—" },
                                 ].map(({ icon: Icon, label, value }) => (
                                     <div key={label} className="rounded-lg border border-border/50 bg-muted/30 p-3">
                                         <div className="flex items-center gap-1.5 mb-1">
@@ -379,7 +403,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
             setAssetTypes(typesRes.data || []);
 
             const currentItems = (assignedRes.data || []).map(a => ({
-                asset_type_id: a.asset_type?.id || a.asset_type_id, // handle both populated and flat structures
+                asset_type_id: a.asset_type?.id || a.asset_type_id,
                 quantity: a.quantity || 1
             }));
             setItems(currentItems);
@@ -502,7 +526,7 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
         const errs = validateForm(form);
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
-        onSave(formToPayload(form));
+        onSave({ ...formToPayload(form), is_active: true });
     };
 
     return (
@@ -512,7 +536,7 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <DialogTitle>Thêm loại phòng mới</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 pt-1 max-h-[70vh] overflow-y-auto pr-1">
-                    <RoomTypeFormFields form={form} setForm={setForm} errors={errors} />
+                    <RoomTypeFormFields form={form} setForm={setForm} errors={errors} hideStatus />
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
                         <Button type="submit" disabled={saving}>
@@ -531,11 +555,11 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
 export default function RoomTypesPage() {
     const [types, setTypes] = useState([]);
     const [total, setTotal] = useState(0);
-    const [totalActive, setTotalActive] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [stats, setStats] = useState(null);
 
     const [search, setSearch] = useState("");
     const [filterActive, setFilterActive] = useState("all");
@@ -550,6 +574,12 @@ export default function RoomTypesPage() {
 
     const limit = 10;
 
+    const fetchStats = () => {
+        api.get("/api/room-types/stats")
+            .then(res => setStats(res.data || res))
+            .catch(console.error);
+    };
+
     const fetchTypes = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -562,7 +592,6 @@ export default function RoomTypesPage() {
             const res = await api.get(`/api/room-types?${params}`);
             setTypes(res.data || []);
             setTotal(res.total || 0);
-            setTotalActive(res.active_count || 0);
             setPage(res.page || 1);
             setTotalPages(res.total_pages || res.totalPages || 1);
         } catch {
@@ -572,6 +601,7 @@ export default function RoomTypesPage() {
         }
     }, [page, search, filterActive]);
 
+    useEffect(() => { fetchStats(); }, []);
     useEffect(() => { fetchTypes(); }, [fetchTypes]);
     useEffect(() => { setPage(1); }, [search, filterActive]);
 
@@ -591,14 +621,13 @@ export default function RoomTypesPage() {
         return sortDir === "asc" ? diff : -diff;
     });
 
-    const activeCount = totalActive;
-
     const handleCreate = async (data) => {
         setSaving(true);
         try {
             await api.post("/api/room-types", data);
             setShowCreate(false);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
         } finally {
@@ -612,6 +641,7 @@ export default function RoomTypesPage() {
             await api.put(`/api/room-types/${id}`, data);
             setDetailType(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
         } finally {
@@ -625,6 +655,7 @@ export default function RoomTypesPage() {
             await api.delete(`/api/room-types/${id}`);
             setDetailType(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             alert(err.message || "Không thể vô hiệu hóa. Vui lòng thử lại.");
         } finally {
@@ -640,6 +671,7 @@ export default function RoomTypesPage() {
             });
             setConfirmToggle(null);
             fetchTypes();
+            fetchStats();
         } catch (err) {
             alert(err.message || "Không thể cập nhật trạng thái. Vui lòng thử lại.");
         } finally {
@@ -661,7 +693,7 @@ export default function RoomTypesPage() {
             </div>
 
             {/* Summary */}
-            <RoomTypeSummary total={total} active={activeCount} inactive={total - activeCount} filterActive={filterActive} />
+            <RoomTypeSummary stats={stats} filterActive={filterActive} />
 
             {/* Search + filter */}
             <div className="flex items-center gap-3 flex-wrap mt-2">

@@ -21,8 +21,7 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { apiJson } from "@/lib/apiClient";
-import StatusDonut from "@/components/StatusDonut";
+import { apiJson, api } from "@/lib/apiClient";
 
 /* ── helpers ───────────────────────────────── */
 
@@ -37,47 +36,58 @@ const STATUS_MAP = {
   IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary" },
 };
 
-const STATUS_STROKE = {
-  AVAILABLE: "stroke-success",
-  IN_USE: "stroke-primary",
-};
+/* ── Status Bar (straight bar, filter-reactive) ── */
 
-const STATUS_ORDER = ["AVAILABLE", "IN_USE"];
+function AssetStatusBar({ byStatus, total = 0, filter = "all" }) {
+  const hasData = byStatus != null;
+  const available = filter === "all" ? (byStatus?.available || 0) : filter === "AVAILABLE" ? (byStatus?.available || 0) : 0;
+  const inUse = filter === "all" ? (byStatus?.in_use || 0) : filter === "IN_USE" ? (byStatus?.in_use || 0) : 0;
+  const filteredTotal = filter === "all" ? total : filter === "AVAILABLE" ? (byStatus?.available || 0) : (byStatus?.in_use || 0);
 
+  const pAvail = filteredTotal > 0 ? (available / filteredTotal) * 100 : 0;
+  const pInUse = filteredTotal > 0 ? (inUse / filteredTotal) * 100 : 0;
 
-/* ── Summary Card ──────────────────────────── */
+  return (
+    <div className="flex-1 min-w-[180px] space-y-2.5">
+      <div className="flex items-center text-xs">
+        <span className="text-muted-foreground">Trạng thái</span>
+      </div>
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+        <div className="h-full bg-success transition-all duration-500" style={{ width: `${pAvail}%` }} />
+        <div className="h-full bg-primary transition-all duration-500" style={{ width: `${pInUse}%` }} />
+      </div>
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+        {!hasData && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> Đang chờ dữ liệu...</span>}
+        {hasData && filteredTotal === 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> 0 tài sản</span>}
+        {available > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> {Math.round(pAvail)}% Sẵn sàng ({available})</span>}
+        {inUse > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary" /> {Math.round(pInUse)}% Đang sử dụng ({inUse})</span>}
+      </div>
+    </div>
+  );
+}
 
-function AssetSummary({ total, statusCounts }) {
+function AssetSummary({ stats, filterStatus }) {
+  const total = stats?.total || 0;
+  const byStatus = stats?.by_status || null;
+  const filteredTotal = !byStatus ? 0
+    : filterStatus === "all" ? total
+      : filterStatus === "AVAILABLE" ? (byStatus.available || 0)
+        : (byStatus.in_use || 0);
+
   return (
     <div className="rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-6 p-5 flex-wrap">
-        <div className="flex items-center gap-4 flex-1 min-w-[140px]">
+        <div className="flex items-center gap-4 min-w-[140px]">
           <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
             <Package className="size-5 text-primary" />
           </div>
           <div>
-            <p className="text-3xl font-bold leading-none tracking-tight">{total}</p>
+            <p className="text-3xl font-bold leading-none tracking-tight">{filteredTotal}</p>
             <p className="text-sm text-muted-foreground mt-1">Tài sản</p>
           </div>
         </div>
-
         <div className="w-px h-14 bg-border shrink-0" />
-
-        <div className="flex items-center gap-4">
-          <StatusDonut entries={STATUS_ORDER.map((s) => ({ key: s, stroke: STATUS_STROKE[s], count: statusCounts[s] || 0 }))} size={64} />
-          <div className="space-y-2">
-            {STATUS_ORDER.map((s) => {
-              const meta = STATUS_MAP[s];
-              return (
-                <div key={s} className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${meta.dot} shrink-0`} />
-                  <span className="text-xs text-muted-foreground">{meta.label}</span>
-                  <span className="text-xs font-semibold ml-auto pl-2">{statusCounts[s] || 0}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <AssetStatusBar byStatus={byStatus} total={total} filter={filterStatus} />
       </div>
     </div>
   );
@@ -479,13 +489,12 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
           <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs text-muted-foreground">
             <p>• Tên tài sản lấy từ loại tài sản đã chọn</p>
             <p>• Mỗi tài sản được gán mã QR duy nhất (FSCAPE-AST-...)</p>
-            <p>• Trạng thái mặc định: <strong className="text-foreground">Sẵn sàng</strong></p>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+            <Button type="submit" disabled={saving} className="gap-1.5">
+              {saving ? <CircleNotch className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Tạo {Number(form.quantity) > 1 ? `${form.quantity} tài sản` : "tài sản"}
             </Button>
           </DialogFooter>
@@ -495,14 +504,43 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
   );
 }
 
-/* ── Building Section (grouped table) ──────── */
+/* ── Per-building asset section with independent pagination ── */
 
 const PER_SECTION = 8;
 
-function BuildingSection({ buildingName, assets, onDetail, onQR }) {
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(assets.length / PER_SECTION);
-  const visible = assets.slice(page * PER_SECTION, (page + 1) * PER_SECTION);
+function BuildingAssetSection({ building, search, statusFilter, onDetail, onQR, refreshKey }) {
+  const [assets, setAssets] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAssets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page,
+        limit: PER_SECTION,
+        building_id: building.id,
+      });
+      if (search.trim()) params.set("search", search.trim());
+      if (statusFilter !== "all") params.set("status", statusFilter);
+
+      const res = await api.get(`/api/assets?${params}`);
+      setAssets(res.data || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.total_pages || res.totalPages || 1);
+    } catch {
+      setAssets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [building.id, page, search, statusFilter, refreshKey]);
+
+  useEffect(() => { fetchAssets(); }, [fetchAssets]);
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+
+  if (!loading && assets.length === 0) return null;
 
   return (
     <section>
@@ -511,17 +549,17 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
           <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
             <Buildings className="size-3.5 text-primary" />
           </div>
-          <h2 className="text-[15px] font-semibold">{buildingName}</h2>
-          <span className="text-sm font-medium text-muted-foreground">{assets.length} kết quả</span>
+          <h2 className="text-[15px] font-semibold">{building.name}</h2>
+          <span className="text-sm font-medium text-muted-foreground">{total} tài sản</span>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-sm font-medium">{page}/{totalPages}</span>
             <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
+              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 <CaretLeft className="size-4" />
               </Button>
-              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                 <CaretRight className="size-4" />
               </Button>
             </div>
@@ -529,57 +567,63 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
         )}
       </div>
 
-      <Card className="overflow-hidden py-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-10 pl-4">#</TableHead>
-              <TableHead>Tài sản</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead>Phòng</TableHead>
-              <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.map((asset, idx) => {
-              const st = STATUS_MAP[asset.status] || STATUS_MAP.AVAILABLE;
-              return (
-                <TableRow key={asset.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onDetail(asset)}>
-                  <TableCell className="pl-4 text-muted-foreground text-xs">
-                    {page * PER_SECTION + idx + 1}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-sm">{asset.name}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className={`size-2 rounded-full ${st.dot}`} />
-                      <span className={`font-medium ${st.text}`}>{st.label}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {asset.room ? (
-                      <span className="flex items-center gap-1"><Door className="size-3" /> {asset.room.room_number}</span>
-                    ) : "Kho"}
-                  </TableCell>
-                  <TableCell className="pr-4">
-                    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button size="icon" variant="ghost" className="size-8 text-primary hover:bg-primary/10"
-                        title="Xem QR" onClick={() => onQR(asset)}>
-                        <QrCode className="size-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="size-8"
-                        title="Chi tiết" onClick={() => onDetail(asset)}>
-                        <Eye className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <CircleNotch className="size-6 animate-spin text-muted-foreground/40" />
+        </div>
+      ) : (
+        <Card className="overflow-hidden py-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead className="w-10 pl-4">#</TableHead>
+                <TableHead>Tài sản</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Phòng</TableHead>
+                <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {assets.map((asset, idx) => {
+                const st = STATUS_MAP[asset.status] || STATUS_MAP.AVAILABLE;
+                return (
+                  <TableRow key={asset.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onDetail(asset)}>
+                    <TableCell className="pl-4 text-muted-foreground text-xs">
+                      {(page - 1) * PER_SECTION + idx + 1}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-sm">{asset.name}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={`size-2 rounded-full ${st.dot}`} />
+                        <span className={`font-medium ${st.text}`}>{st.label}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {asset.room ? (
+                        <span className="flex items-center gap-1"><Door className="size-3" /> {asset.room.room_number}</span>
+                      ) : "Kho"}
+                    </TableCell>
+                    <TableCell className="pr-4">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button size="icon" variant="ghost" className="size-8 text-primary hover:bg-primary/10"
+                          title="Xem QR" onClick={() => onQR(asset)}>
+                          <QrCode className="size-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="size-8"
+                          title="Chi tiết" onClick={() => onDetail(asset)}>
+                          <Eye className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </section>
   );
 }
@@ -587,11 +631,10 @@ function BuildingSection({ buildingName, assets, onDetail, onQR }) {
 /* ── Main Page ─────────────────────────────── */
 
 export default function AssetsPage() {
-  const [allAssets, setAllAssets] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loadingInit, setLoadingInit] = useState(true);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -600,54 +643,43 @@ export default function AssetsPage() {
   const [detailAsset, setDetailAsset] = useState(null);
   const [qrAsset, setQrAsset] = useState(null);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [assetRes, buildRes, roomRes] = await Promise.all([
-        apiJson("/api/assets?limit=500"),
-        apiJson("/api/buildings?limit=100"),
-        apiJson("/api/rooms?limit=1000"),
-      ]);
-      setAllAssets(assetRes.data || []);
-      setBuildings(buildRes.data || []);
-      setRooms(roomRes.data || []);
-    } catch {
-      setError("Không thể tải dữ liệu.");
-    } finally {
-      setLoading(false);
-    }
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const fetchStats = () => {
+    api.get("/api/assets/stats")
+      .then(res => setStats(res.data || res))
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    Promise.all([
+      api.get("/api/buildings?limit=100"),
+      api.get("/api/rooms?limit=1000"),
+      api.get("/api/assets/stats"),
+    ]).then(([bRes, rRes, sRes]) => {
+      setBuildings(bRes.data || bRes);
+      setRooms(rRes.data || rRes);
+      setStats(sRes.data || sRes);
+    }).catch(console.error)
+      .finally(() => setLoadingInit(false));
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const handleSaved = () => {
+    setDetailAsset(null);
+    fetchStats();
+    setRefreshKey(k => k + 1);
+  };
 
-  /* derived data */
-  const filtered = useMemo(() => allAssets.filter((a) => {
-    if (filterStatus !== "all" && a.status !== filterStatus) return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (!a.name?.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }), [allAssets, filterStatus, search]);
+  const handleDeleted = () => {
+    setDetailAsset(null);
+    fetchStats();
+    setRefreshKey(k => k + 1);
+  };
 
-  const buildingGroups = useMemo(() => {
-    const grouped = {};
-    for (const asset of filtered) {
-      const bId = asset.building_id || "_none";
-      const bName = asset.building?.name || "Chưa phân tòa nhà";
-      if (!grouped[bId]) grouped[bId] = { name: bName, assets: [] };
-      grouped[bId].assets.push(asset);
-    }
-    return Object.entries(grouped).sort(([, a], [, b]) => a.name.localeCompare(b.name, "vi"));
-  }, [filtered]);
-
-  const totalCount = allAssets.length;
-  const statusCounts = useMemo(() => {
-    const c = { AVAILABLE: 0, IN_USE: 0 };
-    allAssets.forEach((a) => { if (c[a.status] !== undefined) c[a.status]++; });
-    return c;
-  }, [allAssets]);
+  const handleBatchCreated = () => {
+    fetchStats();
+    setRefreshKey(k => k + 1);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -663,7 +695,7 @@ export default function AssetsPage() {
       </div>
 
       {/* Summary */}
-      <AssetSummary total={totalCount} statusCounts={statusCounts} />
+      <AssetSummary stats={stats} filterStatus={filterStatus} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -687,40 +719,35 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      {/* List grouped by building */}
-      <div>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
-          </div>
-        ) : buildingGroups.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">Không tìm thấy tài sản nào.</div>
-        ) : (
-          <div className="space-y-8">
-            {buildingGroups.map(([bId, group]) => (
-              <BuildingSection
-                key={bId}
-                buildingName={group.name}
-                assets={group.assets}
-                onDetail={setDetailAsset}
-                onQR={setQrAsset}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Content — per-building sections */}
+      {loadingInit ? (
+        <div className="flex items-center justify-center py-20">
+          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : buildings.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">Không tìm thấy tòa nhà nào.</div>
+      ) : (
+        <div className="space-y-8">
+          {buildings.map((b) => (
+            <BuildingAssetSection
+              key={b.id}
+              building={b}
+              search={search}
+              statusFilter={filterStatus}
+              onDetail={setDetailAsset}
+              onQR={setQrAsset}
+              refreshKey={refreshKey}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Batch create dialog */}
       <BatchCreateDialog
         open={showCreate}
         onOpenChange={setShowCreate}
         buildings={buildings}
-        onSaved={fetchAll}
+        onSaved={handleBatchCreated}
       />
 
       {/* Detail dialog */}
@@ -730,8 +757,8 @@ export default function AssetsPage() {
         asset={detailAsset}
         buildings={buildings}
         rooms={rooms}
-        onSaved={() => { setDetailAsset(null); fetchAll(); }}
-        onDeleted={() => { setDetailAsset(null); fetchAll(); }}
+        onSaved={handleSaved}
+        onDeleted={handleDeleted}
       />
 
       {/* QR dialog */}
