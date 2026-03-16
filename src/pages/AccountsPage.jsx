@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone, FloppyDisk,
+  Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone,
   ToggleLeft, ToggleRight, ShieldCheck, UserGear as UserCog, UserCheck,
   CaretLeft, CaretRight, Eye, Copy, Check, CheckCircle,
   Buildings,
@@ -273,7 +273,7 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
               Tạo tài khoản
             </Button>
           </DialogFooter>

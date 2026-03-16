@@ -546,11 +546,11 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           {/* Main info card — thumbnail only */}
           <Card className="overflow-hidden py-0 gap-0">
             <div className="flex flex-col md:flex-row">
-              <div className="md:w-64 shrink-0 bg-muted h-48 md:h-auto overflow-hidden">
+              <div className="relative md:w-64 shrink-0 bg-muted h-48 md:h-auto md:min-h-48 overflow-hidden">
                 <img
                   src={thumb(building)}
                   alt={building.name}
-                  className="w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                   onError={(e) => { e.target.src = defaultBuildingImg; }}
                 />
               </div>
@@ -585,30 +585,38 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             ) : staffList.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Chưa có nhân sự nào được gán cho tòa nhà này.</p>
             ) : (
-              <div className="space-y-2">
-                {staffList.map(u => (
-                  <div key={u.id} className="flex items-center rounded-xl border border-border bg-card p-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={u.avatar_url || defaultUserImg}
-                        alt=""
-                        className="size-10 rounded-lg object-cover ring-1 ring-border"
-                        onError={e => { e.target.src = defaultUserImg; }}
-                      />
-                      <div>
-                        <span className="font-semibold text-sm">{u.first_name} {u.last_name}</span>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${u.role === 'BUILDING_MANAGER' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                            }`}>
-                            {u.role === 'BUILDING_MANAGER' ? 'Quản lý' : 'Nhân viên'}
-                          </span>
-                          {u.email && <span className="flex items-center gap-1"><Envelope className="size-3" />{u.email}</span>}
-                          {u.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
+              <div className="space-y-5">
+                {[
+                  { role: 'BUILDING_MANAGER', label: 'Quản lý tòa nhà' },
+                  { role: 'STAFF', label: 'Nhân viên' },
+                ].map(({ role, label }) => {
+                  const members = staffList.filter(u => u.role === role);
+                  if (members.length === 0) return null;
+                  return (
+                    <div key={role} className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</h3>
+                      {members.map(u => (
+                        <div key={u.id} className="flex items-center rounded-xl border border-border bg-card p-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={u.avatar_url || defaultUserImg}
+                              alt=""
+                              className="size-10 rounded-lg object-cover ring-1 ring-border"
+                              onError={e => { e.target.src = defaultUserImg; }}
+                            />
+                            <div>
+                              <span className="font-semibold text-sm">{u.first_name} {u.last_name}</span>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                                {u.email && <span className="flex items-center gap-1"><Envelope className="size-3" />{u.email}</span>}
+                                {u.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

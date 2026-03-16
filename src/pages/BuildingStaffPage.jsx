@@ -165,9 +165,12 @@ export default function BuildingStaffPage() {
         <div className="mx-auto max-w-4xl space-y-6">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={() => navigate("/buildings")}>
-                    <ArrowLeft className="size-5" />
-                </Button>
+                <button
+                    onClick={() => navigate("/buildings")}
+                    className="size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+                >
+                    <ArrowLeft className="size-4" />
+                </button>
                 <div>
                     <h1 className="text-xl font-bold">{building.name}</h1>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -179,9 +182,9 @@ export default function BuildingStaffPage() {
             {/* Building thumbnail + info */}
             <Card className="overflow-hidden py-0 gap-0">
                 <div className="flex flex-col sm:flex-row">
-                    <div className="sm:w-52 shrink-0 bg-muted">
+                    <div className="relative sm:w-64 shrink-0 bg-muted h-48 sm:h-auto sm:min-h-48 overflow-hidden">
                         <img src={thumb(building)} alt={building.name}
-                            className="w-full h-full min-h-36 object-cover"
+                            className="absolute inset-0 w-full h-full object-cover object-center"
                             onError={e => { e.target.src = defaultBuildingImg; }} />
                     </div>
                     <div className="flex-1 p-5 space-y-2">

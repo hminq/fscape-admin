@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowLeft, Plus, CircleNotch, Package, Buildings, Stack as Layers, Money as Banknote,
+    Plus, CircleNotch, Package, Buildings, Stack as Layers, Money as Banknote,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,16 +99,9 @@ export default function CreateAssetPage() {
     return (
         <div className="max-w-2xl mx-auto space-y-6 pb-16">
             {/* Header */}
-            <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => navigate("/assets")} className="rounded-full shadow-sm hover:translate-x-[-2px] transition-transform">
-                        <ArrowLeft className="size-4" />
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Thêm tài sản hàng loạt</h1>
-                        <p className="text-sm text-muted-foreground">Tạo nhiều tài sản cùng loại, hệ thống tự sinh mã QR</p>
-                    </div>
-                </div>
+            <div className="mt-2">
+                <h1 className="text-2xl font-bold tracking-tight">Thêm tài sản hàng loạt</h1>
+                <p className="text-sm text-muted-foreground">Tạo nhiều tài sản cùng loại, hệ thống tự sinh mã QR</p>
             </div>
 
             {/* Form */}

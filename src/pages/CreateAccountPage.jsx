@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Envelope, Phone, ShieldCheck, Lock, FloppyDisk, CircleNotch, Plus, Eye, EyeSlash } from "@phosphor-icons/react";
+import { User, Envelope, Phone, ShieldCheck, Lock, CircleNotch, Plus, Eye, EyeSlash } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,21 +80,9 @@ export default function CreateAccountPage() {
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-16">
             {/* Top Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => navigate("/accounts")}
-                        className="rounded-full shadow-sm hover:translate-x-[-2px] transition-transform"
-                    >
-                        <ArrowLeft className="size-4" />
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Tạo tài khoản mới</h1>
-                        <p className="text-sm text-muted-foreground">Thêm thành viên quản trị mới cho hệ thống FScape.</p>
-                    </div>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight">Tạo tài khoản mới</h1>
+                <p className="text-sm text-muted-foreground">Thêm thành viên quản trị mới cho hệ thống FScape.</p>
             </div>
 
             <div className="space-y-6">

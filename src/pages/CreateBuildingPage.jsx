@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Upload, X, FloppyDisk, CircleNotch,
+  Upload, X, Plus, CircleNotch,
   MapPin, Stack as Layers, Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { apiJson, apiRequest } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import MapPicker from "@/components/MapPicker";
 
 /* ── upload helper ─────────────────────────── */
@@ -210,7 +211,6 @@ export default function CreateBuildingPage() {
     latitude: "",
     longitude: "",
     total_floors: "",
-    is_active: "true",
     description: "",
     facilities: [],
   });
@@ -298,7 +298,7 @@ export default function CreateBuildingPage() {
         total_floors: form.total_floors ? Number(form.total_floors) : null,
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
-        is_active: form.is_active === "true",
+        is_active: true,
         thumbnail_url,
         images,
         facilities: form.facilities.length > 0 ? form.facilities : undefined,
@@ -309,7 +309,7 @@ export default function CreateBuildingPage() {
       await apiJson("/api/buildings", { method: "POST", body: payload });
       navigate("/buildings");
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
+      toast.error(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
     } finally {
       setSaving(false);
     }
@@ -420,18 +420,6 @@ export default function CreateBuildingPage() {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Trạng thái</Label>
-            <Select value={form.is_active} onValueChange={(v) => set("is_active", v)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Hoạt động</SelectItem>
-                <SelectItem value="false">Tạm ngưng</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </section>
 
         {/* ─ Mô tả ─ */}
@@ -472,16 +460,15 @@ export default function CreateBuildingPage() {
           />
         </section>
 
-        {/* ─ Actions ─ */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={() => navigate("/buildings")} disabled={saving}>
-            Hủy
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2 min-w-[140px]">
-            {saving ? <CircleNotch className="size-4 animate-spin" /> : <FloppyDisk className="size-4" />}
-            Lưu tòa nhà
-          </Button>
-        </div>
+      </div>
+
+      {/* Sticky Action Bar */}
+      <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
+        <Button variant="outline" onClick={() => navigate("/buildings")} disabled={saving} className="bg-background">Hủy</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
+          Tạo tòa nhà
+        </Button>
       </div>
     </div>
   );
