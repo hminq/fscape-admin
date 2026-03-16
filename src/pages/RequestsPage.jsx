@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
   Door, User, ChatCircleText,
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { REQUEST_TYPE_LABELS, REQUEST_TYPES } from "@/lib/constants";
-import StatusDonut from "@/components/StatusDonut";
 
 /* ── constants ──────────────────────────────── */
 
@@ -62,62 +61,93 @@ const fullName = (u) => {
   return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email || "—";
 };
 
+/* ── Grouped status bar segments (4 groups) ─── */
 
-/* ── Donut configs ───────────────────────────── */
-
-const TYPE_DONUT = [
-  { key: "REPAIR", label: "Sửa chữa", stroke: "stroke-chart-1", dot: "bg-chart-1" },
-  { key: "CLEANING", label: "Vệ sinh", stroke: "stroke-chart-2", dot: "bg-chart-2" },
-  { key: "COMPLAINT", label: "Khiếu nại", stroke: "stroke-chart-3", dot: "bg-chart-3" },
-  { key: "ASSET_CHANGE", label: "Đổi tài sản", stroke: "stroke-chart-4", dot: "bg-chart-4" },
-  { key: "CHECKOUT", label: "Trả phòng", stroke: "stroke-chart-5", dot: "bg-chart-5" },
-  { key: "OTHER", label: "Khác", stroke: "stroke-muted-foreground", dot: "bg-muted-foreground" },
+const STATUS_GROUPS = [
+  { key: "waiting", label: "Chờ xử lý", color: "bg-amber-500", statuses: ["pending", "assigned", "price_proposed", "approved"] },
+  { key: "processing", label: "Đang xử lý", color: "bg-primary", statuses: ["in_progress"] },
+  { key: "done", label: "Hoàn thành", color: "bg-success", statuses: ["done", "completed", "reviewed", "refunded"] },
+  { key: "cancelled", label: "Đã hủy", color: "bg-destructive", statuses: ["cancelled"] },
 ];
 
-const STATUS_DONUT = [
-  { key: "PENDING", label: "Chờ xử lý", stroke: "stroke-chart-4", dot: "bg-chart-4" },
-  { key: "ASSIGNED", label: "Đã giao", stroke: "stroke-chart-2", dot: "bg-chart-2" },
-  { key: "IN_PROGRESS", label: "Đang xử lý", stroke: "stroke-primary", dot: "bg-primary" },
-  { key: "DONE", label: "Hoàn thành", stroke: "stroke-success", dot: "bg-success" },
-  { key: "COMPLETED", label: "Đã đánh giá", stroke: "stroke-chart-3", dot: "bg-chart-3" },
-  { key: "CANCELLED", label: "Đã hủy", stroke: "stroke-muted-foreground", dot: "bg-muted-foreground" },
+const STATUS_FILTER_TABS = [
+  { key: "all", label: "Tất cả" },
+  { key: "waiting", label: "Chờ xử lý", statuses: "PENDING,ASSIGNED,PRICE_PROPOSED,APPROVED" },
+  { key: "processing", label: "Đang xử lý", statuses: "IN_PROGRESS" },
+  { key: "done", label: "Hoàn thành", statuses: "DONE,COMPLETED,REVIEWED,REFUNDED" },
+  { key: "cancelled", label: "Đã hủy", statuses: "CANCELLED" },
 ];
 
 /* ── Summary ─────────────────────────────────── */
 
-function RequestSummary({ typeCounts, statusCounts }) {
-  const typeEntries = TYPE_DONUT.map((e) => ({ ...e, count: typeCounts[e.key] || 0 }));
-  const statusEntries = STATUS_DONUT.map((e) => ({ ...e, count: statusCounts[e.key] || 0 }));
+function RequestSummary({ stats, activeFilter }) {
+  const byStatus = stats?.by_status || {};
+  const total = stats?.total || 0;
+
+  const segments = STATUS_GROUPS.map((g) => {
+    const count = g.statuses.reduce((sum, s) => sum + (byStatus[s] || 0), 0);
+    return { ...g, count };
+  });
+
+  const visibleKeys = activeFilter === "all"
+    ? null
+    : STATUS_GROUPS.filter((g) => g.key === activeFilter).map((g) => g.key);
+
+  const visibleSegments = visibleKeys
+    ? segments.filter((s) => visibleKeys.includes(s.key))
+    : segments;
+
+  const barTotal = visibleSegments.reduce((sum, s) => sum + s.count, 0);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center gap-8 flex-wrap">
-        {/* Type donut */}
-        <div className="flex items-center gap-5">
-          <StatusDonut entries={typeEntries} size={76} />
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-            {TYPE_DONUT.map((e) => (
-              <div key={e.key} className="flex items-center gap-2">
-                <span className={`size-2 rounded-full ${e.dot} shrink-0`} />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{e.label}</span>
-                <span className="text-xs font-semibold">{typeCounts[e.key] || 0}</span>
-              </div>
-            ))}
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-6 p-5 flex-wrap">
+        <div className="flex items-center gap-4 min-w-[140px]">
+          <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <ChatCircleText className="size-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-3xl font-bold leading-none tracking-tight">
+              {activeFilter === "all" ? total : barTotal}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">Yêu cầu</p>
           </div>
         </div>
 
-        <div className="w-px h-12 bg-border shrink-0" />
+        <div className="w-px h-14 bg-border shrink-0" />
 
-        {/* Status donut */}
-        <div className="flex items-center gap-5">
-          <StatusDonut entries={statusEntries} size={76} />
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-            {STATUS_DONUT.map((e) => (
-              <div key={e.key} className="flex items-center gap-2">
-                <span className={`size-2 rounded-full ${e.dot} shrink-0`} />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{e.label}</span>
-                <span className="text-xs font-semibold">{statusCounts[e.key] || 0}</span>
-              </div>
+        <div className="flex-1 min-w-[180px] space-y-2.5">
+          <div className="flex items-center text-xs">
+            <span className="text-muted-foreground">Trạng thái</span>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+            {visibleSegments.map((seg) => {
+              const pct = barTotal > 0 ? (seg.count / barTotal) * 100 : 0;
+              return (
+                <div
+                  key={seg.key}
+                  className={`h-full ${seg.color} transition-all duration-500`}
+                  style={{ width: `${pct}%` }}
+                />
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-4 text-[11px] text-muted-foreground flex-wrap">
+            {!stats && (
+              <span className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-muted-foreground/30" /> Đang chờ dữ liệu...
+              </span>
+            )}
+            {stats && barTotal === 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-muted-foreground/30" /> 0 yêu cầu
+              </span>
+            )}
+            {visibleSegments.filter((s) => s.count > 0).map((seg) => (
+              <span key={seg.key} className="flex items-center gap-1.5">
+                <span className={`size-1.5 rounded-full ${seg.color}`} />
+                {seg.label} ({seg.count})
+              </span>
             ))}
           </div>
         </div>
@@ -300,10 +330,7 @@ function RequestDetailDialog({ open, onOpenChange, requestId }) {
 /* ── Main Page ──────────────────────────────── */
 
 export default function RequestsPage() {
-  // Summary data (fetch all once for donut counts)
-  const [allRequests, setAllRequests] = useState([]);
-
-  // Paginated table data
+  const [stats, setStats] = useState(null);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -312,29 +339,25 @@ export default function RequestsPage() {
   const [total, setTotal] = useState(0);
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterTab, setFilterTab] = useState("all");
   const [filterType, setFilterType] = useState("all");
 
   const [detailId, setDetailId] = useState(null);
 
-  // Fetch all for summary donuts (once)
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get("/api/requests?limit=500");
-        setAllRequests(res.data?.data || res.data || []);
-      } catch { /* ignore */ }
-    })();
+    api.get("/api/requests/stats")
+      .then((res) => setStats(res.data || res))
+      .catch(console.error);
   }, []);
 
-  // Fetch paginated for table
   const fetchPage = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page });
       if (search.trim()) params.set("search", search.trim());
-      if (filterStatus !== "all") params.set("status", filterStatus);
+      const tab = STATUS_FILTER_TABS.find((f) => f.key === filterTab);
+      if (tab?.statuses) params.set("status", tab.statuses);
       if (filterType !== "all") params.set("request_type", filterType);
 
       const res = await api.get(`/api/requests?${params}`);
@@ -346,24 +369,10 @@ export default function RequestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterStatus, filterType]);
+  }, [page, search, filterTab, filterType]);
 
   useEffect(() => { fetchPage(); }, [fetchPage]);
-
-  /* summary counts */
-  const statusCounts = useMemo(() => {
-    const c = {};
-    STATUS_ORDER.forEach((s) => { c[s] = 0; });
-    allRequests.forEach((r) => { if (c[r.status] !== undefined) c[r.status]++; });
-    return c;
-  }, [allRequests]);
-
-  const typeCounts = useMemo(() => {
-    const c = {};
-    TYPES.forEach((t) => { c[t] = 0; });
-    allRequests.forEach((r) => { if (c[r.request_type] !== undefined) c[r.request_type]++; });
-    return c;
-  }, [allRequests]);
+  useEffect(() => { setPage(1); }, [filterTab, filterType, search]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -374,16 +383,16 @@ export default function RequestsPage() {
       </div>
 
       {/* Summary */}
-      <RequestSummary typeCounts={typeCounts} statusCounts={statusCounts} />
+      <RequestSummary stats={stats} activeFilter={filterTab} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm theo tiêu đề hoặc mã yêu cầu..." value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+            onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(1); }}>
+        <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-[140px] h-9 text-sm">
             <SelectValue placeholder="Loại" />
           </SelectTrigger>
@@ -394,17 +403,15 @@ export default function RequestsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
-          <SelectTrigger className="w-[150px] h-9 text-sm">
-            <SelectValue placeholder="Trạng thái" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            {STATUS_ORDER.map((s) => (
-              <SelectItem key={s} value={s}>{STATUS_MAP[s].label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-1.5">
+          {STATUS_FILTER_TABS.map((f) => (
+            <Button key={f.key} size="sm"
+              variant={filterTab === f.key ? "default" : "outline"}
+              onClick={() => setFilterTab(f.key)}>
+              {f.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Pagination header */}

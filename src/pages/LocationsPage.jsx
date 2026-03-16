@@ -297,7 +297,7 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ name: form.name.trim(), is_active: form.is_active === "true" });
+    onSave({ name: form.name.trim(), is_active: true });
   };
 
   return (
@@ -319,21 +319,11 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
               <p className="text-[11px] text-destructive">Vui lòng nhập tên khu vực</p>
             )}
           </div>
-          <div className="space-y-1.5">
-            <Label>Trạng thái</Label>
-            <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Hoạt động</SelectItem>
-                <SelectItem value="false">Không hoạt động</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
               Thêm khu vực
             </Button>
           </DialogFooter>

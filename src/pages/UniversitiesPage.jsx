@@ -391,7 +391,7 @@ function LocationSection({ name, universities, onView, onToggle }) {
       <Card className="overflow-hidden py-0 gap-0">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/30">
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Tên trường</TableHead>
               <TableHead>Trạng thái</TableHead>

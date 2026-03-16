@@ -256,7 +256,7 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ name: form.name.trim(), is_active: form.is_active === "true" });
+    onSave({ name: form.name.trim(), is_active: true });
   };
 
   return (
@@ -278,21 +278,10 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
               <p className="text-[11px] text-destructive">Vui lòng nhập tên tiện ích</p>
             )}
           </div>
-          <div className="space-y-1.5">
-            <Label>Trạng thái</Label>
-            <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Hoạt động</SelectItem>
-                <SelectItem value="false">Không hoạt động</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
               Thêm tiện ích
             </Button>
           </DialogFooter>
@@ -323,7 +312,22 @@ export default function FacilitiesPage() {
   const [error, setError] = useState(null);
   const [toggleError, setToggleError] = useState(null);
 
+  // Summary stats (unfiltered)
+  const [statsTotal, setStatsTotal] = useState(0);
+  const [statsActive, setStatsActive] = useState(0);
+
   const limit = 10;
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const [allRes, activeRes] = await Promise.all([
+        api.get("/api/facilities?limit=1"),
+        api.get("/api/facilities?limit=1&is_active=true"),
+      ]);
+      setStatsTotal(allRes.total || 0);
+      setStatsActive(activeRes.total || 0);
+    } catch { /* silent */ }
+  }, []);
 
   const fetchFacilities = useCallback(async () => {
     setLoading(true);
@@ -346,6 +350,7 @@ export default function FacilitiesPage() {
     }
   }, [page, search, filterActive]);
 
+  useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchFacilities(); }, [fetchFacilities]);
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
@@ -364,7 +369,7 @@ export default function FacilitiesPage() {
     return sortDir === "asc" ? diff : -diff;
   });
 
-  const activeCount = facilities.filter((f) => f.is_active).length;
+  const refresh = () => { fetchFacilities(); fetchStats(); };
 
   /* ─ CRUD ─ */
   const handleCreate = async (data) => {
@@ -372,7 +377,7 @@ export default function FacilitiesPage() {
     try {
       await api.post("/api/facilities", data);
       setShowCreate(false);
-      fetchFacilities();
+      refresh();
     } catch (err) {
       alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
@@ -385,7 +390,7 @@ export default function FacilitiesPage() {
     try {
       await api.put(`/api/facilities/${id}`, data);
       setDetailItem(null);
-      fetchFacilities();
+      refresh();
     } catch (err) {
       alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
@@ -398,7 +403,7 @@ export default function FacilitiesPage() {
     try {
       await api.delete(`/api/facilities/${id}`);
       setDetailItem(null);
-      fetchFacilities();
+      refresh();
     } catch (err) {
       alert(err.message || "Không thể xóa tiện ích. Vui lòng thử lại.");
     } finally {
@@ -412,7 +417,7 @@ export default function FacilitiesPage() {
     try {
       await api.put(`/api/facilities/${confirmToggle.id}`, { name: confirmToggle.name, is_active: !confirmToggle.is_active });
       setConfirmToggle(null);
-      fetchFacilities();
+      refresh();
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {
@@ -434,7 +439,7 @@ export default function FacilitiesPage() {
       </div>
 
       {/* Summary */}
-      <FacilitySummary total={total} active={activeCount} inactive={total - activeCount} />
+      <FacilitySummary total={statsTotal} active={statsActive} inactive={statsTotal - statsActive} />
 
       {/* Search + filter */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -465,6 +470,24 @@ export default function FacilitiesPage() {
         </div>
       </div>
 
+      {/* Pagination + count */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{page}/{totalPages}</span>
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                <CaretLeft className="size-4" />
+              </Button>
+              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                <CaretRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Table */}
       <Card className="overflow-hidden py-0 gap-0">
         {loading ? (
@@ -482,7 +505,7 @@ export default function FacilitiesPage() {
           <>
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30">
                   <TableHead className="w-12 pl-4">#</TableHead>
                   <TableHead>Tên tiện ích</TableHead>
                   <TableHead>Trạng thái</TableHead>
@@ -563,24 +586,6 @@ export default function FacilitiesPage() {
                 )}
               </TableBody>
             </Table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-2 mb-2 px-4">
-                <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">{page}/{totalPages}</span>
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                      <CaretLeft className="size-4" />
-                    </Button>
-                    <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                      <CaretRight className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
       </Card>

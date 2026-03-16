@@ -85,7 +85,7 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
             e.preventDefault();
             handlePaste(e.clipboardData.getData("text"));
           }}
-          placeholder="Dán link Google Maps để lấy tọa độ..."
+          placeholder="Link Google Maps"
           className={cn("pl-9 text-xs h-9", parseError && "border-destructive")}
         />
       </div>
