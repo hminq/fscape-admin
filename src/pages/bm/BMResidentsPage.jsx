@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Users, MagnifyingGlass, Eye, Envelope, Phone,
+  Door, FileText, Calendar, CurrencyDollar,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { Card } from "@/components/ui/card";
@@ -17,18 +18,68 @@ import Pagination from "@/components/Pagination";
 import SectionHeader from "@/components/SectionHeader";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import StatusBar from "@/components/StatusBar";
+import { formatDate } from "@/lib/utils";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
 
+const CONTRACT_STATUS_LABELS = {
+  ACTIVE: "Đang hiệu lực",
+  EXPIRING_SOON: "Sắp hết hạn",
+  PENDING_CUSTOMER_SIGNATURE: "Chờ cư dân ký",
+  PENDING_MANAGER_SIGNATURE: "Chờ BM ký",
+};
+
 const fullName = (u) =>
-  [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
+  [u.last_name, u.first_name].filter(Boolean).join(" ") || "—";
 
 /* ── Detail Dialog ──────────────────────────────────────── */
 
-function ResidentDetailDialog({ open, onOpenChange, resident }) {
+function InfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground flex items-center gap-2">
+        <Icon className="size-3.5" /> {label}
+      </span>
+      <span className="font-medium text-right">{value || "—"}</span>
+    </div>
+  );
+}
+
+function ContractCard({ contract }) {
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+      <InfoRow icon={Door} label="Phòng" value={contract.room?.room_number ? `Phòng ${contract.room.room_number}` : null} />
+      <InfoRow icon={FileText} label="Mã HĐ" value={contract.contract_number} />
+      <InfoRow icon={Calendar} label="Thời hạn"
+        value={contract.start_date && contract.end_date
+          ? `${formatDate(contract.start_date)} — ${formatDate(contract.end_date)}`
+          : null}
+      />
+      <InfoRow icon={CurrencyDollar} label="Tiền thuê"
+        value={contract.base_rent != null
+          ? Number(contract.base_rent).toLocaleString("vi-VN") + " đ/tháng"
+          : null}
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground flex items-center gap-2">
+          <FileText className="size-3.5" /> Trạng thái
+        </span>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          contract.status === "ACTIVE" ? "bg-success/10 text-success"
+            : contract.status === "EXPIRING_SOON" ? "bg-amber-500/10 text-amber-600"
+            : "bg-muted text-muted-foreground"
+        }`}>
+          {CONTRACT_STATUS_LABELS[contract.status] || contract.status}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ResidentDetailDialog({ open, onOpenChange, resident, contracts }) {
   if (!resident) return null;
 
   return (
@@ -38,6 +89,7 @@ function ResidentDetailDialog({ open, onOpenChange, resident }) {
           <DialogTitle>Thông tin cư dân</DialogTitle>
         </DialogHeader>
 
+        {/* Profile */}
         <div className="flex flex-col items-center gap-3 pb-2">
           <img
             src={resident.avatar_url || defaultUserImg}
@@ -55,20 +107,29 @@ function ResidentDetailDialog({ open, onOpenChange, resident }) {
           </div>
         </div>
 
+        {/* Contact */}
         <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2">
-              <Envelope className="size-3.5" /> Email
-            </span>
-            <span className="font-medium">{resident.email}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2">
-              <Phone className="size-3.5" /> Điện thoại
-            </span>
-            <span className="font-medium">{resident.phone || "—"}</span>
-          </div>
+          <InfoRow icon={Envelope} label="Email" value={resident.email} />
+          <InfoRow icon={Phone} label="Điện thoại" value={resident.phone} />
         </div>
+
+        {/* Contracts & Rooms */}
+        {contracts.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Hợp đồng hiện tại ({contracts.length})
+            </p>
+            <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
+              {contracts.map((c) => (
+                <ContractCard key={c.id} contract={c} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
+            <p className="text-xs text-muted-foreground">Không có hợp đồng đang hiệu lực</p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -87,6 +148,7 @@ export default function BMResidentsPage() {
   const [page, setPage] = useState(0);
 
   const [detailResident, setDetailResident] = useState(null);
+  const [contractMap, setContractMap] = useState({});
 
   /* ── fetch ────────────────────────────────────────────── */
 
@@ -94,13 +156,24 @@ export default function BMResidentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, statsRes] = await Promise.all([
+      const [usersRes, statsRes, contractsRes] = await Promise.all([
         api.get("/api/users?role=RESIDENT&limit=999"),
         api.get("/api/users/stats"),
+        api.get("/api/contracts?status=ACTIVE,EXPIRING_SOON&limit=999"),
       ]);
       const body = usersRes.data || usersRes;
       setAllResidents(body.data || body || []);
       setStats(statsRes.data || statsRes);
+
+      const contracts = contractsRes.data || [];
+      const cMap = {};
+      contracts.forEach((c) => {
+        if (c.customer?.id) {
+          if (!cMap[c.customer.id]) cMap[c.customer.id] = [];
+          cMap[c.customer.id].push(c);
+        }
+      });
+      setContractMap(cMap);
     } catch {
       setError("Không thể tải dữ liệu.");
     } finally {
@@ -228,56 +301,71 @@ export default function BMResidentsPage() {
                 <TableRow>
                   <TableHead className="w-10 pl-4">#</TableHead>
                   <TableHead>Cư dân</TableHead>
+                  <TableHead>Phòng</TableHead>
                   <TableHead>Liên hệ</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead className="text-right pr-4 w-20">Xem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((r, idx) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="pl-4 text-muted-foreground text-xs">
-                      {page * PER_PAGE + idx + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={r.avatar_url || defaultUserImg}
-                          alt={fullName(r)}
-                          className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
-                        />
-                        <span className="font-medium text-sm">{fullName(r)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Envelope className="size-3" /> {r.email}
-                        </span>
-                        {r.phone && (
+                {visible.map((r, idx) => {
+                  const rContracts = contractMap[r.id] || [];
+                  const rooms = [...new Set(rContracts.map((c) => c.room?.room_number).filter(Boolean))];
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="pl-4 text-muted-foreground text-xs">
+                        {page * PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={r.avatar_url || defaultUserImg}
+                            alt={fullName(r)}
+                            className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
+                          />
+                          <span className="font-medium text-sm">{fullName(r)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {rooms.length > 0
+                          ? <span className="font-medium">
+                              Phòng {rooms[0]}
+                              {rooms.length > 1 && (
+                                <span className="ml-1 text-xs text-muted-foreground">+{rooms.length - 1}</span>
+                              )}
+                            </span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
                           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Phone className="size-3" /> {r.phone}
+                            <Envelope className="size-3" /> {r.email}
                           </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className={`size-2 rounded-full ${r.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
-                        <span className={r.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                          {r.is_active ? "Hoạt động" : "Vô hiệu"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="pr-4 text-right">
-                      <Button size="icon" variant="ghost" className="size-8"
-                        title="Chi tiết"
-                        onClick={() => setDetailResident(r)}>
-                        <Eye className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {r.phone && (
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Phone className="size-3" /> {r.phone}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={`size-2 rounded-full ${r.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                          <span className={r.is_active ? "text-success font-medium" : "text-muted-foreground"}>
+                            {r.is_active ? "Hoạt động" : "Vô hiệu"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="pr-4 text-right">
+                        <Button size="icon" variant="ghost" className="size-8"
+                          title="Chi tiết"
+                          onClick={() => setDetailResident(r)}>
+                          <Eye className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Card>
@@ -289,6 +377,7 @@ export default function BMResidentsPage() {
         open={!!detailResident}
         onOpenChange={(v) => !v && setDetailResident(null)}
         resident={detailResident}
+        contracts={detailResident ? (contractMap[detailResident.id] || []) : []}
       />
     </div>
   );
