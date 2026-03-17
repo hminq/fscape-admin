@@ -271,7 +271,7 @@ export default function CreateBuildingPage() {
         console.log("[CreateBuilding] Uploading thumbnail...", thumbFile.name);
         const res = await uploadFiles("building_thumbnail", [thumbFile]);
         console.log("[CreateBuilding] Thumbnail upload response:", res);
-        thumbnail_url = res.data?.url || res.url || undefined;
+        thumbnail_url = res.urls?.[0] || undefined;
       } else {
         console.log("[CreateBuilding] No thumbnail file selected");
       }
@@ -283,7 +283,7 @@ export default function CreateBuildingPage() {
         console.log("[CreateBuilding] Uploading gallery...", galleryFiles.length, "files");
         const res = await uploadFiles("building_gallery", galleryFiles);
         console.log("[CreateBuilding] Gallery upload response:", res);
-        images = res.data?.urls || res.urls || [];
+        images = res.urls || [];
       } else {
         console.log("[CreateBuilding] No gallery files selected");
       }
