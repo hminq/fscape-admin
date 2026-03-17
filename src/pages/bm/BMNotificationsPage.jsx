@@ -1,225 +1,308 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Bell, PaperPlaneTilt, CircleNotch, Buildings,
-  Door, Warning,
+  Bell, PaperPlaneTilt, MagnifyingGlass, CircleNotch,
+  Checks, Eye, EnvelopeSimple, EnvelopeSimpleOpen,
 } from "@phosphor-icons/react";
-import { toast } from "sonner";
-import { api, apiJson } from "@/lib/apiClient";
+import { api } from "@/lib/apiClient";
+import { formatDateTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 /* ── constants ──────────────────────────────────────────── */
 
-const TARGET_OPTIONS = [
-  { value: "building", label: "Toàn bộ tòa nhà", icon: Buildings },
-  { value: "room", label: "Phòng cụ thể", icon: Door },
+const PER_PAGE = 10;
+
+const NOTIFICATION_TYPE_LABELS = {
+  BM_ANNOUNCEMENT: "Thông báo BM",
+  REQUEST_STATUS_CHANGED: "Cập nhật yêu cầu",
+  CONTRACT_STATUS_CHANGED: "Cập nhật hợp đồng",
+  INVOICE_CREATED: "Hóa đơn mới",
+  PAYMENT_RECEIVED: "Thanh toán",
+  SYSTEM: "Hệ thống",
+};
+
+const READ_FILTERS = [
+  { key: "all", label: "Tất cả" },
+  { key: "unread", label: "Chưa đọc" },
+  { key: "read", label: "Đã đọc" },
 ];
 
 /* ── Main Page ──────────────────────────────────────────── */
 
 export default function BMNotificationsPage() {
-  const [rooms, setRooms] = useState([]);
-  const [loadingRooms, setLoadingRooms] = useState(true);
+  const navigate = useNavigate();
 
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [target, setTarget] = useState("building");
-  const [roomId, setRoomId] = useState("");
-
-  const [sending, setSending] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  /* ── fetch occupied rooms ────────────────────────────── */
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchRooms = useCallback(async () => {
-    setLoadingRooms(true);
+  const [readFilter, setReadFilter] = useState("all");
+  const [search, setSearch] = useState("");
+
+  const [detail, setDetail] = useState(null);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  /* ── fetch notifications ───────────────────────────── */
+
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await api.get("/api/rooms?limit=999");
-      const all = res.data || [];
-      setRooms(all.filter((r) => r.status === "OCCUPIED"));
+      const params = new URLSearchParams({ page, limit: PER_PAGE });
+      if (readFilter === "unread") params.set("is_read", "false");
+      if (readFilter === "read") params.set("is_read", "true");
+
+      const res = await api.get(`/api/notifications?${params}`);
+      setNotifications(res.data || []);
+      setTotalPages(res.total_pages || 1);
+      setTotal(res.total || 0);
     } catch {
-      setRooms([]);
+      setError("Không thể tải danh sách thông báo.");
     } finally {
-      setLoadingRooms(false);
+      setLoading(false);
     }
+  }, [page, readFilter]);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await api.get("/api/notifications/unread-count");
+      setUnreadCount(res.count || 0);
+    } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+  useEffect(() => { fetchUnreadCount(); }, [fetchUnreadCount]);
 
-  /* ── send notification ───────────────────────────────── */
+  /* ── actions ───────────────────────────────────────── */
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!title.trim() || !content.trim()) {
-      setError("Vui lòng nhập tiêu đề và nội dung.");
-      return;
-    }
-    if (target === "room" && !roomId) {
-      setError("Vui lòng chọn phòng.");
-      return;
-    }
-
-    setSending(true);
+  const markAsRead = async (notifId) => {
     try {
-      const body = { title: title.trim(), content: content.trim(), target };
-      if (target === "room") body.room_id = roomId;
-
-      await apiJson("/api/notifications/send", {
-        method: "POST",
-        body,
-      });
-      toast.success("Đã gửi thông báo thành công!");
-      setTitle("");
-      setContent("");
-      setTarget("building");
-      setRoomId("");
-    } catch (err) {
-      toast.error(err.message || "Gửi thông báo thất bại.");
-    } finally {
-      setSending(false);
-    }
+      await api.patch(`/api/notifications/${notifId}/read`);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notification_id === notifId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+        )
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch { /* ignore */ }
   };
+
+  const markAllAsRead = async () => {
+    setMarkingAll(true);
+    try {
+      await api.patch("/api/notifications/read-all");
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+    setMarkingAll(false);
+  };
+
+  const openDetail = (n) => {
+    setDetail(n);
+    if (!n.is_read) markAsRead(n.notification_id);
+  };
+
+  /* ── filter by search (client-side on current page) ── */
+
+  const q = search.trim().toLowerCase();
+  const visible = q
+    ? notifications.filter((n) =>
+        n.notification?.title?.toLowerCase().includes(q) ||
+        n.notification?.content?.toLowerCase().includes(q)
+      )
+    : notifications;
+
+  /* ── reset page on filter change ───────────────────── */
+
+  useEffect(() => { setPage(1); }, [readFilter]);
 
   /* ── render ──────────────────────────────────────────── */
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
-      <div className="pt-2">
-        <h1 className="text-2xl font-bold tracking-tight">Thông báo</h1>
-        <p className="text-sm text-muted-foreground">Gửi thông báo đến cư dân trong tòa nhà của bạn</p>
+      <div className="pt-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Thông báo</h1>
+          <p className="text-sm text-muted-foreground">Quản lý thông báo của bạn</p>
+        </div>
+        <Button className="gap-2" onClick={() => navigate("/building-manager/notifications/create")}>
+          <PaperPlaneTilt className="size-4" />
+          Gửi thông báo
+        </Button>
       </div>
 
-      {/* Send form */}
-      <Card className="p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <PaperPlaneTilt className="size-5 text-primary" />
-          <h2 className="text-base font-bold">Gửi thông báo mới</h2>
-        </div>
-
-        <form onSubmit={handleSend} className="space-y-4">
-          {/* Target */}
-          <div className="space-y-1.5">
-            <Label>Gửi đến</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {TARGET_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const selected = target === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => { setTarget(opt.value); if (opt.value === "building") setRoomId(""); }}
-                    className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors ${
-                      selected
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className={`size-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      selected ? "bg-primary/10" : "bg-muted"
-                    }`}>
-                      <Icon className={`size-4.5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
-                    </div>
-                    <span className={`text-sm font-medium ${selected ? "text-foreground" : "text-muted-foreground"}`}>
-                      {opt.label}
-                    </span>
-                  </button>
-                );
-              })}
+      {/* Unread summary */}
+      {!loading && !error && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Bell className="size-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {unreadCount > 0
+                    ? <>{unreadCount} thông báo chưa đọc</>
+                    : "Không có thông báo chưa đọc"}
+                </p>
+                <p className="text-xs text-muted-foreground">Tổng cộng {total} thông báo</p>
+              </div>
             </div>
+            {unreadCount > 0 && (
+              <Button variant="outline" size="sm" className="gap-2"
+                disabled={markingAll} onClick={markAllAsRead}>
+                {markingAll
+                  ? <CircleNotch className="size-3.5 animate-spin" />
+                  : <Checks className="size-3.5" />}
+                Đánh dấu tất cả đã đọc
+              </Button>
+            )}
           </div>
+        </Card>
+      )}
 
-          {/* Room picker (when target = room) */}
-          {target === "room" && (
-            <div className="space-y-1.5">
-              <Label>Chọn phòng</Label>
-              {loadingRooms ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <CircleNotch className="size-4 animate-spin" /> Đang tải...
-                </div>
-              ) : rooms.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">Không có phòng nào đang có cư dân.</p>
-              ) : (
-                <Select value={roomId || undefined} onValueChange={setRoomId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn phòng" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        Phòng {r.room_number}
-                        {r.room_type?.name && ` — ${r.room_type.name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo tiêu đề, nội dung..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-1.5">
+          {READ_FILTERS.map((f) => (
+            <Button key={f.key} size="sm"
+              variant={readFilter === f.key ? "default" : "outline"}
+              onClick={() => setReadFilter(f.key)}>
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      {loading ? (
+        <LoadingState />
+      ) : error ? (
+        <div className="py-14 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchNotifications}>Thử lại</Button>
+        </div>
+      ) : visible.length === 0 ? (
+        <EmptyState icon={Bell} message="Không có thông báo nào" />
+      ) : (
+        <>
+          <SectionHeader icon={Bell} count={total} countUnit="thông báo">
+            <Pagination page={page} totalPages={totalPages}
+              onPrev={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))} />
+          </SectionHeader>
+
+          <Card className="overflow-hidden py-0 gap-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10 pl-4">#</TableHead>
+                  <TableHead className="w-8" />
+                  <TableHead>Tiêu đề</TableHead>
+                  <TableHead>Loại</TableHead>
+                  <TableHead>Nội dung</TableHead>
+                  <TableHead>Thời gian</TableHead>
+                  <TableHead className="text-right pr-4 w-16">Xem</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((n, idx) => {
+                  const notif = n.notification || {};
+                  return (
+                    <TableRow key={n.id} className={!n.is_read ? "bg-primary/[0.02]" : undefined}>
+                      <TableCell className="pl-4 text-muted-foreground text-xs">
+                        {(page - 1) * PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell className="px-0">
+                        {n.is_read
+                          ? <EnvelopeSimpleOpen className="size-4 text-muted-foreground/40" />
+                          : <EnvelopeSimple className="size-4 text-primary" weight="fill" />}
+                      </TableCell>
+                      <TableCell className={`max-w-[200px] truncate ${!n.is_read ? "font-semibold" : ""}`}>
+                        {notif.title || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {NOTIFICATION_TYPE_LABELS[notif.type] || notif.type || "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[250px] truncate text-sm text-muted-foreground">
+                        {notif.content || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(notif.created_at)}
+                      </TableCell>
+                      <TableCell className="pr-4 text-right">
+                        <Button variant="ghost" size="icon" className="size-8"
+                          onClick={() => openDetail(n)}>
+                          <Eye className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
+      )}
+
+      {/* Detail dialog */}
+      <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="size-5 text-primary" />
+              {detail?.notification?.title || "Thông báo"}
+            </DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="rounded bg-muted px-2 py-0.5 font-medium">
+                  {NOTIFICATION_TYPE_LABELS[detail.notification?.type] || detail.notification?.type}
+                </span>
+                <span>{formatDateTime(detail.notification?.created_at)}</span>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {detail.notification?.content}
+                </p>
+              </div>
+              {detail.read_at && (
+                <p className="text-xs text-muted-foreground">
+                  Đã đọc lúc {formatDateTime(detail.read_at)}
+                </p>
               )}
             </div>
           )}
-
-          {/* Title */}
-          <div className="space-y-1.5">
-            <Label>Tiêu đề</Label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Nhập tiêu đề thông báo..."
-              maxLength={255}
-            />
-          </div>
-
-          {/* Content */}
-          <div className="space-y-1.5">
-            <Label>Nội dung</Label>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Nhập nội dung thông báo..."
-              rows={5}
-              maxLength={2000}
-            />
-            <p className="text-[11px] text-muted-foreground text-right">{content.length}/2000</p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              <Warning className="size-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {/* Submit */}
-          <div className="flex justify-end pt-2">
-            <Button type="submit" disabled={sending} className="gap-2">
-              {sending ? <CircleNotch className="size-4 animate-spin" /> : <PaperPlaneTilt className="size-4" />}
-              {sending ? "Đang gửi..." : "Gửi thông báo"}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      {/* Info note */}
-      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <Bell className="size-4 text-muted-foreground" />
-          <p className="text-xs font-semibold text-muted-foreground">Lưu ý</p>
-        </div>
-        <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
-          <li>Thông báo sẽ được gửi đến tất cả cư dân có hợp đồng đang hiệu lực hoặc sắp hết hạn.</li>
-          <li>Chọn &quot;Toàn bộ tòa nhà&quot; để gửi cho tất cả cư dân, hoặc chọn phòng cụ thể.</li>
-        </ul>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
