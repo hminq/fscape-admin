@@ -33,11 +33,13 @@ import SystemLogsPage from "./pages/SystemLogsPage";
 import BMLayout from "./layouts/BMLayout";
 import BuildingManagerHomePage from "./pages/BuildingManagerHomePage";
 import BMRoomsPage from "./pages/bm/BMRoomsPage";
+import BMRoomDetailPage from "./pages/bm/BMRoomDetailPage";
 import BMResidentsPage from "./pages/bm/BMResidentsPage";
 import BMRequestsPage from "./pages/bm/BMRequestsPage";
 import BMContractsPage from "./pages/bm/BMContractsPage";
 import BMAssetsPage from "./pages/bm/BMAssetsPage";
 import BMNotificationsPage from "./pages/bm/BMNotificationsPage";
+import BMNotificationCreatePage from "./pages/bm/BMNotificationCreatePage";
 import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
 import BMContractSignPage from "./pages/bm/BMContractSignPage";
 import BMContractDetailPage from "./pages/bm/BMContractDetailPage";
@@ -58,6 +60,7 @@ export default function App() {
             <Route path="/building-manager" element={<BMLayout />}>
               <Route index element={<BuildingManagerHomePage />} />
               <Route path="rooms" element={<BMRoomsPage />} />
+              <Route path="rooms/:id" element={<BMRoomDetailPage />} />
               <Route path="residents" element={<BMResidentsPage />} />
               <Route path="requests" element={<BMRequestsPage />} />
               <Route path="requests/assign" element={<BMRequestAssignPage />} />
@@ -68,6 +71,7 @@ export default function App() {
               <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
               <Route path="assets" element={<BMAssetsPage />} />
               <Route path="notifications" element={<BMNotificationsPage />} />
+              <Route path="notifications/create" element={<BMNotificationCreatePage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
