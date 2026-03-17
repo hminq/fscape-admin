@@ -64,7 +64,7 @@ export default function ProfilePage() {
         body: {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
-          phone: form.phone.trim() || null,
+          phone: form.phone.trim() || undefined,
         },
       });
 

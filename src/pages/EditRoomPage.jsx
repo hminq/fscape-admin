@@ -249,21 +249,21 @@ export default function EditRoomPage() {
             let thumbnail_url = undefined;
             if (thumbFile) {
                 const res = await uploadFiles("room_thumbnail", [thumbFile]);
-                thumbnail_url = res.urls?.[0] || res.data?.url || null;
+                thumbnail_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
             // Upload 3D image
             let image_3d_url = undefined;
             if (img3dFile) {
                 const res = await uploadFiles("room_3d", [img3dFile]);
-                image_3d_url = res.urls?.[0] || res.data?.url || null;
+                image_3d_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
             // Upload blueprint
             let blueprint_url = undefined;
             if (blueprintFile) {
                 const res = await uploadFiles("room_blueprint", [blueprintFile]);
-                blueprint_url = res.urls?.[0] || res.data?.url || null;
+                blueprint_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
             // Upload new gallery files

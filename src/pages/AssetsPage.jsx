@@ -173,7 +173,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
           building_id: form.building_id,
           current_room_id: form.current_room_id || null,
           status: form.status,
-          notes: form.notes?.trim() || null,
+          notes: form.notes?.trim() || undefined,
         },
       });
       onSaved();

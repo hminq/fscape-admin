@@ -266,12 +266,12 @@ export default function CreateBuildingPage() {
 
     try {
       /* 1. Upload thumbnail */
-      let thumbnail_url = null;
+      let thumbnail_url = undefined;
       if (thumbFile) {
         console.log("[CreateBuilding] Uploading thumbnail...", thumbFile.name);
         const res = await uploadFiles("building_thumbnail", [thumbFile]);
         console.log("[CreateBuilding] Thumbnail upload response:", res);
-        thumbnail_url = res.data?.url || res.url || null;
+        thumbnail_url = res.data?.url || res.url || undefined;
       } else {
         console.log("[CreateBuilding] No thumbnail file selected");
       }

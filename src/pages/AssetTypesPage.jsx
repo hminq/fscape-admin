@@ -149,7 +149,7 @@ function validateForm(form) {
 function formToPayload(form) {
     return {
         name: form.name.trim(),
-        description: form.description.trim() || null,
+        description: form.description.trim() || undefined,
         default_price: form.default_price !== "" ? Number(form.default_price) : 0,
     };
 }

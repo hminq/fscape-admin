@@ -152,9 +152,9 @@ function CreateAccountDialog({ open, onOpenChange, onSaved }) {
         method: "POST",
         body: {
           first_name: form.first_name.trim(),
-          last_name: form.last_name?.trim() || null,
+          last_name: form.last_name?.trim() || undefined,
           email: form.email.trim(),
-          phone: form.phone?.trim() || null,
+          phone: form.phone?.trim() || undefined,
           role: form.role,
         },
       });

@@ -530,22 +530,22 @@ export default function CreateRoomPage() {
 
     setSaving(true);
     try {
-      let thumbnail_url = null;
+      let thumbnail_url = undefined;
       if (thumbFile) {
         const res = await uploadFiles("room_thumbnail", [thumbFile]);
-        thumbnail_url = res.urls?.[0] || res.data?.url || null;
+        thumbnail_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
-      let image_3d_url = null;
+      let image_3d_url = undefined;
       if (img3dFile) {
         const res = await uploadFiles("room_3d", [img3dFile]);
-        image_3d_url = res.urls?.[0] || res.data?.url || null;
+        image_3d_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
-      let blueprint_url = null;
+      let blueprint_url = undefined;
       if (blueprintFile) {
         const res = await uploadFiles("room_blueprint", [blueprintFile]);
-        blueprint_url = res.urls?.[0] || res.data?.url || null;
+        blueprint_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
       let gallery_urls = [];
@@ -581,22 +581,22 @@ export default function CreateRoomPage() {
   const handleSaveBatch = async (batch) => {
     setSaving(true);
     try {
-      let thumbnail_url = null;
+      let thumbnail_url = undefined;
       if (batch.thumbFile) {
         const res = await uploadFiles("room_thumbnail", [batch.thumbFile]);
-        thumbnail_url = res.urls?.[0] || res.data?.url || null;
+        thumbnail_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
-      let image_3d_url = null;
+      let image_3d_url = undefined;
       if (batch.img3dFile) {
         const res = await uploadFiles("room_3d", [batch.img3dFile]);
-        image_3d_url = res.urls?.[0] || res.data?.url || null;
+        image_3d_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
-      let blueprint_url = null;
+      let blueprint_url = undefined;
       if (batch.blueprintFile) {
         const res = await uploadFiles("room_blueprint", [batch.blueprintFile]);
-        blueprint_url = res.urls?.[0] || res.data?.url || null;
+        blueprint_url = res.urls?.[0] || res.data?.url || undefined;
       }
 
       let gallery_urls = [];
