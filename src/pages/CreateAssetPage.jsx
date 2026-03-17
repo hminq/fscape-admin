@@ -77,9 +77,9 @@ export default function CreateAssetPage() {
             const payload = {
                 name: form.name.trim(),
                 building_id: form.buildingId,
-                asset_type_id: form.assetTypeId || null,
+                asset_type_id: form.assetTypeId || undefined,
                 quantity: Number(form.quantity),
-                price: form.price ? Number(form.price) : null,
+                price: form.price ? Number(form.price) : undefined,
             };
 
             const res = await api.post("/api/assets/batch", payload);

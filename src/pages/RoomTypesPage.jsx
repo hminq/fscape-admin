@@ -210,13 +210,13 @@ function validateForm(form) {
 function formToPayload(form) {
     return {
         name: form.name.trim(),
-        description: form.description.trim() || null,
+        description: form.description.trim() || undefined,
         base_price: Number(form.base_price),
         capacity_min: Number(form.capacity_min) || 1,
         capacity_max: Number(form.capacity_max) || 1,
         bedrooms: Number(form.bedrooms) || 0,
         bathrooms: Number(form.bathrooms) || 0,
-        area_sqm: form.area_sqm ? Number(form.area_sqm) : null,
+        area_sqm: form.area_sqm ? Number(form.area_sqm) : undefined,
         is_active: form.is_active === "true",
     };
 }

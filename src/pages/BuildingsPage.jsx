@@ -299,12 +299,12 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         name: form.name.trim(),
         location_id: form.location_id,
         address: form.address.trim(),
-        description: form.description?.trim() || null,
-        total_floors: form.total_floors ? Number(form.total_floors) : null,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
-        thumbnail_url,
-        images: galleryUrls,
+        description: form.description?.trim() || undefined,
+        total_floors: form.total_floors ? Number(form.total_floors) : undefined,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
+        thumbnail_url: thumbnail_url || undefined,
+        images: galleryUrls.length > 0 ? galleryUrls : undefined,
         facilities: facilityIds,
       };
 

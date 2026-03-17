@@ -267,9 +267,9 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
     try {
       const body = {
         name: form.name.trim(),
-        address: form.address?.trim() || null,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
+        address: form.address?.trim() || undefined,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
         ...(mode === "create" ? { location_id: form.location_id } : {}),
       };
 
