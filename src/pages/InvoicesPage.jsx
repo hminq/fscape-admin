@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Receipt, MagnifyingGlass, CircleNotch, Eye,
-  CaretLeft, CaretRight, CurrencyDollar, CalendarDots,
+  Receipt, MagnifyingGlass, Eye,
+  CurrencyDollar, CalendarDots,
   ClockCountdown, User as UserIcon, House, Envelope,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead,
@@ -21,17 +24,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import StatusDot from "@/components/StatusDot";
+import { INVOICE_STATUS_MAP, INVOICE_TYPE_LABELS, INVOICE_ITEM_TYPE_LABELS } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
 
-const STATUS_MAP = {
-  UNPAID: { label: "Chưa thanh toán", dot: "bg-amber-500", text: "text-amber-500" },
-  PAID: { label: "Đã thanh toán", dot: "bg-success", text: "text-success" },
-  OVERDUE: { label: "Quá hạn", dot: "bg-destructive", text: "text-destructive" },
-  CANCELLED: { label: "Đã hủy", dot: "bg-primary", text: "text-primary" },
-};
+const STATUS_MAP = INVOICE_STATUS_MAP;
 
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả" },
@@ -56,11 +55,7 @@ const FILTER_STATUS_KEYS = {
   cancelled: ["cancelled"],
 };
 
-const TYPE_MAP = {
-  RENT: "Tiền thuê",
-  SERVICE: "Phí dịch vụ",
-  SETTLEMENT: "Thanh toán cuối kỳ",
-};
+const TYPE_MAP = INVOICE_TYPE_LABELS;
 
 const fmtVND = (v) => {
   if (v == null) return "—";
@@ -154,12 +149,7 @@ function InvoiceSummary({ stats, filter }) {
 
 /* ── Detail Dialog ──────────────────────────────────────── */
 
-const ITEM_TYPE_MAP = {
-  RENT: "Tiền thuê",
-  REQUEST: "Phí dịch vụ",
-  PENALTY: "Phí phạt",
-  REFUND: "Hoàn tiền",
-};
+const ITEM_TYPE_MAP = INVOICE_ITEM_TYPE_LABELS;
 
 function InvoiceDetailDialog({ open, onOpenChange, invoiceId }) {
   const [invoice, setInvoice] = useState(null);
@@ -401,44 +391,19 @@ export default function InvoicesPage() {
 
       {/* Table */}
       {loadingInit ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <Receipt className="size-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">{total} kết quả</span>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{page}/{totalPages}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="size-8" disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}>
-                    <CaretLeft className="size-4" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}>
-                    <CaretRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SectionHeader icon={Receipt} count={total} countUnit="kết quả">
+            <Pagination page={page} totalPages={totalPages}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)} />
+          </SectionHeader>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState className="py-16" />
           ) : invoices.length === 0 ? (
-            <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-              <Receipt className="size-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Không tìm thấy hóa đơn nào</p>
-            </div>
+            <EmptyState icon={Receipt} message="Không tìm thấy hóa đơn nào" />
           ) : (
             <Card className="overflow-hidden py-0 gap-0">
               <Table>

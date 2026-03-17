@@ -24,14 +24,7 @@ import {
 import { api, apiJson } from "@/lib/apiClient";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 import StatusBar from "@/components/StatusBar";
-
-/* ── helpers ───────────────────────────────── */
-
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
+import { formatDate as fmt } from "@/lib/utils";
 
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 

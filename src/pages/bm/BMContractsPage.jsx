@@ -3,14 +3,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FileText,
   MagnifyingGlass,
-  CircleNotch,
   Eye,
-  CaretLeft,
-  CaretRight,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import {
   Table,
   TableBody,
@@ -23,18 +23,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import StatusDot from "@/components/StatusDot";
 import StatusBar from "@/components/StatusBar";
+import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
 const FETCH_LIMIT = 999;
 
-const STATUS_MAP = {
-  ACTIVE: { label: "Đang hiệu lực", dot: "bg-success", text: "text-success" },
-  EXPIRING_SOON: { label: "Sắp hết hạn", dot: "bg-chart-4", text: "text-chart-4" },
-  FINISHED: { label: "Đã kết thúc", dot: "bg-muted-foreground/30", text: "text-muted-foreground" },
-  TERMINATED: { label: "Đã chấm dứt", dot: "bg-destructive", text: "text-destructive" },
-};
+const STATUS_MAP = CONTRACT_STATUS_MAP;
 
 const STATUS_CHART = [
   { key: "ACTIVE", stroke: "stroke-chart-1", dot: "bg-chart-1" },
@@ -235,45 +231,21 @@ export default function BMContractsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : error ? (
         <div className="py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-          <FileText className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Không tìm thấy hợp đồng nào</p>
-        </div>
+        <EmptyState icon={FileText} message="Không tìm thấy hợp đồng nào" />
       ) : (
         <>
-          {/* Section header with pagination */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <FileText className="size-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">{filtered.length} kết quả</span>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="size-8" disabled={page === 0}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                    <CaretLeft className="size-4" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
-                    <CaretRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SectionHeader icon={FileText} count={filtered.length} countUnit="kết quả">
+            <Pagination page={page + 1} totalPages={totalPages}
+              onPrev={() => setPage((p) => Math.max(0, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))} />
+          </SectionHeader>
 
           <Card className="overflow-hidden py-0 gap-0">
             <Table>
@@ -311,7 +283,7 @@ export default function BMContractsPage() {
                         variant="ghost"
                         size="icon"
                         className="size-8"
-                        onClick={() => navigate(`/building-manager/contracts/${c.id}/sign`)}
+                        onClick={() => navigate(`/building-manager/contracts/${c.id}`)}
                       >
                         <Eye className="size-4" />
                       </Button>

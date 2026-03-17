@@ -22,16 +22,7 @@ import {
     SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/apiClient";
-
-/* ── helpers ───────────────────────────────── */
-
-const fmt = (iso) => {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-    });
-};
+import { formatDate as fmt } from "@/lib/utils";
 
 const fmtPrice = (v) => {
     if (v == null || v === "") return "—";

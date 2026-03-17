@@ -6,7 +6,7 @@ import {
   Package,
   FileText,
   ChatCircleText,
-  Scroll,
+  Bell,
   CaretDown,
   Users,
 } from "@phosphor-icons/react";
@@ -55,9 +55,9 @@ const navItems = [
     to: `${BM_PREFIX}/assets`,
   },
   {
-    label: "Nhật ký",
-    icon: Scroll,
-    to: `${BM_PREFIX}/logs`,
+    label: "Thông báo",
+    icon: Bell,
+    to: `${BM_PREFIX}/notifications`,
   },
 ];
 

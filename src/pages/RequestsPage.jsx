@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
+  MagnifyingGlass, Eye,
   Door, User, ChatCircleText,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/Pagination";
+import { LoadingState } from "@/components/StateDisplay";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead,
@@ -18,43 +20,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
-import { REQUEST_TYPE_LABELS, REQUEST_TYPES } from "@/lib/constants";
+import { REQUEST_TYPE_LABELS, REQUEST_TYPES, REQUEST_STATUS_MAP } from "@/lib/constants";
+import { formatDate as fmt, formatDateTime as fmtFull } from "@/lib/utils";
 
 /* ── constants ──────────────────────────────── */
 
-const STATUS_MAP = {
-  PENDING: { label: "Chờ xử lý", dot: "bg-chart-4", text: "text-chart-4" },
-  ASSIGNED: { label: "Đã giao", dot: "bg-chart-2", text: "text-chart-2" },
-  PRICE_PROPOSED: { label: "Đã báo giá", dot: "bg-chart-5", text: "text-chart-5" },
-  APPROVED: { label: "Đã duyệt", dot: "bg-chart-1", text: "text-chart-1" },
-  IN_PROGRESS: { label: "Đang xử lý", dot: "bg-primary", text: "text-primary" },
-  DONE: { label: "Hoàn thành", dot: "bg-success", text: "text-success" },
-  COMPLETED: { label: "Đã đánh giá", dot: "bg-chart-3", text: "text-chart-3" },
-  REVIEWED: { label: "Đã báo cáo", dot: "bg-destructive", text: "text-destructive" },
-  REFUNDED: { label: "Đã hoàn tiền", dot: "bg-muted-foreground", text: "text-muted-foreground" },
-  CANCELLED: { label: "Đã hủy", dot: "bg-muted-foreground/40", text: "text-muted-foreground" },
-};
+const STATUS_MAP = REQUEST_STATUS_MAP;
 
 const STATUS_ORDER = ["PENDING", "ASSIGNED", "PRICE_PROPOSED", "APPROVED", "IN_PROGRESS", "DONE", "COMPLETED", "REVIEWED", "REFUNDED", "CANCELLED"];
 
 const TYPE_MAP = REQUEST_TYPE_LABELS;
 const TYPES = REQUEST_TYPES;
 
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
-
-const fmtFull = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-};
 
 const fullName = (u) => {
   if (!u) return "—";
@@ -418,25 +395,15 @@ export default function RequestsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-2">
           <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{page}/{totalPages}</span>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <CaretLeft className="size-4" />
-              </Button>
-              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <CaretRight className="size-4" />
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages}
+            onPrev={() => setPage(p => p - 1)}
+            onNext={() => setPage(p => p + 1)} />
         </div>
       )}
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : error ? (
         <div className="py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>

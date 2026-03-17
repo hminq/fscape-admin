@@ -222,9 +222,9 @@ export default function BMContractSignPage() {
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
         <Warning className="size-12 text-red-500" />
         <p className="text-lg font-semibold">{error}</p>
-        <Button variant="outline" onClick={() => navigate("/building-manager/contracts")}>
+        <Button variant="outline" onClick={() => navigate(`/building-manager/contracts/${contractId}`)}>
           <ArrowLeft className="mr-1.5 size-4" />
-          Quay lại danh sách
+          Quay lại chi tiết
         </Button>
       </div>
     );

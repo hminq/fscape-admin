@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import {
   FileText,
   MagnifyingGlass,
-  CircleNotch,
   Eye,
-  CaretLeft,
-  CaretRight,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead,
@@ -22,19 +22,13 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import StatusDot from "@/components/StatusDot";
+import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
 
-const STATUS_MAP = {
-  PENDING_CUSTOMER_SIGNATURE: { label: "Chờ KH ký", dot: "bg-chart-2", text: "text-chart-2" },
-  PENDING_MANAGER_SIGNATURE: { label: "Chờ QL ký", dot: "bg-chart-4", text: "text-chart-4" },
-  ACTIVE: { label: "Đang hiệu lực", dot: "bg-success", text: "text-success" },
-  EXPIRING_SOON: { label: "Sắp hết hạn", dot: "bg-amber-500", text: "text-amber-500" },
-  FINISHED: { label: "Đã kết thúc", dot: "bg-primary", text: "text-primary" },
-  TERMINATED: { label: "Đã chấm dứt", dot: "bg-destructive", text: "text-destructive" },
-};
+const STATUS_MAP = CONTRACT_STATUS_MAP;
 
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả" },
@@ -257,45 +251,19 @@ export default function ContractsPage() {
 
       {/* Table */}
       {loadingInit ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : (
         <>
-          {/* Section header with pagination */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <FileText className="size-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">{total} kết quả</span>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{page}/{totalPages}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="size-8" disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}>
-                    <CaretLeft className="size-4" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}>
-                    <CaretRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SectionHeader icon={FileText} count={total} countUnit="kết quả">
+            <Pagination page={page} totalPages={totalPages}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)} />
+          </SectionHeader>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState className="py-16" />
           ) : contracts.length === 0 ? (
-            <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-              <FileText className="size-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Không tìm thấy hợp đồng nào</p>
-            </div>
+            <EmptyState icon={FileText} message="Không tìm thấy hợp đồng nào" />
           ) : (
             <Card className="overflow-hidden py-0 gap-0">
               <Table>

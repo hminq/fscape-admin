@@ -4,6 +4,7 @@ import {
   ArrowLeft, CircleNotch, FileText, DownloadSimple, FilePdf,
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple, Notebook,
+  PencilLine as PenLine,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,25 @@ const fmtVND = (v) => {
   if (v == null) return "—";
   return Number(v).toLocaleString("vi-VN") + " đ";
 };
+
+/** Hide raw {{placeholder}} text that hasn't been replaced yet */
+function cleanRenderedContent(html) {
+  if (!html) return "";
+  return html.replace(/\{\{manager_signature\}\}/g, "");
+}
+
+const CONTRACT_STYLES = `
+  .contract-render img[src*="cloudinary"] {
+    transform: scale(3);
+    transform-origin: left top;
+    margin-bottom: 80px;
+  }
+  .contract-render img[alt*="Signature"],
+  .contract-render img[alt*="signature"] {
+    transform: none !important;
+    margin-bottom: 0 !important;
+  }
+`;
 
 function InfoCell({ icon: Icon, label, value, sub }) {
   return (
@@ -61,7 +81,7 @@ function SignatureCard({ label, signedAt, signatureUrl, name }) {
   );
 }
 
-export default function ContractDetailPage() {
+export default function BMContractDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contract, setContract] = useState(null);
@@ -96,7 +116,7 @@ export default function ContractDetailPage() {
     return (
       <div className="text-center py-20 space-y-4">
         <p className="text-sm text-destructive">{error || "Không tìm thấy hợp đồng."}</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/contracts")}>Quay lại</Button>
+        <Button variant="outline" size="sm" onClick={() => navigate("/building-manager/contracts")}>Quay lại</Button>
       </div>
     );
   }
@@ -115,12 +135,16 @@ export default function ContractDetailPage() {
     ? `${contract.room.room_number || ""}${contract.room.building?.name ? " — " + contract.room.building.name : ""}`
     : "—";
 
+  const isPendingManagerSign = contract.status === "PENDING_MANAGER_SIGNATURE";
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 animate-in fade-in duration-500 pb-16">
+      <style>{CONTRACT_STYLES}</style>
+
       {/* Header */}
       <div className="flex items-start gap-3">
         <button
-          onClick={() => navigate("/contracts")}
+          onClick={() => navigate("/building-manager/contracts")}
           className="mt-0.5 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="size-4" />
@@ -150,14 +174,29 @@ export default function ContractDetailPage() {
             </Button>
           )}
           {contract.pdf_url && (
-            <Button className="gap-2" asChild>
+            <Button variant="outline" className="gap-2" asChild>
               <a href={contract.pdf_url} target="_blank" rel="noopener noreferrer">
                 <DownloadSimple className="size-4" /> Tải PDF
               </a>
             </Button>
           )}
         </div>
+        {isPendingManagerSign && (
+          <Button className="gap-2" onClick={() => navigate(`/building-manager/contracts/${contract.id}/sign`)}>
+            <PenLine className="size-4" /> Ký hợp đồng
+          </Button>
+        )}
       </div>
+
+      {/* Signing deadline warning */}
+      {contract.signature_expires_at && isPendingManagerSign && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
+          <ClockCountdown className="size-4 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-500 font-medium">
+            Hạn ký: {formatDateTime(contract.signature_expires_at)}
+          </p>
+        </div>
+      )}
 
       {/* Contract Info Card */}
       <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
@@ -176,7 +215,7 @@ export default function ContractDetailPage() {
         </div>
       </Card>
 
-      {/* Customer & Manager */}
+      {/* Customer & Room */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Customer */}
         <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
@@ -218,11 +257,6 @@ export default function ContractDetailPage() {
               {contract.room?.room_type?.name && (
                 <p className="text-xs text-muted-foreground">Loại: {contract.room.room_type.name}</p>
               )}
-              {contract.room?.id && (
-                <Button variant="link" size="sm" className="px-0 h-auto text-xs" onClick={() => navigate(`/rooms/${contract.room.id}`)}>
-                  Xem chi tiết phòng →
-                </Button>
-              )}
             </div>
           </div>
         </Card>
@@ -245,15 +279,6 @@ export default function ContractDetailPage() {
             name={managerName}
           />
         </div>
-
-        {contract.signature_expires_at && !contract.manager_signed_at && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
-            <ClockCountdown className="size-4 text-amber-500 shrink-0" />
-            <p className="text-xs text-amber-500 font-medium">
-              Hạn ký: {formatDateTime(contract.signature_expires_at)}
-            </p>
-          </div>
-        )}
       </section>
 
       {/* Template */}
@@ -293,7 +318,7 @@ export default function ContractDetailPage() {
           </DialogHeader>
           <div
             className="flex-1 overflow-y-auto prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: contract.rendered_content }}
+            dangerouslySetInnerHTML={{ __html: cleanRenderedContent(contract.rendered_content) }}
           />
         </DialogContent>
       </Dialog>

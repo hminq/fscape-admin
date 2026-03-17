@@ -281,7 +281,7 @@ export default function RoomsPage() {
         </Button>
       </div>
 
-      {/* Stats Card — reacts to status filter */}
+      {/* Stats Card */}
       {(() => {
         const allStatus = roomStats?.by_status || null;
         const allTotal = roomStats?.total || 0;
@@ -292,12 +292,27 @@ export default function RoomsPage() {
           ? allTotal
           : (allStatus?.[filter] || 0);
         return (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-1">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold">Trạng thái phòng</h3>
-              <span className="text-sm font-bold">{filteredTotal} phòng</span>
+          <div className="rounded-2xl border border-border bg-card">
+            <div className="flex items-center gap-6 p-5 flex-wrap">
+              {/* Left: Icon + Total */}
+              <div className="flex items-center gap-4 min-w-[140px]">
+                <div className="size-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+                  <House className="size-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold leading-none tracking-tight">{filteredTotal}</p>
+                  <p className="text-sm text-muted-foreground mt-1">Phòng</p>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-14 bg-border shrink-0" />
+
+              {/* Right: Status Bar */}
+              <div className="flex-1 min-w-[200px]">
+                <StatusBar byStatus={filteredStatus} total={filteredTotal} />
+              </div>
             </div>
-            <StatusBar byStatus={filteredStatus} total={filteredTotal} />
           </div>
         );
       })()}

@@ -18,18 +18,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
+import { formatDateTime } from "@/lib/utils";
+import { ROLE_LABELS } from "@/lib/constants";
 
 /* ── helpers ───────────────────────────────── */
 
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-};
+const fmt = formatDateTime;
 
 const fullName = (u) => {
   if (!u) return "Hệ thống";
@@ -49,14 +43,6 @@ const ACTION_COLORS = {
 };
 
 const ACTIONS = ["CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "SIGN", "APPROVE", "REJECT", "ASSIGN"];
-
-const ROLE_LABELS = {
-  ADMIN: "Admin",
-  BUILDING_MANAGER: "Quản lý",
-  STAFF: "Nhân viên",
-  RESIDENT: "Cư dân",
-  CUSTOMER: "Khách hàng",
-};
 
 /* ── Detail Dialog ──────────────────────────── */
 

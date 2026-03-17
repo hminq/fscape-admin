@@ -19,19 +19,22 @@ export function cn(...inputs) {
  * Format an ISO date string to Vietnamese locale (dd/mm/yyyy).
  * Returns "—" for falsy values.
  */
-export const formatDate = (d) =>
-  d ? new Date(d).toLocaleDateString("vi-VN") : "—";
+export const formatDate = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+};
 
-export const formatDateTime = (d) =>
-  d
-    ? new Date(d).toLocaleString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "—";
+export const formatDateTime = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString("vi-VN", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+};
 
 export function parseGoogleMapsUrl(url) {
   if (!url || typeof url !== "string") return null;

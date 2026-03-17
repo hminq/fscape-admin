@@ -37,11 +37,13 @@ import BMResidentsPage from "./pages/bm/BMResidentsPage";
 import BMRequestsPage from "./pages/bm/BMRequestsPage";
 import BMContractsPage from "./pages/bm/BMContractsPage";
 import BMAssetsPage from "./pages/bm/BMAssetsPage";
-import BMAuditLogsPage from "./pages/bm/BMAuditLogsPage";
+import BMNotificationsPage from "./pages/bm/BMNotificationsPage";
 import BMContractsPendingPage from "./pages/bm/BMContractsPendingPage";
 import BMContractSignPage from "./pages/bm/BMContractSignPage";
+import BMContractDetailPage from "./pages/bm/BMContractDetailPage";
 import BMRequestAssignPage from "./pages/bm/BMRequestAssignPage";
 import BMRequestDetailPage from "./pages/bm/BMRequestDetailPage";
+import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
   return (
@@ -62,9 +64,11 @@ export default function App() {
               <Route path="requests/:id" element={<BMRequestDetailPage />} />
               <Route path="contracts" element={<BMContractsPage />} />
               <Route path="contracts/pending" element={<BMContractsPendingPage />} />
+              <Route path="contracts/:id" element={<BMContractDetailPage />} />
               <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
               <Route path="assets" element={<BMAssetsPage />} />
-              <Route path="logs" element={<BMAuditLogsPage />} />
+              <Route path="notifications" element={<BMNotificationsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
 
@@ -99,6 +103,7 @@ export default function App() {
               <Route path="requests" element={<RequestsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
         </Route>

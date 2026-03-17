@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import {
   ChatCircleText,
   MagnifyingGlass,
-  CircleNotch,
   Eye,
-  CaretLeft,
-  CaretRight,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_MAP } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import {
   Table,
   TableBody,
@@ -171,44 +171,21 @@ export default function BMRequestsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : error ? (
         <div className="py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-          <ChatCircleText className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Không tìm thấy yêu cầu nào</p>
-        </div>
+        <EmptyState icon={ChatCircleText} message="Không tìm thấy yêu cầu nào" />
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <ChatCircleText className="size-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">{filtered.length} kết quả</span>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="size-8" disabled={page === 0}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                    <CaretLeft className="size-4" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
-                    <CaretRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SectionHeader icon={ChatCircleText} count={filtered.length} countUnit="kết quả">
+            <Pagination page={page + 1} totalPages={totalPages}
+              onPrev={() => setPage((p) => Math.max(0, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))} />
+          </SectionHeader>
 
           <Card className="overflow-hidden py-0 gap-0">
             <Table>

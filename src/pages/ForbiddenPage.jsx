@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft, SignOut } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   return (
     <div
@@ -36,7 +38,9 @@ export default function ForbiddenPage() {
         <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="rounded-full shadow-sm hover:translate-x-[-2px] transition-transform">
           <ArrowLeft className="size-4" />
         </Button>
-        <Button onClick={() => navigate("/")}>Về trang chủ</Button>
+        <Button onClick={logout} className="gap-1.5">
+          <SignOut className="size-4" /> Đăng xuất
+        </Button>
       </div>
     </div>
   );

@@ -1,32 +1,9 @@
-import { useState, useRef, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { SignOut, User, ShieldCheck, CalendarDots } from "@phosphor-icons/react";
+import { CalendarDots } from "@phosphor-icons/react";
 import BMSidebar from "../components/BMSidebar";
-import { useAuth } from "../contexts/AuthContext";
-import defaultUserImg from "@/assets/default_user_img.jpg";
-
-const ROLE_LABELS = {
-  ADMIN: "Quản trị viên",
-  STAFF: "Nhân viên",
-  BUILDING_MANAGER: "Quản lý tòa nhà",
-};
+import UserMenu from "../components/UserMenu";
 
 export default function BMLayout() {
-  const { user, logout } = useAuth();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    function handleClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setUserMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [userMenuOpen]);
-
   return (
     <div className="flex h-screen overflow-hidden">
       <BMSidebar />
@@ -38,61 +15,7 @@ export default function BMLayout() {
             <span>{new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
           </div>
 
-          <div ref={menuRef} className="relative">
-            <button
-              onClick={() => setUserMenuOpen((prev) => !prev)}
-              className="rounded-lg transition-opacity hover:opacity-80"
-            >
-              <img
-                src={defaultUserImg}
-                alt={user?.name}
-                className="size-9 rounded-lg object-cover ring-1 ring-border"
-              />
-            </button>
-
-            {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-popover shadow-lg">
-                <div className="flex items-center gap-3 px-4 py-4">
-                  <img
-                    src={defaultUserImg}
-                    alt={user?.name}
-                    className="size-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-border px-4 py-3">
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                    <ShieldCheck className="size-3.5 shrink-0" />
-                    <span>{ROLE_LABELS[user?.role] ?? user?.role}</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-border p-1">
-                  <button
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
-                  >
-                    <User className="size-4" />
-                    Hồ sơ cá nhân
-                  </button>
-                  <button
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      logout();
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    <SignOut className="size-4" />
-                    Đăng xuất
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <UserMenu profilePath="/building-manager/profile" />
         </header>
 
         <main className="flex-1 overflow-y-auto bg-muted/30 p-8">

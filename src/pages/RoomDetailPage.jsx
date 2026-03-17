@@ -13,6 +13,7 @@ import {
     DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
+import { formatDate as fmtDate } from "@/lib/utils";
 import ModelViewer, { is3DFile } from "@/components/ModelViewer";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -26,7 +27,6 @@ const STATUS_CFG = {
 };
 
 const fmtPrice = (p) => p ? parseFloat(p).toLocaleString("vi-VN") : "—";
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
 const CONTRACT_STATUS_LABEL = {
     DRAFT: "Nháp", PENDING_CUSTOMER_SIGNATURE: "Chờ KH ký",

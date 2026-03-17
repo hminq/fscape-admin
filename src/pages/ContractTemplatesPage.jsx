@@ -16,14 +16,9 @@ import {
     DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
-
-/* ── helpers ───────────────────────────────── */
-
-const fmt = (iso) => {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
+import { formatDate as fmt } from "@/lib/utils";
+import Pagination from "@/components/Pagination";
+import { LoadingState } from "@/components/StateDisplay";
 
 /* ── Summary Card ──────────────────────────── */
 
@@ -239,9 +234,7 @@ export default function ContractTemplatesPage() {
 
             {/* Table */}
             {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState />
             ) : error ? (
                 <div className="py-14 text-center">
                     <p className="text-sm text-destructive">{error}</p>
@@ -251,21 +244,12 @@ export default function ContractTemplatesPage() {
                 <div className="text-center py-16 text-muted-foreground">Không tìm thấy mẫu nào.</div>
             ) : (
                 <>
-                    {/* Pagination Header */}
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-2 mb-2">
                             <p className="text-sm font-medium text-muted-foreground">{filtered.length} kết quả</p>
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
-                                <div className="flex items-center gap-1">
-                                    <Button size="icon" variant="outline" className="size-8" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>
-                                        <CaretLeft className="size-4" />
-                                    </Button>
-                                    <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>
-                                        <CaretRight className="size-4" />
-                                    </Button>
-                                </div>
-                            </div>
+                            <Pagination page={page + 1} totalPages={totalPages}
+                              onPrev={() => setPage(p => Math.max(0, p - 1))}
+                              onNext={() => setPage(p => Math.min(totalPages - 1, p + 1))} />
                         </div>
                     )}
 

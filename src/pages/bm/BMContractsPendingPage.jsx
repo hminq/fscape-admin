@@ -11,15 +11,13 @@ import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import StatusDot from "@/components/StatusDot";
+import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PENDING_FETCH_LIMIT = 50;
 
-const STATUS_MAP = {
-  PENDING_CUSTOMER_SIGNATURE: { label: "Chờ khách hàng ký", dot: "bg-chart-4", text: "text-chart-4" },
-  PENDING_MANAGER_SIGNATURE: { label: "Chờ quản lý ký", dot: "bg-chart-2", text: "text-chart-2" },
-};
+const STATUS_MAP = CONTRACT_STATUS_MAP;
 
 /* ── main component ─────────────────────────────────────── */
 
@@ -116,7 +114,7 @@ export default function BMContractsPendingPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/building-manager/contracts/${c.id}/sign`)}
+                    onClick={() => navigate(`/building-manager/contracts/${c.id}`)}
                   >
                     <Eye className="mr-1.5 size-4" />
                     Xem

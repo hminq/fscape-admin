@@ -22,14 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiJson, api } from "@/lib/apiClient";
-
-/* ── helpers ───────────────────────────────── */
-
-const fmt = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
+import { formatDate as fmt } from "@/lib/utils";
 
 const STATUS_MAP = {
   AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success" },

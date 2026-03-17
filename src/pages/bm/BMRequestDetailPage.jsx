@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import StatusDot from "@/components/StatusDot";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_MAP } from "@/lib/constants";
+import { REQUEST_TYPE_LABELS, REQUEST_STATUS_MAP, ROLE_LABELS } from "@/lib/constants";
 
 const STATUS_MAP = REQUEST_STATUS_MAP;
 
@@ -210,7 +210,7 @@ export default function BMRequestDetailPage() {
                 </div>
                 {h.modifier && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    bởi {h.modifier.last_name} {h.modifier.first_name} ({h.modifier.role})
+                    bởi {h.modifier.last_name} {h.modifier.first_name} ({ROLE_LABELS[h.modifier.role] ?? h.modifier.role})
                   </p>
                 )}
                 {h.reason && (
