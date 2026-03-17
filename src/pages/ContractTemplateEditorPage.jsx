@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft, FloppyDisk, CircleNotch, Eye, Code, FileText,
-    BracketsCurly as Variable, Star,
+    BracketsCurly as Variable, Star, Plus,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -169,7 +169,7 @@ export default function ContractTemplateEditorPage() {
                     </div>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="gap-2 px-5 shadow-md shadow-primary/20">
-                    {saving ? <CircleNotch className="size-4 animate-spin" /> : <FloppyDisk className="size-4" />}
+                    {saving ? <CircleNotch className="size-4 animate-spin" /> : isEdit ? <FloppyDisk className="size-4" /> : <Plus className="size-4" />}
                     {isEdit ? "Lưu thay đổi" : "Tạo mẫu"}
                 </Button>
             </div>
@@ -259,7 +259,7 @@ export default function ContractTemplateEditorPage() {
                             </CardTitle>
                             <p className="text-[11px] text-muted-foreground">Nhấn để chèn vào vị trí con trỏ</p>
                         </CardHeader>
-                        <CardContent className="px-4 pb-4 space-y-1">
+                        <CardContent className="px-4 pb-4 space-y-1 max-h-[60vh] overflow-y-auto">
                             {VARIABLES.map((v) => {
                                 const isUsed = form.content.includes(`{{${v.key}}}`);
                                 return (

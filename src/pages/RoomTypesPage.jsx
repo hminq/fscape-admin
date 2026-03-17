@@ -451,7 +451,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
                     {loading ? (
                         <div className="py-10 flex justify-center"><CircleNotch className="size-6 animate-spin text-muted-foreground" /></div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                             {items.map((item, i) => (
                                 <div key={i} className="flex gap-2 items-center">
                                     <div className="flex-1">
