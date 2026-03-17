@@ -416,7 +416,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
         }
         setSaving(true);
         try {
-            await api.put(`/api/room-types/${roomType.id}/assets`, items);
+            await api.put(`/api/room-types/${roomType.id}/assets`, { assets: items });
             onOpenChange(false);
         } catch (err) {
             alert(err.message || "Đã xảy ra lỗi.");
