@@ -246,6 +246,9 @@ export default function CreateBuildingPage() {
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
     if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
     if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
+    if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
+    else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
+      e.total_floors = "Số tầng phải từ 1 đến 99";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -403,12 +406,13 @@ export default function CreateBuildingPage() {
               <div className="relative">
                 <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
-                  type="number" min="1" placeholder="VD: 8"
+                  type="number" min="1" max="99" placeholder="VD: 8"
                   value={form.total_floors}
                   onChange={(e) => set("total_floors", e.target.value)}
                   className="pl-9"
                 />
               </div>
+              {errors.total_floors && <p className="text-sm text-destructive">{errors.total_floors}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Vĩ độ</Label>

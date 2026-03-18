@@ -268,6 +268,9 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
     if (!form.name?.trim()) e.name = true;
     if (!form.location_id) e.location_id = true;
     if (!form.address?.trim()) e.address = true;
+    if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
+    else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
+      e.total_floors = "Số tầng phải từ 1 đến 99";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -451,8 +454,10 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
 
             <div className="space-y-1.5">
               <Label>Số tầng</Label>
-              <Input type="number" min="1" value={form.total_floors || ""}
-                onChange={(e) => setFormField("total_floors", e.target.value)} />
+              <Input type="number" min="1" max="99" value={form.total_floors || ""}
+                onChange={(e) => setFormField("total_floors", e.target.value)}
+                className={errors.total_floors ? "border-destructive" : ""} />
+              {errors.total_floors && <p className="text-sm text-destructive">{errors.total_floors}</p>}
             </div>
 
             <MapPicker
