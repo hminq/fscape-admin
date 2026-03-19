@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus, MagnifyingGlass, Package, Trash, CircleNotch, PencilSimple, QrCode,
   Buildings, CaretLeft, CaretRight, DownloadSimple, Printer,
-  Door, Eye,
+  Door, Eye, CheckCircle
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -159,26 +160,30 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = {};
-    if (!form.name?.trim()) errs.name = true;
-    if (!form.building_id) errs.building_id = true;
+    if (!form.name?.trim()) errs.name = "Vui lòng nhập tên tài sản";
+    if (!form.building_id) errs.building_id = "Vui lòng chọn tòa nhà";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
     setSaving(true);
+    setErrors({});
     try {
+      const body = {
+        name: form.name.trim(),
+        building_id: form.building_id,
+        current_room_id: form.current_room_id || null,
+        status: form.status,
+        notes: form.notes?.trim() || undefined,
+      };
       await apiJson(`/api/assets/${asset.id}`, {
         method: "PUT",
-        body: {
-          name: form.name.trim(),
-          building_id: form.building_id,
-          current_room_id: form.current_room_id || null,
-          status: form.status,
-          notes: form.notes?.trim() || undefined,
-        },
+        body,
       });
+      toast.success("Cập nhật tài sản thành công");
+      window.dispatchEvent(new CustomEvent("asset-updated", { detail: { id: asset.id, updates: body } }));
       onSaved();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi.");
+      setErrors({ root: err.message || "Đã xảy ra lỗi khi cập nhật." });
     } finally {
       setSaving(false);
     }
@@ -188,9 +193,11 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
     setSaving(true);
     try {
       await apiJson(`/api/assets/${asset.id}`, { method: "DELETE" });
+      toast.success("Đã xóa tài sản");
+      window.dispatchEvent(new CustomEvent("asset-deleted", { detail: { id: asset.id } }));
       onDeleted();
     } catch (err) {
-      alert(err.message || "Không thể xóa.");
+      toast.error(err.message || "Không thể xóa.");
     } finally {
       setSaving(false);
     }
@@ -209,14 +216,15 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3 pt-1 max-h-[70vh] overflow-y-auto pr-1">
               <div className="space-y-1.5">
-                <Label>Tên tài sản *</Label>
+                <Label className={errors.name ? "text-destructive" : ""}>Tên tài sản *</Label>
                 <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
                   className={errors.name ? "border-destructive" : ""} />
+                {errors.name && <p className="text-[10px] text-destructive font-medium">{errors.name}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Tòa nhà *</Label>
+                  <Label className={errors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
                   <Select value={form.building_id || undefined} onValueChange={(v) => { set("building_id", v); setForm((p) => ({ ...p, current_room_id: "" })); }}>
                     <SelectTrigger className={errors.building_id ? "border-destructive" : ""}>
                       <SelectValue placeholder="Chọn tòa nhà" />
@@ -227,6 +235,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.building_id && <p className="text-[10px] text-destructive font-medium">{errors.building_id}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Phòng</Label>
@@ -261,10 +270,16 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
                 <Textarea value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} rows={2} />
               </div>
 
+              {errors.root && (
+                <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10 text-center">
+                  {errors.root}
+                </p>
+              )}
+
               <DialogFooter className="pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                 <Button type="submit" disabled={saving}>
-                  {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+                  {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <CheckCircle className="size-4 mr-1.5" />}
                   Lưu thay đổi
                 </Button>
               </DialogFooter>
@@ -384,10 +399,10 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
 
   const validate = () => {
     const e = {};
-    if (!form.asset_type_id) e.asset_type_id = true;
-    if (!form.building_id) e.building_id = true;
+    if (!form.asset_type_id) e.asset_type_id = "Vui lòng chọn loại tài sản";
+    if (!form.building_id) e.building_id = "Vui lòng chọn tòa nhà";
     const qty = Number(form.quantity);
-    if (!qty || qty < 1 || qty > 100) e.quantity = "1–100";
+    if (!qty || qty < 1 || qty > 100) e.quantity = "Số lượng từ 1–100";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -396,6 +411,7 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
     ev.preventDefault();
     if (!validate()) return;
     setSaving(true);
+    setErrors({});
     try {
       const body = {
         name: selectedType?.name || "Asset",
@@ -404,9 +420,11 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
         quantity: Number(form.quantity),
       };
       const res = await apiJson("/api/assets/batch", { method: "POST", body });
+      toast.success(`Đã tạo thành công ${res.count} tài sản`);
+      window.dispatchEvent(new CustomEvent("asset-created"));
       setResult(res);
     } catch (err) {
-      setResult({ error: err.message || "Đã xảy ra lỗi." });
+      setErrors({ root: err.message || "Đã xảy ra lỗi." });
     } finally {
       setSaving(false);
     }
@@ -451,13 +469,14 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
             </Select>
             {selectedType && (
               <p className="text-[11px] text-muted-foreground">
-                Giá mặc định: {selectedType.default_price ? Number(selectedType.default_price).toLocaleString("vi-VN") + " ₫" : "—"}
+                {selectedType.default_price ? Number(selectedType.default_price).toLocaleString("vi-VN") + " ₫" : "—"}
               </p>
             )}
+            {errors.asset_type_id && <p className="text-[10px] text-destructive font-medium">{errors.asset_type_id}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label>Tòa nhà *</Label>
+            <Label className={errors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
             <Select value={form.building_id || undefined} onValueChange={(v) => set("building_id", v)}>
               <SelectTrigger className={errors.building_id ? "border-destructive" : ""}>
                 <SelectValue placeholder="Chọn tòa nhà" />
@@ -468,16 +487,23 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
                 ))}
               </SelectContent>
             </Select>
+            {errors.building_id && <p className="text-[10px] text-destructive font-medium">{errors.building_id}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label>Số lượng *</Label>
+            <Label className={errors.quantity ? "text-destructive" : ""}>Số lượng *</Label>
             <Input type="number" min="1" max="100"
               value={form.quantity}
               onChange={(e) => set("quantity", e.target.value)}
               className={errors.quantity ? "border-destructive" : ""} />
-            {errors.quantity && <p className="text-[11px] text-destructive">Số lượng phải từ 1 đến 100</p>}
+            {errors.quantity && <p className="text-[10px] text-destructive font-medium">{errors.quantity}</p>}
           </div>
+
+          {errors.root && (
+            <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10 text-center">
+              {errors.root}
+            </p>
+          )}
 
           <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs text-muted-foreground">
             <p>• Tên tài sản lấy từ loại tài sản đã chọn</p>
@@ -532,6 +558,29 @@ function BuildingAssetSection({ building, search, statusFilter, onDetail, onQR, 
 
   useEffect(() => { fetchAssets(); }, [fetchAssets]);
   useEffect(() => { setPage(1); }, [search, statusFilter]);
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const { id, updates } = e.detail;
+      setAssets((prev) => prev.map(a => String(a.id) === String(id) ? { ...a, ...updates, updated_at: new Date().toISOString() } : a));
+    };
+    const handleDelete = (e) => {
+      const { id } = e.detail;
+      setAssets((prev) => prev.filter(a => String(a.id) !== String(id)));
+    };
+    const handleCreate = () => {
+      if (page === 1) fetchAssets();
+    };
+
+    window.addEventListener("asset-updated", handleUpdate);
+    window.addEventListener("asset-deleted", handleDelete);
+    window.addEventListener("asset-created", handleCreate);
+    return () => {
+      window.removeEventListener("asset-updated", handleUpdate);
+      window.removeEventListener("asset-deleted", handleDelete);
+      window.removeEventListener("asset-created", handleCreate);
+    };
+  }, [fetchAssets, page]);
 
   if (!loading && assets.length === 0) return null;
 

@@ -12,9 +12,10 @@ import {
     SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-/* ── Upload constraints (mirrors server constants/upload.js) ── */
+/* ── Upload constraints ─────────────────────────────────────── */
 const UPLOAD_CFG = {
     room_thumbnail: { maxFiles: 1, maxSizeMB: 5 },
     room_gallery: { maxFiles: 5, maxSizeMB: 5 },
@@ -22,7 +23,6 @@ const UPLOAD_CFG = {
     room_blueprint: { maxFiles: 1, maxSizeMB: 5 },
 };
 
-/* ── upload helper ─────────────────────────────────────────── */
 async function uploadFiles(category, files) {
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
@@ -34,7 +34,7 @@ async function uploadFiles(category, files) {
     return res.json();
 }
 
-/* ── Single image uploader (thumbnail / 3D / blueprint) ────── */
+/* ── Single image uploader ──────────────────────────────────── */
 function SingleImageUploader({ label, hint, preview, onSelect, onRemove, accept = "image/*" }) {
     const inputRef = useRef(null);
     const isImage = accept === 'image/*';
@@ -64,18 +64,14 @@ function SingleImageUploader({ label, hint, preview, onSelect, onRemove, accept 
                 </button>
             )}
             <input ref={inputRef} type="file" accept={accept} className="hidden"
-                onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) onSelect(f);
-                    e.target.value = "";
-                }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) onSelect(f); e.target.value = ""; }}
             />
             {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
         </div>
     );
 }
 
-/* ── Gallery uploader (max from UPLOAD_CFG) ────────────────── */
+/* ── Gallery uploader ───────────────────────────────────────── */
 function GalleryUploader({ images, onChange }) {
     const inputRef = useRef(null);
     const [dragging, setDragging] = useState(false);
@@ -151,30 +147,24 @@ export default function EditRoomPage() {
     const { id } = useParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [formError, setFormError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
+    const formRef = useRef(null);
 
     const [form, setForm] = useState({
         room_number: "", room_type_id: "", building_id: "", floor: "", status: "AVAILABLE",
     });
 
-    // Thumbnail
     const [thumbFile, setThumbFile] = useState(null);
     const [thumbPreview, setThumbPreview] = useState(null);
-
-    // 3D image
     const [img3dFile, setImg3dFile] = useState(null);
     const [img3dPreview, setImg3dPreview] = useState(null);
-
-    // Blueprint image
     const [blueprintFile, setBlueprintFile] = useState(null);
     const [blueprintPreview, setBlueprintPreview] = useState(null);
-
-    // Gallery
     const [galleryImages, setGalleryImages] = useState([]);
 
     const [roomTypes, setRoomTypes] = useState([]);
     const [buildings, setBuildings] = useState([]);
-
-    // Lock reasons fetched from room detail
     const [lockReasons, setLockReasons] = useState([]);
 
     useEffect(() => {
@@ -186,10 +176,8 @@ export default function EditRoomPage() {
                     api.get(`/api/rooms/${id}`),
                 ]);
 
-                const rts = rtRes.data || [];
-                const blds = buildRes.data || [];
-                setRoomTypes(rts);
-                setBuildings(blds);
+                setRoomTypes(rtRes.data || []);
+                setBuildings(buildRes.data || []);
 
                 const r = roomRes.data || roomRes;
 
@@ -205,7 +193,6 @@ export default function EditRoomPage() {
                 if (r.image_3d_url) setImg3dPreview(r.image_3d_url);
                 if (r.blueprint_url) setBlueprintPreview(r.blueprint_url);
 
-                // Gallery — API returns images as array of strings
                 if (Array.isArray(r.images) && r.images.length > 0) {
                     setGalleryImages(r.images.map(img => {
                         const url = typeof img === 'string' ? img : img?.image_url;
@@ -213,7 +200,6 @@ export default function EditRoomPage() {
                     }));
                 }
 
-                // Determine lock reasons
                 const reasons = [];
                 const activeContracts = (r.resident_contracts || []).filter(c =>
                     ['ACTIVE', 'EXPIRING_SOON', 'PENDING_CUSTOMER_SIGNATURE', 'PENDING_MANAGER_SIGNATURE', 'DRAFT'].includes(c.status)
@@ -228,7 +214,7 @@ export default function EditRoomPage() {
 
             } catch (err) {
                 console.error("Error fetching room data:", err);
-                alert("Không thể tải dữ liệu phòng.");
+                setFormError("Không thể tải dữ liệu phòng. Vui lòng thử lại.");
             } finally {
                 setLoading(false);
             }
@@ -236,37 +222,59 @@ export default function EditRoomPage() {
         fetchData();
     }, [id]);
 
-    const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+    // Derive floor options from selected building
+    const selectedBuilding = buildings.find(b => b.id === form.building_id);
+    const totalFloors = selectedBuilding?.total_floors || 0;
+    const floorOptions = totalFloors > 0 ? Array.from({ length: totalFloors }, (_, i) => i + 1) : [];
+
+    const handleChange = (k, v) => {
+        if (k === "building_id") {
+            setForm((p) => ({ ...p, building_id: v, floor: "" }));
+        } else {
+            setForm((p) => ({ ...p, [k]: v }));
+        }
+        if (formError) setFormError(null);
+        if (fieldErrors[k]) setFieldErrors(p => { const n = { ...p }; delete n[k]; return n; });
+    };
 
     const handleSave = async () => {
-        if (!form.room_number || !form.building_id || !form.room_type_id || !form.floor) {
-            alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+        const errs = {};
+        if (!form.room_number?.trim()) errs.room_number = "Vui lòng nhập tên / mã phòng";
+        if (!form.room_type_id) errs.room_type_id = "Vui lòng chọn loại phòng";
+        if (!form.building_id) errs.building_id = "Vui lòng chọn tòa nhà";
+        if (!form.floor) errs.floor = "Vui lòng chọn tầng";
+
+        if (Object.keys(errs).length > 0) {
+            setFieldErrors(errs);
+            setTimeout(() => {
+                const firstKey = Object.keys(errs)[0];
+                const el = formRef.current?.querySelector(`[data-field="${firstKey}"]`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 50);
             return;
         }
+
         setSaving(true);
+        setFormError(null);
         try {
-            // Upload thumbnail
             let thumbnail_url = undefined;
             if (thumbFile) {
                 const res = await uploadFiles("room_thumbnail", [thumbFile]);
                 thumbnail_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
-            // Upload 3D image
             let image_3d_url = undefined;
             if (img3dFile) {
                 const res = await uploadFiles("room_3d", [img3dFile]);
                 image_3d_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
-            // Upload blueprint
             let blueprint_url = undefined;
             if (blueprintFile) {
                 const res = await uploadFiles("room_blueprint", [blueprintFile]);
                 blueprint_url = res.urls?.[0] || res.data?.url || undefined;
             }
 
-            // Upload new gallery files
             const newGalleryFiles = galleryImages.filter(g => g.file).map(g => g.file);
             const existingGalleryUrls = galleryImages.filter(g => g.existing && !g.file).map(g => g.url);
             let newGalleryUrls = [];
@@ -288,9 +296,10 @@ export default function EditRoomPage() {
             if (blueprint_url !== undefined) payload.blueprint_url = blueprint_url;
 
             await apiJson(`/api/rooms/${id}`, { method: "PUT", body: payload });
+            toast.success(`Đã cập nhật phòng "${payload.room_number}" thành công`);
             navigate(`/rooms/${id}`);
         } catch (err) {
-            alert(err.message || "Đã xảy ra lỗi khi cập nhật phòng.");
+            setFormError(err.response?.data?.message || err.message || "Đã xảy ra lỗi khi cập nhật phòng.");
         } finally {
             setSaving(false);
         }
@@ -305,8 +314,8 @@ export default function EditRoomPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-24">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => navigate(`/rooms/${id}`)} className="rounded-full">
+            <div className="flex items-start gap-4">
+                <Button variant="outline" size="icon" onClick={() => navigate(`/rooms/${id}`)} className="rounded-full mt-1 shrink-0">
                     <ArrowLeft className="size-4" />
                 </Button>
                 <div>
@@ -314,6 +323,13 @@ export default function EditRoomPage() {
                     <p className="text-sm text-muted-foreground">Cập nhật thông tin phòng {form.room_number}.</p>
                 </div>
             </div>
+
+            {/* Load error */}
+            {formError && !saving && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3">
+                    <p className="text-[12px] text-destructive font-medium">{formError}</p>
+                </div>
+            )}
 
             {/* Lock notice */}
             {isLocked && (
@@ -325,40 +341,67 @@ export default function EditRoomPage() {
                 </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-6" ref={formRef}>
                 {/* Basic Information */}
                 <FormSection title="Thông tin cơ bản">
                     <fieldset disabled={isLocked} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label>Tên / Mã phòng *</Label>
-                                <Input placeholder="VD: A-210" value={form.room_number}
-                                    onChange={(e) => handleChange("room_number", e.target.value)} />
+                            <div className="space-y-1.5" data-field="room_number">
+                                <Label className={fieldErrors.room_number ? "text-destructive" : ""}>Tên / Mã phòng *</Label>
+                                <Input
+                                    placeholder="VD: A-210"
+                                    value={form.room_number}
+                                    onChange={(e) => handleChange("room_number", e.target.value)}
+                                    className={fieldErrors.room_number ? "border-destructive" : ""}
+                                />
+                                {fieldErrors.room_number && <p className="text-[11px] text-destructive">{fieldErrors.room_number}</p>}
                             </div>
-                            <div className="space-y-1.5">
-                                <Label>Loại phòng *</Label>
+                            <div className="space-y-1.5" data-field="room_type_id">
+                                <Label className={fieldErrors.room_type_id ? "text-destructive" : ""}>Loại phòng *</Label>
                                 <Select value={form.room_type_id} onValueChange={(v) => handleChange("room_type_id", v)}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn loại phòng" /></SelectTrigger>
+                                    <SelectTrigger className={fieldErrors.room_type_id ? "border-destructive" : ""}>
+                                        <SelectValue placeholder="Chọn loại phòng" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         {roomTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                                {fieldErrors.room_type_id && <p className="text-[11px] text-destructive">{fieldErrors.room_type_id}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="space-y-1.5 col-span-2">
-                                <Label>Tòa nhà *</Label>
+                            <div className="space-y-1.5 col-span-2" data-field="building_id">
+                                <Label className={fieldErrors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
                                 <Select value={form.building_id} onValueChange={(v) => handleChange("building_id", v)}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn tòa nhà" /></SelectTrigger>
+                                    <SelectTrigger className={fieldErrors.building_id ? "border-destructive" : ""}>
+                                        <SelectValue placeholder="Chọn tòa nhà" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                         {buildings.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                                {fieldErrors.building_id && <p className="text-[11px] text-destructive">{fieldErrors.building_id}</p>}
                             </div>
-                            <div className="space-y-1.5">
-                                <Label>Tầng *</Label>
-                                <Input type="number" placeholder="VD: 5" value={form.floor}
-                                    onChange={(e) => handleChange("floor", e.target.value)} className="text-center" />
+                            <div className="space-y-1.5" data-field="floor">
+                                <Label className={fieldErrors.floor ? "text-destructive" : ""}>
+                                    Tầng *
+                                    {!form.building_id && <span className="text-[10px] font-normal text-muted-foreground ml-1">(chọn tòa nhà trước)</span>}
+                                </Label>
+                                <Select
+                                    value={form.floor}
+                                    onValueChange={(v) => handleChange("floor", v)}
+                                    disabled={!form.building_id || floorOptions.length === 0}
+                                >
+                                    <SelectTrigger className={fieldErrors.floor ? "border-destructive" : ""}>
+                                        <SelectValue placeholder={!form.building_id ? "Chọn tòa nhà trước" : "Chọn tầng"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {floorOptions.map((f) => (
+                                            <SelectItem key={f} value={String(f)}>Tầng {f}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {fieldErrors.floor && <p className="text-[11px] text-destructive">{fieldErrors.floor}</p>}
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Trạng thái</Label>
@@ -390,7 +433,7 @@ export default function EditRoomPage() {
                 </FormSection>
 
                 {/* 3D + Blueprint */}
-                <FormSection title="Mô hình 3D &amp; Bản vẽ (Tùy chọn)">
+                <FormSection title="Mô hình 3D & Bản vẽ (Tùy chọn)">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <SingleImageUploader
                             label="File 3D (OBJ / GLTF / GLB)"
@@ -409,6 +452,13 @@ export default function EditRoomPage() {
                         />
                     </div>
                 </FormSection>
+
+                {/* Inline submit error */}
+                {formError && saving === false && Object.keys(fieldErrors).length === 0 && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3">
+                        <p className="text-[12px] text-destructive font-medium">{formError}</p>
+                    </div>
+                )}
             </div>
 
             {/* Sticky Action Bar */}

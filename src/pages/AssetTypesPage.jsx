@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Plus, MagnifyingGlass, PencilSimple, Trash, Package, ToggleLeft, ToggleRight,
     CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Money as Banknote,
-    CaretLeft, CaretRight,
+    CaretLeft, CaretRight, CheckCircle
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,13 +99,23 @@ function AssetTypeSummary({ stats, filterActive }) {
 
 /* ── Shared form fields ────────────────────── */
 
-function AssetTypeFormFields({ form, setForm, errors }) {
-    const set = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
+function AssetTypeFormFields({ form, setForm, errors, setErrors }) {
+    const set = (key) => (e) => {
+        setForm((p) => ({ ...p, [key]: e.target.value }));
+        if (setErrors && (errors[key] || errors.root)) {
+            setErrors(p => {
+                const n = { ...p };
+                delete n[key];
+                delete n.root;
+                return n;
+            });
+        }
+    };
 
     return (
         <>
             <div className="space-y-1.5">
-                <Label>Tên loại tài sản *</Label>
+                <Label className={errors.name ? "text-destructive" : ""}>Tên loại tài sản *</Label>
                 <Input
                     value={form.name}
                     onChange={set("name")}
@@ -125,7 +136,7 @@ function AssetTypeFormFields({ form, setForm, errors }) {
             </div>
 
             <div className="space-y-1.5">
-                <Label>Giá mặc định (₫)</Label>
+                <Label className={errors.default_price ? "text-destructive" : ""}>Giá mặc định (₫)</Label>
                 <Input
                     type="number" min="0" step="1000"
                     value={form.default_price}
@@ -141,8 +152,8 @@ function AssetTypeFormFields({ form, setForm, errors }) {
 
 function validateForm(form) {
     const e = {};
-    if (!form.name.trim()) e.name = true;
-    if (form.default_price !== "" && Number(form.default_price) < 0) e.default_price = "Giá phải >= 0";
+    if (!form.name?.trim()) e.name = "Vui lòng nhập tên loại tài sản";
+    if (form.default_price !== "" && Number(form.default_price) < 0) e.default_price = "Giá phải từ 0 trở lên";
     return e;
 }
 
@@ -176,12 +187,18 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
         setEditing(true);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const errs = validateForm(form);
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
-        onSave(assetType.id, formToPayload(form));
+        setErrors({});
+        try {
+            await onSave(assetType.id, formToPayload(form));
+            setEditing(false);
+        } catch (err) {
+            setErrors({ root: err.message || "Đã xảy ra lỗi khi cập nhật." });
+        }
     };
 
     if (!assetType) return null;
@@ -196,11 +213,17 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                             <DialogTitle>Chỉnh sửa loại tài sản</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
-                            <AssetTypeFormFields form={form} setForm={setForm} errors={errors} />
+                            <AssetTypeFormFields form={form} setForm={setForm} errors={errors} setErrors={setErrors} />
+                            {errors.root && (
+                                <p className="text-[11px] text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10 text-center">
+                                    {errors.root}
+                                </p>
+                            )}
+
                             <DialogFooter className="pt-2">
                                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                                 <Button type="submit" disabled={saving}>
-                                    {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+                                    {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <CheckCircle className="size-4 mr-1.5" />}
                                     Lưu thay đổi
                                 </Button>
                             </DialogFooter>
@@ -209,17 +232,22 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                 ) : confirmDel ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle>Vô hiệu hóa loại tài sản</DialogTitle>
+                            <DialogTitle>Xóa loại tài sản</DialogTitle>
                         </DialogHeader>
-                        <p className="text-sm text-muted-foreground text-center py-2">
-                            Bạn có chắc muốn vô hiệu hóa loại tài sản{" "}
-                            <strong className="text-foreground">&quot;{at.name}&quot;</strong>?
-                        </p>
+                        <div className="py-4 text-center space-y-2">
+                             <p className="text-sm text-muted-foreground">
+                                Bạn có chắc muốn xóa vĩnh viễn loại tài sản{" "}
+                                <strong className="text-foreground">&quot;{at.name}&quot;</strong>?
+                            </p>
+                            <p className="text-[11px] text-destructive bg-destructive/5 p-2 rounded border border-destructive/10">
+                                Lưu ý: Chỉ có thể xóa nếu không có tài sản nào đang sử dụng loại này.
+                            </p>
+                        </div>
                         <DialogFooter className="justify-center gap-2">
                             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
                             <Button variant="destructive" disabled={saving} onClick={() => onDelete(at.id)}>
                                 {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-                                Vô hiệu hóa
+                                Xác nhận xóa
                             </Button>
                         </DialogFooter>
                     </>
@@ -232,7 +260,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                                     ? "bg-success/15 text-success"
                                     : "bg-muted text-muted-foreground"
                                     }`}>
-                                    {at.is_active ? "Hoạt động" : "Vô hiệu"}
+                                    {at.is_active ? "Hoạt động" : "Vô hiệu hóa"}
                                 </span>
                             </DialogTitle>
                         </DialogHeader>
@@ -257,7 +285,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                                         <Package className="size-3.5 text-muted-foreground" />
                                         <p className="text-[11px] text-muted-foreground">Trạng thái</p>
                                     </div>
-                                    <p className="text-sm font-semibold">{at.is_active ? "Hoạt động" : "Vô hiệu"}</p>
+                                    <p className="text-sm font-semibold">{at.is_active ? "Hoạt động" : "Vô hiệu hóa"}</p>
                                 </div>
                             </div>
 
@@ -278,7 +306,7 @@ function AssetTypeDetailDialog({ open, onOpenChange, assetType, onSave, onDelete
                                 className="text-destructive hover:bg-destructive/10 gap-1.5"
                                 onClick={() => setConfirmDel(true)}
                             >
-                                <Trash className="size-3.5" /> Vô hiệu hóa
+                                <Trash className="size-3.5" /> Xóa loại tài sản
                             </Button>
                             <Button size="sm" className="gap-1.5" onClick={startEdit}>
                                 <PencilSimple className="size-3.5" /> Chỉnh sửa
@@ -297,16 +325,35 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
     const [form, setForm] = useState(EMPTY_FORM);
     const [errors, setErrors] = useState({});
 
+    // Load draft on mount
     useEffect(() => {
-        if (open) { setForm(EMPTY_FORM); setErrors({}); }
-    }, [open]);
+        const saved = localStorage.getItem("fscape_assettype_draft");
+        if (saved) {
+            try { setForm(JSON.parse(saved)); } catch { setForm(EMPTY_FORM); }
+        }
+    }, []);
 
-    const handleSubmit = (e) => {
+    // Sync draft to storage
+    useEffect(() => {
+        if (form !== EMPTY_FORM) {
+            localStorage.setItem("fscape_assettype_draft", JSON.stringify(form));
+        }
+    }, [form]);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const errs = validateForm(form);
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
-        onSave(formToPayload(form));
+        setErrors({});
+        try {
+            await onSave(formToPayload(form));
+            localStorage.removeItem("fscape_assettype_draft");
+            setForm(EMPTY_FORM);
+            onOpenChange(false);
+        } catch (err) {
+            setErrors({ root: err.message || "Đã xảy ra lỗi khi thêm mới." });
+        }
     };
 
     return (
@@ -316,7 +363,14 @@ function AssetTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <DialogTitle>Thêm loại tài sản mới</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 pt-1">
-                    <AssetTypeFormFields form={form} setForm={setForm} errors={errors} />
+                    <AssetTypeFormFields form={form} setForm={setForm} errors={errors} setErrors={setErrors} />
+
+                    {errors.root && (
+                        <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10 text-center">
+                            {errors.root}
+                        </p>
+                    )}
+
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
                         <Button type="submit" disabled={saving} className="gap-1.5">
@@ -385,6 +439,43 @@ export default function AssetTypesPage() {
     useEffect(() => { fetchTypes(); }, [fetchTypes]);
     useEffect(() => { setPage(1); }, [search, filterActive]);
 
+    useEffect(() => {
+        const handleUpdate = (e) => {
+            const { id, updates } = e.detail;
+            setTypes((prev) => {
+                const updated = prev.map(t => String(t.id) === String(id) ? { ...t, ...updates, updated_at: new Date().toISOString() } : t);
+                if (filterActive === "all") return updated;
+                const filtered = updated.filter(t => {
+                    if (filterActive === "active") return t.is_active;
+                    if (filterActive === "inactive") return !t.is_active;
+                    return true;
+                });
+                if (filtered.length !== updated.length) setTotal(p => Math.max(0, p - 1));
+                return filtered;
+            });
+            fetchStats();
+        };
+        const handleCreate = () => fetchTypes();
+        const handleDelete = (e) => {
+            const { id } = e.detail;
+            setTypes((prev) => {
+                const next = prev.filter(t => String(t.id) !== String(id));
+                if (next.length !== prev.length) setTotal(p => Math.max(0, p - 1));
+                return next;
+            });
+            fetchStats();
+        };
+
+        window.addEventListener("asset-type-updated", handleUpdate);
+        window.addEventListener("asset-type-created", handleCreate);
+        window.addEventListener("asset-type-deleted", handleDelete);
+        return () => {
+            window.removeEventListener("asset-type-updated", handleUpdate);
+            window.removeEventListener("asset-type-created", handleCreate);
+            window.removeEventListener("asset-type-deleted", handleDelete);
+        };
+    }, [fetchTypes]);
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -405,11 +496,11 @@ export default function AssetTypesPage() {
         setSaving(true);
         try {
             await api.post("/api/asset-types", data);
-            setShowCreate(false);
-            fetchTypes();
+            toast.success(`Đã thêm loại tài sản "${data.name}"`);
+            window.dispatchEvent(new CustomEvent("asset-type-created"));
             fetchStats();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
+            throw err;
         } finally {
             setSaving(false);
         }
@@ -419,11 +510,11 @@ export default function AssetTypesPage() {
         setSaving(true);
         try {
             await api.put(`/api/asset-types/${id}`, data);
-            setDetailType(null);
-            fetchTypes();
+            toast.success("Cập nhật loại tài sản thành công");
+            window.dispatchEvent(new CustomEvent("asset-type-updated", { detail: { id, updates: data } }));
             fetchStats();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Đã xảy ra lỗi." });
+            throw err;
         } finally {
             setSaving(false);
         }
@@ -433,11 +524,12 @@ export default function AssetTypesPage() {
         setSaving(true);
         try {
             await api.delete(`/api/asset-types/${id}`);
+            toast.success("Đã xóa loại tài sản");
+            window.dispatchEvent(new CustomEvent("asset-type-deleted", { detail: { id } }));
             setDetailType(null);
-            fetchTypes();
             fetchStats();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Không thể vô hiệu hóa." });
+            toast.error(err.message || "Không thể vô hiệu hóa.");
         } finally {
             setSaving(false);
         }
@@ -445,15 +537,15 @@ export default function AssetTypesPage() {
 
     const handleToggleConfirm = async () => {
         setSaving(true);
+        const updates = { is_active: !confirmToggle.is_active };
         try {
-            await api.put(`/api/asset-types/${confirmToggle.id}`, {
-                is_active: !confirmToggle.is_active,
-            });
+            await api.put(`/api/asset-types/${confirmToggle.id}`, updates);
+            toast.success(confirmToggle.is_active ? "Đã vô hiệu hóa loại tài sản" : "Đã kích hoạt loại tài sản");
+            window.dispatchEvent(new CustomEvent("asset-type-updated", { detail: { id: confirmToggle.id, updates } }));
             setConfirmToggle(null);
-            fetchTypes();
             fetchStats();
         } catch (err) {
-            setMsgDialog({ title: "Lỗi", message: err.message || "Không thể cập nhật." });
+            toast.error(err.message || "Không thể cập nhật.");
         } finally {
             setSaving(false);
         }
@@ -494,7 +586,7 @@ export default function AssetTypesPage() {
                             variant={filterActive === k ? "default" : "outline"}
                             onClick={() => setFilterActive(k)}
                         >
-                            {k === "all" ? "Tất cả" : k === "active" ? "Hoạt động" : "Vô hiệu"}
+                            {k === "all" ? "Tất cả" : k === "active" ? "Hoạt động" : "Vô hiệu hóa"}
                         </Button>
                     ))}
                 </div>
@@ -573,7 +665,7 @@ export default function AssetTypesPage() {
                                                 <div className="flex items-center gap-2 text-xs">
                                                     <span className={`size-2 rounded-full ${t.is_active ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-muted-foreground/30"}`} />
                                                     <span className={t.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                                                        {t.is_active ? "Hoạt động" : "Vô hiệu"}
+                                                        {t.is_active ? "Hoạt động" : "Vô hiệu hóa"}
                                                     </span>
                                                 </div>
                                             </TableCell>

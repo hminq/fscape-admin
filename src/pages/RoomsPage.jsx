@@ -4,6 +4,7 @@ import {
   Plus, MagnifyingGlass, Eye, MapPin, Stack as Layers, House,
   CaretLeft, CaretRight, CircleNotch, ToggleLeft, ToggleRight
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,6 +151,24 @@ function BuildingRoomSection({ building, search, statusFilter, onToggle, onView,
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, statusFilter]);
 
+  // Listen for room status updates - update local state without re-fetching
+  useEffect(() => {
+    const onStatusUpdated = (e) => {
+      const { id, newStatus, statusFilter: sf } = e.detail;
+      setRooms(prev => {
+        const updated = prev.map(r => r.id === id ? { ...r, status: newStatus } : r);
+        // If we are filtering by status and this room no longer matches, remove it
+        if (sf && sf !== "all" && newStatus.toLowerCase() !== sf) {
+          return updated.filter(r => r.id !== id);
+        }
+        return updated;
+      });
+    };
+
+    window.addEventListener("room-status-updated", onStatusUpdated);
+    return () => window.removeEventListener("room-status-updated", onStatusUpdated);
+  }, []);
+
   if (!loading && rooms.length === 0) return null;
 
   return (
@@ -218,8 +237,8 @@ export default function RoomsPage() {
   const [toggleError, setToggleError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Bumped after toggle to trigger section re-fetches
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Bumped after toggle to trigger section re-fetches (kept for future use)
+  const [refreshKey] = useState(0);
 
   // 1. Fetch buildings + stats on mount
   const fetchStats = () => {
@@ -258,11 +277,17 @@ export default function RoomsPage() {
     setToggleError(null);
     try {
       await api.patch(`/api/rooms/${confirmToggle.id}/status`, { status: newStatus });
+      const label = newStatus === 'LOCKED' ? 'Đã khóa phòng' : 'Đã mở khóa phòng';
+      toast.success(`${label} "${confirmToggle.room_number}"`);
+      // Dispatch event to update room in each section without full re-fetch
+      window.dispatchEvent(new CustomEvent("room-status-updated", {
+        detail: { id: confirmToggle.id, newStatus, statusFilter: filter }
+      }));
+      // Update stats in background
       fetchStats();
-      setRefreshKey(k => k + 1);
       setConfirmToggle(null);
     } catch (err) {
-      setToggleError(err.message || "Cập nhật thất bại.");
+      setToggleError(err.response?.data?.message || err.message || "Cập nhật thất bại.");
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Buildings, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Buildings, CaretLeft, CaretRight, CheckCircle } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,10 +129,15 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave(location.id, { name: form.name.trim(), is_active: form.is_active === "true" });
+    setErrors({});
+    try {
+      await onSave(location.id, { name: form.name.trim(), is_active: form.is_active === "true" });
+    } catch (err) {
+      setErrors({ root: err.message || "Đã xảy ra lỗi khi cập nhật." });
+    }
   };
 
   if (!location) return null;
@@ -155,6 +161,9 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                 />
                 {errors.name && (
                   <p className="text-[11px] text-destructive">Vui lòng nhập tên khu vực</p>
+                )}
+                {errors.root && (
+                  <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10">{errors.root}</p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -274,21 +283,48 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
 
+  // Load draft on mount
   useEffect(() => {
-    if (open) setForm(EMPTY_FORM);
-  }, [open]);
+    const saved = localStorage.getItem("fscape_location_draft");
+    if (saved) {
+      try {
+        setForm(JSON.parse(saved));
+      } catch {
+        setForm(EMPTY_FORM);
+      }
+    }
+  }, []);
+
+  // Sync draft to storage
+  useEffect(() => {
+    if (form !== EMPTY_FORM) {
+      localStorage.setItem("fscape_location_draft", JSON.stringify(form));
+    }
+  }, [form]);
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = true;
+    if (!form.name?.trim()) e.name = "Vui lòng nhập tên khu vực";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSaveDraft = () => {
+    localStorage.setItem("fscape_location_draft", JSON.stringify(form));
+    toast.success("Đã lưu bản nháp khu vực");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ name: form.name.trim(), is_active: true });
+    setErrors({});
+    try {
+      await onSave({ name: form.name.trim(), is_active: true });
+      localStorage.removeItem("fscape_location_draft");
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      setErrors({ root: err.message || "Đã xảy ra lỗi khi tạo khu vực." });
+    }
   };
 
   return (
@@ -299,21 +335,26 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           <div className="space-y-1.5">
-            <Label>Tên khu vực *</Label>
+            <Label className={errors.name ? "text-destructive" : ""}>Tên khu vực *</Label>
             <Input
               value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder="VD: Hà Nội"
+              onChange={(e) => {
+                setForm((p) => ({ ...p, name: e.target.value }));
+                if (errors.name || errors.root) setErrors({});
+              }}
+              placeholder="VD: Thủ Đức, Quận 10..."
               className={errors.name ? "border-destructive" : ""}
             />
             {errors.name && (
-              <p className="text-[11px] text-destructive">Vui lòng nhập tên khu vực</p>
+              <p className="text-[11px] text-destructive">{errors.name}</p>
+            )}
+            {errors.root && (
+              <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10">{errors.root}</p>
             )}
           </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" size="sm" disabled={saving}>
               {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
               Thêm khu vực
             </Button>
@@ -371,6 +412,44 @@ export default function LocationsPage() {
   useEffect(() => { fetchLocations(); }, [fetchLocations]);
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const { id, updates } = e.detail;
+      setLocations((prev) => {
+         const item = prev.find(x => String(x.id) === String(id));
+         if (!item) return prev;
+         const updatedItem = { ...item, ...updates, updated_at: new Date().toISOString() };
+         
+         if (updates.is_active !== undefined) {
+            const shouldRemove = (filterActive === 'active' && !updates.is_active) || (filterActive === 'inactive' && updates.is_active);
+            if (shouldRemove) {
+               setTotal(p => Math.max(0, p - 1));
+               return prev.filter(x => String(x.id) !== String(id));
+            }
+         }
+         return prev.map(x => String(x.id) === String(id) ? updatedItem : x);
+      });
+    };
+    const handleDelete = (e) => {
+       const { id } = e.detail;
+       setLocations((prev) => {
+          const next = prev.filter(x => String(x.id) !== String(id));
+          if (next.length !== prev.length) setTotal(p => Math.max(0, p - 1));
+          return next;
+       });
+    };
+    const handleCreate = () => fetchLocations();
+
+    window.addEventListener("location-updated", handleUpdate);
+    window.addEventListener("location-deleted", handleDelete);
+    window.addEventListener("location-created", handleCreate);
+    return () => {
+      window.removeEventListener("location-updated", handleUpdate);
+      window.removeEventListener("location-deleted", handleDelete);
+      window.removeEventListener("location-created", handleCreate);
+    };
+  }, [fetchLocations, filterActive]);
+
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -395,10 +474,11 @@ export default function LocationsPage() {
     setSaving(true);
     try {
       await api.post("/api/locations", data);
+      toast.success(`Đã thêm khu vực "${data.name}"`);
       setShowCreate(false);
-      fetchLocations();
+      window.dispatchEvent(new CustomEvent("location-created"));
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -408,10 +488,11 @@ export default function LocationsPage() {
     setSaving(true);
     try {
       await api.put(`/api/locations/${id}`, data);
+      toast.success("Cập nhật khu vực thành công");
       setDetailLoc(null);
-      fetchLocations();
+      window.dispatchEvent(new CustomEvent("location-updated", { detail: { id, updates: data } }));
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -421,10 +502,11 @@ export default function LocationsPage() {
     setSaving(true);
     try {
       await api.delete(`/api/locations/${id}`);
+      toast.success("Đã xóa khu vực");
       setDetailLoc(null);
-      fetchLocations();
+      window.dispatchEvent(new CustomEvent("location-deleted", { detail: { id } }));
     } catch (err) {
-      alert(err.message || "Không thể xóa khu vực. Vui lòng thử lại.");
+      toast.error(err.message || "Không thể xóa khu vực. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -435,10 +517,12 @@ export default function LocationsPage() {
   const handleToggleConfirm = async () => {
     setSaving(true);
     setToggleError(null);
+    const updates = { is_active: !confirmToggle.is_active };
     try {
-      await api.patch(`/api/locations/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
+      await api.patch(`/api/locations/${confirmToggle.id}/status`, updates);
+      toast.success(confirmToggle.is_active ? "Đã vô hiệu hóa khu vực" : "Đã kích hoạt khu vực");
       setConfirmToggle(null);
-      fetchLocations();
+      window.dispatchEvent(new CustomEvent("location-updated", { detail: { id: confirmToggle.id, updates } }));
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {

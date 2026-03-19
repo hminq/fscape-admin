@@ -1018,14 +1018,13 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
         if (!item) return prev;
         
         const updatedItem = { ...item, ...updates };
-        const params = new URLSearchParams({ location_id: locId, page, limit: PER_SECTION });
-        if (search.trim()) params.set("search", search.trim());
-        if (filterActive === "active") params.set("is_active", "true");
-        if (filterActive === "inactive") params.set("is_active", "false");
-        const activeFilter = params.get("is_active");
+        const activeFilter = filterActive === "active" ? "true" : filterActive === "inactive" ? "false" : null;
 
-        if ((activeFilter === "true" && updatedItem.is_active === false) ||
-            (activeFilter === "false" && updatedItem.is_active === true)) {
+        if (activeFilter !== null && (
+            (activeFilter === "true" && updatedItem.is_active === false) ||
+            (activeFilter === "false" && updatedItem.is_active === true)
+        )) {
+          setTotal(p => Math.max(0, p - 1));
           return prev.filter(b => String(b.id) !== String(id));
         }
         return prev.map(b => String(b.id) === String(id) ? updatedItem : b);
@@ -1033,7 +1032,11 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
     };
     const handleDelete = (e) => {
       const { id } = e.detail;
-      setBuildings((prev) => prev.filter(b => String(b.id) !== String(id)));
+      setBuildings((prev) => {
+        const next = prev.filter(b => String(b.id) !== String(id));
+        if (next.length !== prev.length) setTotal(p => Math.max(0, p - 1));
+        return next;
+      });
     };
     window.addEventListener("building-updated", handleUpdate);
     window.addEventListener("building-deleted", handleDelete);

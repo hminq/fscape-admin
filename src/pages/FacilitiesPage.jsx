@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, MagnifyingGlass, PencilSimple, Trash, WifiHigh, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { Plus, MagnifyingGlass, PencilSimple, Trash, WifiHigh, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, CaretLeft, CaretRight, CheckCircle } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,11 @@ function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, 
     setEditing(true);
   };
 
+  const set = (k, v) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    if (errors[k] || errors.root) setErrors({});
+  };
+
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = true;
@@ -117,10 +123,15 @@ function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, 
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave(facility.id, { name: form.name.trim(), is_active: form.is_active === "true" });
+    setErrors({});
+    try {
+      await onSave(facility.id, { name: form.name.trim(), is_active: form.is_active === "true" });
+    } catch (err) {
+      setErrors({ root: err.message || "Đã xảy ra lỗi khi cập nhật." });
+    }
   };
 
   if (!facility) return null;
@@ -138,16 +149,19 @@ function FacilityDetailDialog({ open, onOpenChange, facility, onSave, onDelete, 
                 <Label>Tên tiện ích *</Label>
                 <Input
                   value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => set('name', e.target.value)}
                   className={errors.name ? "border-destructive" : ""}
                 />
                 {errors.name && (
                   <p className="text-[11px] text-destructive">Vui lòng nhập tên tiện ích</p>
                 )}
+                {errors.root && (
+                  <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10">{errors.root}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Trạng thái</Label>
-                <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
+                <Select value={form.is_active} onValueChange={(v) => set('is_active', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true">Hoạt động</SelectItem>
@@ -233,21 +247,48 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
 
+  // Load draft on mount
   useEffect(() => {
-    if (open) setForm(EMPTY_FORM);
-  }, [open]);
+    const saved = localStorage.getItem("fscape_facility_draft");
+    if (saved) {
+      try {
+        setForm(JSON.parse(saved));
+      } catch {
+        setForm(EMPTY_FORM);
+      }
+    }
+  }, []);
+
+  // Sync draft to storage
+  useEffect(() => {
+    if (form !== EMPTY_FORM) {
+      localStorage.setItem("fscape_facility_draft", JSON.stringify(form));
+    }
+  }, [form]);
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = true;
+    if (!form.name?.trim()) e.name = "Vui lòng nhập tên tiện ích";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSaveDraft = () => {
+    localStorage.setItem("fscape_facility_draft", JSON.stringify(form));
+    toast.success("Đã lưu bản nháp");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ name: form.name.trim(), is_active: true });
+    setErrors({});
+    try {
+      await onSave({ name: form.name.trim(), is_active: true });
+      localStorage.removeItem("fscape_facility_draft");
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      setErrors({ root: err.message || "Đã xảy ra lỗi khi tạo tiện ích." });
+    }
   };
 
   return (
@@ -258,20 +299,26 @@ function FacilityCreateDialog({ open, onOpenChange, onSave, saving }) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           <div className="space-y-1.5">
-            <Label>Tên tiện ích *</Label>
+            <Label className={errors.name ? "text-destructive" : ""}>Tên tiện ích *</Label>
             <Input
               value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              onChange={(e) => {
+                setForm((p) => ({ ...p, name: e.target.value }));
+                if (errors.name || errors.root) setErrors({});
+              }}
               placeholder="VD: Wifi, Phòng gym, Bãi xe..."
               className={errors.name ? "border-destructive" : ""}
             />
             {errors.name && (
-              <p className="text-[11px] text-destructive">Vui lòng nhập tên tiện ích</p>
+              <p className="text-[11px] text-destructive">{errors.name}</p>
+            )}
+            {errors.root && (
+              <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10">{errors.root}</p>
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" size="sm" disabled={saving}>
               {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
               Thêm tiện ích
             </Button>
@@ -345,6 +392,55 @@ export default function FacilitiesPage() {
   useEffect(() => { fetchFacilities(); }, [fetchFacilities]);
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const { id, updates } = e.detail;
+      setFacilities((prev) => {
+        const item = prev.find(x => String(x.id) === String(id));
+        if (!item) return prev;
+        
+        const updatedItem = { ...item, ...updates, updated_at: new Date().toISOString() };
+        
+        // If updating status, checking if it still matches the filter
+        if (updates.is_active !== undefined) {
+           const shouldRemove = (filterActive === 'active' && !updates.is_active) || (filterActive === 'inactive' && updates.is_active);
+           if (shouldRemove) {
+              setTotal(p => Math.max(0, p - 1));
+              return prev.filter(x => String(x.id) !== String(id));
+           }
+        }
+        
+        return prev.map(x => String(x.id) === String(id) ? updatedItem : x);
+      });
+      fetchStats();
+    };
+
+    const handleDelete = (e) => {
+      const { id } = e.detail;
+      setFacilities((prev) => {
+        const next = prev.filter(x => String(x.id) !== String(id));
+        if (next.length !== prev.length) setTotal(p => Math.max(0, p - 1));
+        return next;
+      });
+      fetchStats();
+    };
+
+    const handleCreate = () => {
+      fetchFacilities();
+      fetchStats();
+    };
+
+    window.addEventListener("facility-updated", handleUpdate);
+    window.addEventListener("facility-deleted", handleDelete);
+    window.addEventListener("facility-created", handleCreate);
+
+    return () => {
+      window.removeEventListener("facility-updated", handleUpdate);
+      window.removeEventListener("facility-deleted", handleDelete);
+      window.removeEventListener("facility-created", handleCreate);
+    };
+  }, [fetchFacilities, fetchStats, filterActive]);
+
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -367,10 +463,11 @@ export default function FacilitiesPage() {
     setSaving(true);
     try {
       await api.post("/api/facilities", data);
+      toast.success(`Đã thêm tiện ích "${data.name}"`);
       setShowCreate(false);
-      refresh();
+      window.dispatchEvent(new CustomEvent("facility-created"));
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      throw err; // Let the form catch it for inline display
     } finally {
       setSaving(false);
     }
@@ -380,10 +477,11 @@ export default function FacilitiesPage() {
     setSaving(true);
     try {
       await api.put(`/api/facilities/${id}`, data);
+      toast.success("Cập nhật tiện ích thành công");
       setDetailItem(null);
-      refresh();
+      window.dispatchEvent(new CustomEvent("facility-updated", { detail: { id, updates: data } }));
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      throw err; // Let the form catch it for inline display
     } finally {
       setSaving(false);
     }
@@ -393,10 +491,11 @@ export default function FacilitiesPage() {
     setSaving(true);
     try {
       await api.delete(`/api/facilities/${id}`);
+      toast.success("Đã xóa tiện ích");
       setDetailItem(null);
-      refresh();
+      window.dispatchEvent(new CustomEvent("facility-deleted", { detail: { id } }));
     } catch (err) {
-      alert(err.message || "Không thể xóa tiện ích. Vui lòng thử lại.");
+      toast.error(err.message || "Không thể xóa tiện ích. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -405,10 +504,12 @@ export default function FacilitiesPage() {
   const handleToggleConfirm = async () => {
     setSaving(true);
     setToggleError(null);
+    const updates = { name: confirmToggle.name, is_active: !confirmToggle.is_active };
     try {
-      await api.put(`/api/facilities/${confirmToggle.id}`, { name: confirmToggle.name, is_active: !confirmToggle.is_active });
+      await api.put(`/api/facilities/${confirmToggle.id}`, updates);
+      toast.success(confirmToggle.is_active ? "Đã vô hiệu hóa tiện ích" : "Đã kích hoạt tiện ích");
       setConfirmToggle(null);
-      refresh();
+      window.dispatchEvent(new CustomEvent("facility-updated", { detail: { id: confirmToggle.id, updates } }));
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {
