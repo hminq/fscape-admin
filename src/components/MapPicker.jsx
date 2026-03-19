@@ -104,7 +104,7 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
               onDragEnd={handleDragEnd}
             >
               <MarkerContent>
-                <MapPin className="size-7 text-white fill-primary -translate-y-1/2 drop-shadow-md" />
+                <MapPin className="size-7 text-white fill-red-500 -translate-y-1/2 drop-shadow-md" />
               </MarkerContent>
             </MapMarker>
           )}
