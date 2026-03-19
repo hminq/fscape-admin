@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload, X, Plus, CircleNotch,
   MapPin, Stack as Layers, Image as ImageIcon,
+  CaretLeft,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,8 @@ import { apiJson, apiRequest } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import MapPicker from "@/components/MapPicker";
+import CreateAccountDialog from "@/components/CreateAccountDialog";
+import { clearCache } from "./BuildingsPage";
 
 /* ── upload helper ─────────────────────────── */
 
@@ -203,16 +206,27 @@ export default function CreateBuildingPage() {
   const [locations, setLocations] = useState([]);
   const [managers, setManagers] = useState([]);
 
-  const [form, setForm] = useState({
-    name: "",
-    location_id: "",
-    manager_id: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-    total_floors: "",
-    description: "",
-    facilities: [],
+  const [form, setForm] = useState(() => {
+    const defaultState = {
+      name: "",
+      location_id: "",
+      manager_id: "",
+      address: "",
+      latitude: "",
+      longitude: "",
+      total_floors: "",
+      description: "",
+      facilities: [],
+    };
+    const saved = localStorage.getItem("building_draft");
+    if (saved) {
+      try {
+        return { ...defaultState, ...JSON.parse(saved) };
+      } catch (e) {
+        /* fallback */
+      }
+    }
+    return defaultState;
   });
 
   /* thumbnail state */
@@ -223,17 +237,46 @@ export default function CreateBuildingPage() {
   const [galleryImages, setGalleryImages] = useState([]);
 
   const [errors, setErrors] = useState({});
+  const [showAddManager, setShowAddManager] = useState(false);
+
+  // Refs for auto-scrolling to errors
+  const nameRef = useRef(null);
+  const locationRef = useRef(null);
+  const managerRef = useRef(null);
+  const addressRef = useRef(null);
+  const totalFloorsRef = useRef(null);
+  const scrollOffset = 100; // Offset to account for sticky header if any
+
+  const scrollTo = (ref) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const fetchManagers = useCallback(async () => {
+    try {
+      const res = await apiJson("/api/users/available-managers");
+      setManagers(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch managers:", err);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
-      const [locResult, mngResult] = await Promise.allSettled([
+      const [locResult] = await Promise.allSettled([
         apiJson("/api/locations?limit=100&is_active=true"),
-        apiJson("/api/users/available-managers"),
       ]);
       if (locResult.status === "fulfilled") setLocations(locResult.value.data || []);
-      if (mngResult.status === "fulfilled") setManagers(mngResult.value.data || []);
+      fetchManagers();
     })();
-  }, []);
+  }, [fetchManagers]);
+
+  useEffect(() => {
+    if (Object.keys(form).length > 0) {
+      localStorage.setItem("building_draft", JSON.stringify(form));
+    }
+  }, [form]);
 
   const set = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
@@ -245,11 +288,30 @@ export default function CreateBuildingPage() {
     if (!form.name.trim()) e.name = "Tên tòa nhà là bắt buộc";
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
     if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
-    if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
+    if (!form.address.trim()) {
+      e.address = "Địa chỉ là bắt buộc";
+    } else if (!/(?=.*\d)(?=.*[\p{L}])(?:.*,){2,}/u.test(form.address)) {
+      e.address = "Địa chỉ cần đầy đủ (Số nhà, Đường/Phường, Quận/Huyện, Tỉnh/TP)";
+    } else if (!form.latitude || !form.longitude) {
+      e.address = "Vui lòng tìm kiếm địa chỉ hợp lệ trên bản đồ";
+    }
+    
     if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
     else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
       e.total_floors = "Số tầng phải từ 1 đến 99";
     setErrors(e);
+    
+    // Auto-scroll to first error - use timeout to ensure render
+    if (Object.keys(e).length > 0) {
+      setTimeout(() => {
+        if (e.name) scrollTo(nameRef);
+        else if (e.location_id) scrollTo(locationRef);
+        else if (e.manager_id) scrollTo(managerRef);
+        else if (e.address) scrollTo(addressRef);
+        else if (e.total_floors) scrollTo(totalFloorsRef);
+      }, 50);
+    }
+
     return Object.keys(e).length === 0;
   };
 
@@ -310,6 +372,8 @@ export default function CreateBuildingPage() {
       console.log("[CreateBuilding] Final payload:", JSON.stringify(payload, null, 2));
 
       await apiJson("/api/buildings", { method: "POST", body: payload });
+      localStorage.removeItem("building_draft"); // Xóa bản nháp sau khi lưu thành công
+      clearCache(); // Làm mới cache của trang danh sách
       navigate("/buildings");
     } catch (err) {
       toast.error(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
@@ -322,6 +386,15 @@ export default function CreateBuildingPage() {
     <div className="max-w-3xl mx-auto pb-12 pt-2">
       {/* Header */}
       <div className="mb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="p-0 h-auto hover:bg-transparent text-muted-foreground hover:text-foreground mb-3 gap-1 -translate-x-1"
+          onClick={() => navigate("/buildings")}
+        >
+          <CaretLeft className="size-4" />
+          <span>Quay lại danh sách</span>
+        </Button>
         <h1 className="text-2xl font-bold tracking-tight">Thêm tòa nhà mới</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Điền thông tin để khởi tạo tòa nhà FScape mới.</p>
       </div>
@@ -332,7 +405,7 @@ export default function CreateBuildingPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Thông tin cơ bản</h2>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" ref={nameRef}>
               <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
               <Input
                 placeholder="VD: FScape Cầu Giấy"
@@ -342,9 +415,9 @@ export default function CreateBuildingPage() {
               />
               {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" ref={locationRef}>
               <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
-              <Select value={form.location_id} onValueChange={(v) => set("location_id", v)}>
+              <Select value={form.location_id ? String(form.location_id) : ""} onValueChange={(v) => set("location_id", v)}>
                 <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
                 </SelectTrigger>
@@ -356,9 +429,9 @@ export default function CreateBuildingPage() {
               </Select>
               {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
             </div>
-            <div className="space-y-1.5 col-span-2 md:col-span-1">
+            <div className="space-y-1.5 col-span-2 md:col-span-1" ref={managerRef}>
               <Label className={errors.manager_id ? "text-destructive" : ""}>Người quản lý *</Label>
-              <Select value={form.manager_id} onValueChange={(v) => set("manager_id", v)}>
+              <Select value={form.manager_id ? String(form.manager_id) : ""} onValueChange={(v) => set("manager_id", v)}>
                 <SelectTrigger className={errors.manager_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn quản lý tòa nhà" />
                 </SelectTrigger>
@@ -368,23 +441,38 @@ export default function CreateBuildingPage() {
                       {m.first_name} {m.last_name} ({m.email})
                     </SelectItem>
                   ))}
-                  {managers.length === 0 && (
-                    <div className="py-2 text-center text-xs text-muted-foreground w-full">Không có quản lý trống</div>
-                  )}
+                  <div className="p-1 border-t border-border mt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start gap-2 h-8 text-primary hover:text-primary hover:bg-primary/5 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowAddManager(true);
+                      }}
+                    >
+                      <Plus className="size-3.5" />
+                      Thêm quản lý mới
+                    </Button>
+                  </div>
                 </SelectContent>
               </Select>
               {errors.manager_id && <p className="text-[11px] text-destructive">{errors.manager_id}</p>}
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" ref={addressRef}>
             <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
                 value={form.address}
-                onChange={(e) => set("address", e.target.value)}
+                onChange={(e) => {
+                  set("address", e.target.value);
+                  setForm(p => ({ ...p, latitude: "", longitude: "" }));
+                }}
                 className={cn("pl-9", errors.address && "border-destructive")}
               />
             </div>
@@ -394,14 +482,16 @@ export default function CreateBuildingPage() {
           <MapPicker
             latitude={form.latitude}
             longitude={form.longitude}
+            address={form.address}
             onChange={(lat, lng) => {
               set("latitude", lat);
-              setForm((p) => ({ ...p, longitude: lng }));
+              setForm((p) => ({ ...p, longitude: lng, latitude: lat }));
             }}
+            onError={(msg) => setErrors(p => ({ ...p, address: msg }))}
           />
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" ref={totalFloorsRef}>
               <Label>Số tầng</Label>
               <div className="relative">
                 <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -474,6 +564,15 @@ export default function CreateBuildingPage() {
           Tạo tòa nhà
         </Button>
       </div>
+
+      <CreateAccountDialog
+        open={showAddManager}
+        onOpenChange={setShowAddManager}
+        onSaved={() => {
+          fetchManagers();
+          setShowAddManager(false);
+        }}
+      />
     </div>
   );
 }
