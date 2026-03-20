@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, SignOut } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import fscapeLogo from "@/assets/fscape-logo.svg";
+
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();
@@ -17,14 +17,6 @@ export default function ForbiddenPage() {
         backgroundSize: "24px 24px",
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 mb-12">
-        <img src={fscapeLogo} alt="FScape" className="size-10" />
-        <span className="text-2xl font-display tracking-wide text-foreground leading-none translate-y-px">
-          FSCAPE
-        </span>
-      </div>
-
       {/* Code + message */}
       <p className="text-7xl font-bold tracking-tight text-foreground">403</p>
       <h1 className="mt-3 text-xl font-semibold text-foreground">Truy cập bị từ chối</h1>
@@ -38,7 +30,7 @@ export default function ForbiddenPage() {
         <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="rounded-full shadow-sm hover:translate-x-[-2px] transition-transform">
           <ArrowLeft className="size-4" />
         </Button>
-        <Button onClick={logout} className="gap-1.5">
+        <Button onClick={() => { logout(); navigate("/login", { replace: true }); }} className="gap-1.5">
           <SignOut className="size-4" /> Đăng xuất
         </Button>
       </div>
