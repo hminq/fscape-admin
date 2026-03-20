@@ -46,6 +46,8 @@ import BMContractDetailPage from "./pages/bm/BMContractDetailPage";
 import BMRequestAssignPage from "./pages/bm/BMRequestAssignPage";
 import BMRequestDetailPage from "./pages/bm/BMRequestDetailPage";
 import ProfilePage from "./pages/ProfilePage";
+import BookingsPage from "./pages/BookingsPage";
+import BMBookingsPage from "./pages/bm/BMBookingsPage";
 
 export default function App() {
   return (
@@ -72,6 +74,7 @@ export default function App() {
               <Route path="assets" element={<BMAssetsPage />} />
               <Route path="notifications" element={<BMNotificationsPage />} />
               <Route path="notifications/create" element={<BMNotificationCreatePage />} />
+              <Route path="bookings" element={<BMBookingsPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
@@ -104,6 +107,7 @@ export default function App() {
               <Route path="contracts/templates/create" element={<ContractTemplateEditorPage />} />
               <Route path="contracts/templates/:id/edit" element={<ContractTemplateEditorPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="bookings" element={<BookingsPage />} />
               <Route path="requests" element={<RequestsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />

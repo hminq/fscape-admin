@@ -11,6 +11,7 @@ import {
   ChatCircleText,
   Scroll,
   CaretDown,
+  CalendarCheck,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
@@ -70,6 +71,12 @@ const navItems = [
     icon: Receipt,
     to: "/invoices",
     children: [{ label: "Danh sách", to: "/invoices" }],
+  },
+  {
+    label: "Đặt phòng",
+    icon: CalendarCheck,
+    to: "/bookings",
+    children: [{ label: "Danh sách", to: "/bookings" }],
   },
   {
     label: "Yêu cầu",
