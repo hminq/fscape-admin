@@ -45,6 +45,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -53,13 +54,33 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    
+    let hasError = false;
+    const newFieldErrors = { email: "", password: "" };
+    
+    if (!email.trim()) {
+      newFieldErrors.email = "Vui lòng nhập email";
+      hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newFieldErrors.email = "Email không hợp lệ.";
+      hasError = true;
+    }
+    
+    if (!password) {
+      newFieldErrors.password = "Vui lòng nhập mật khẩu";
+      hasError = true;
+    }
+
+    setFieldErrors(newFieldErrors);
+    if (hasError) return;
+
     setError("");
     setLoading(true);
     try {
       const data = await apiJson("/api/auth/internal/login", {
         method: "POST",
         withAuth: false,
-        body: { email, password },
+        body: { email: email.trim(), password },
       });
 
       const u = data.user ?? {};
@@ -75,7 +96,14 @@ export default function LoginPage() {
 
       navigate(ROLE_HOME[u.role] ?? "/");
     } catch (err) {
-      setError(err?.message || "Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.");
+      if (!err.status) {
+        setError("Không thể kết nối đến máy chủ nội bộ. Bạn đã chạy backend chưa?");
+      } else if (err.status >= 500) {
+        setError("Lỗi hệ thống máy chủ. Vui lòng thử lại sau.");
+      } else {
+        // Luôn hiện chung một lỗi cho mọi trường hợp sai thông tin đăng nhập
+        setError("Tài khoản hoặc mật khẩu không chính xác.");
+      }
     } finally {
       setLoading(false);
     }
@@ -238,7 +266,7 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
             {/* Email field */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -250,10 +278,17 @@ export default function LoginPage() {
                 type="email"
                 placeholder="admin@fscape.vn"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{ height: 44 }}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
+                }}
+                style={{ height: 44, borderColor: fieldErrors.email ? "var(--destructive)" : undefined }}
               />
+              {fieldErrors.email && (
+                <span style={{ color: "var(--destructive)", fontSize: "0.8rem", fontWeight: 500, marginTop: "0.25rem" }}>
+                  {fieldErrors.email}
+                </span>
+              )}
             </div>
 
             {/* Password field */}
@@ -269,9 +304,15 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  style={{ height: 44, paddingRight: "2.75rem" }}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: "" }));
+                  }}
+                  style={{
+                    height: 44,
+                    paddingRight: "2.75rem",
+                    borderColor: fieldErrors.password ? "var(--destructive)" : undefined,
+                  }}
                 />
                 <button
                   type="button"
@@ -294,6 +335,11 @@ export default function LoginPage() {
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
+              {fieldErrors.password && (
+                <span style={{ color: "var(--destructive)", fontSize: "0.8rem", fontWeight: 500, marginTop: "0.25rem" }}>
+                  {fieldErrors.password}
+                </span>
+              )}
             </div>
 
             {/* Error */}

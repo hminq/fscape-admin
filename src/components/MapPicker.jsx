@@ -104,7 +104,12 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
               onDragEnd={handleDragEnd}
             >
               <MarkerContent>
-                <MapPin className="size-7 text-white fill-red-500 -translate-y-1/2 drop-shadow-md" />
+                <div className="flex items-center justify-center -translate-y-1/2">
+                  <span className="absolute size-6 animate-ping rounded-full bg-primary/30" />
+                  <span className="relative flex size-5 items-center justify-center rounded-full border-2 border-white bg-primary shadow-lg">
+                    <MapPin className="size-3 text-white" weight="fill" />
+                  </span>
+                </div>
               </MarkerContent>
             </MapMarker>
           )}

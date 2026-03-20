@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone,
   ToggleLeft, ToggleRight, ShieldCheck, UserGear as UserCog, UserCheck,
   CaretLeft, CaretRight, Eye, Copy, Check, CheckCircle,
-  Buildings,
+  Buildings, Key, ArrowCounterClockwise,
 } from "@phosphor-icons/react";
+import CreateAccountDialog from "@/components/CreateAccountDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,169 +115,6 @@ function AccountSummary({ active, inactive, roleCounts, filterActive }) {
   );
 }
 
-/* ── Create Account Dialog ─────────────────── */
-
-function CreateAccountDialog({ open, onOpenChange, onSaved }) {
-  const [form, setForm] = useState({});
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setForm({ first_name: "", last_name: "", email: "", phone: "", role: "BUILDING_MANAGER" });
-    setErrors({});
-    setResult(null);
-    setCopied(false);
-  }, [open]);
-
-  const set = (k, v) => {
-    setForm((p) => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
-  };
-
-  const validate = () => {
-    const e = {};
-    if (!form.first_name?.trim()) e.first_name = true;
-    if (!form.email?.trim()) e.email = true;
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = async (ev) => {
-    ev.preventDefault();
-    if (!validate()) return;
-    setSaving(true);
-    try {
-      const res = await apiJson("/api/users", {
-        method: "POST",
-        body: {
-          first_name: form.first_name.trim(),
-          last_name: form.last_name?.trim() || undefined,
-          email: form.email.trim(),
-          phone: form.phone?.trim() || undefined,
-          role: form.role,
-        },
-      });
-      setResult(res.data ?? res);
-    } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result?.generated_password || "");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    if (result) onSaved();
-  };
-
-  /* ── Success view ── */
-  if (result) {
-    return (
-      <Dialog open={open} onOpenChange={() => handleClose()}>
-        <DialogContent className="max-w-sm text-center">
-          <div className="flex flex-col items-center gap-4 py-2">
-            <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <CheckCircle className="size-7 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-semibold">Tạo tài khoản thành công</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {fullName(result)} — {result.email}
-              </p>
-            </div>
-
-            <div className="w-full rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-              <p className="text-xs text-muted-foreground">Mật khẩu được tạo tự động — hãy gửi cho người dùng:</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm font-mono font-semibold tracking-wider text-center select-all">
-                  {result.generated_password}
-                </code>
-                <Button size="icon" variant="outline" className="shrink-0 size-9" onClick={handleCopy}>
-                  {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="sm:justify-center">
-            <Button onClick={handleClose}>Đóng</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  /* ── Form view ── */
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Tạo tài khoản mới</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Họ *</Label>
-              <Input value={form.first_name || ""} onChange={(e) => set("first_name", e.target.value)}
-                placeholder="VD: Nguyễn"
-                className={errors.first_name ? "border-destructive" : ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tên</Label>
-              <Input value={form.last_name || ""} onChange={(e) => set("last_name", e.target.value)}
-                placeholder="VD: Văn A" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Email *</Label>
-              <Input type="email" value={form.email || ""} onChange={(e) => set("email", e.target.value)}
-                placeholder="email@example.com"
-                className={errors.email ? "border-destructive" : ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Số điện thoại</Label>
-              <Input value={form.phone || ""} onChange={(e) => set("phone", e.target.value)}
-                placeholder="09xx xxx xxx" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Vai trò *</Label>
-            <Select value={form.role || "BUILDING_MANAGER"} onValueChange={(v) => set("role", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BUILDING_MANAGER">Quản lý tòa nhà</SelectItem>
-                <SelectItem value="STAFF">Nhân viên</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <p className="text-xs text-muted-foreground">Mật khẩu sẽ được hệ thống tự động tạo.</p>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
-              Tạo tài khoản
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /* ── Account Detail Dialog ────────────────── */
 
 function AccountDetailDialog({ open, onOpenChange, account }) {
@@ -359,7 +198,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
 
 const PER_SECTION = 8;
 
-function RoleSection({ role, search, filterActive, onToggle, onView, refreshKey }) {
+function RoleSection({ role, search, filterActive, onToggle, onView, onReset, refreshKey }) {
   const [accounts, setAccounts] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -389,6 +228,15 @@ function RoleSection({ role, search, filterActive, onToggle, onView, refreshKey 
   }, [role, page, search, filterActive]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts, refreshKey]);
+
+  useEffect(() => {
+    const handleUserUpdate = (e) => {
+      const { id, is_active } = e.detail;
+      setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, is_active } : a)));
+    };
+    window.addEventListener("account-updated", handleUserUpdate);
+    return () => window.removeEventListener("account-updated", handleUserUpdate);
+  }, []);
 
   // Reset to page 1 when search or filter changes
   useEffect(() => { setPage(1); }, [search, filterActive]);
@@ -477,6 +325,11 @@ function RoleSection({ role, search, filterActive, onToggle, onView, refreshKey 
                         </Button>
                       )}
                       <Button size="icon" variant="ghost" className="size-8"
+                        title="Đặt lại mật khẩu"
+                        onClick={() => onReset(acc)}>
+                        <Key className="size-4 text-warning" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="size-8"
                         title="Chi tiết"
                         onClick={() => onView(acc)}>
                         <Eye className="size-4" />
@@ -502,6 +355,7 @@ export default function AccountsPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [confirmToggle, setConfirmToggle] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(null);
   const [detailAcc, setDetailAcc] = useState(null);
 
   const [stats, setStats] = useState(null);
@@ -539,8 +393,14 @@ export default function AccountsPage() {
     setToggleError(null);
     try {
       await api.patch(`/api/users/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
+      
+      // Thông báo cho các RoleSection cập nhật trạng thái local
+      window.dispatchEvent(new CustomEvent("account-updated", { 
+        detail: { id: confirmToggle.id, is_active: !confirmToggle.is_active } 
+      }));
+
       setConfirmToggle(null);
-      refresh();
+      fetchStats(); // Chỉ load lại thống kê ở trên đầu
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật.");
     } finally {
@@ -554,6 +414,29 @@ export default function AccountsPage() {
     const id = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(id);
   }, [search]);
+
+  /* Reset password logic */
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState(null);
+  const [resetCopied, setResetCopied] = useState(false);
+
+  const handleResetPassword = async () => {
+    setResetting(true);
+    try {
+      const res = await apiJson(`/api/users/${confirmReset.id}/reset-password`, { method: "POST" });
+      setResetResult(res.data || res);
+    } catch (err) {
+      toast.error(err.message || "Không thể đặt lại mật khẩu.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleCopyReset = () => {
+    navigator.clipboard.writeText(resetResult?.new_password || "");
+    setResetCopied(true);
+    setTimeout(() => setResetCopied(false), 2000);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -608,6 +491,7 @@ export default function AccountsPage() {
             filterActive={filterActive}
             onToggle={setConfirmToggle}
             onView={setDetailAcc}
+            onReset={setConfirmReset}
             refreshKey={refreshKey}
           />
         ))}
@@ -650,6 +534,66 @@ export default function AccountsPage() {
               {confirmToggle?.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Confirm reset password */}
+      <Dialog open={!!confirmReset} onOpenChange={(v) => { if (!v) { setConfirmReset(null); setResetResult(null); } }}>
+        <DialogContent className={resetResult ? "max-w-sm text-center" : "max-w-md"}>
+          {!resetResult ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Đặt lại mật khẩu</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-3 text-center">
+                <div className="inline-flex size-12 rounded-full bg-warning/10 items-center justify-center mb-2">
+                  <Key className="size-6 text-warning" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Bạn có chắc muốn đặt lại mật khẩu cho tài khoản <br />
+                  <strong className="text-foreground text-base">&quot;{confirmReset && fullName(confirmReset)}&quot;</strong>?
+                </p>
+                <p className="text-xs text-muted-foreground font-medium p-2 bg-muted/50 rounded-lg border border-border">
+                  Mật khẩu mới sẽ được tạo tự động và hiển thị ngay sau khi bạn xác nhận.
+                </p>
+              </div>
+              <DialogFooter className="gap-2 sm:justify-center">
+                <Button variant="outline" onClick={() => setConfirmReset(null)}>Hủy</Button>
+                <Button disabled={resetting} onClick={handleResetPassword}>
+                  {resetting && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+                  Xác nhận đặt lại
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col items-center gap-4 py-2">
+                <div className="size-14 rounded-full bg-warning/10 flex items-center justify-center">
+                  <ArrowCounterClockwise className="size-7 text-warning" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold">Đặt lại mật khẩu thành công</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {fullName(confirmReset)} — {confirmReset.email}
+                  </p>
+                </div>
+
+                <div className="w-full rounded-xl border border-border bg-muted/30 p-4 space-y-3 text-left">
+                  <p className="text-xs text-muted-foreground text-center">Mật khẩu mới của người dùng:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm font-mono font-semibold tracking-wider text-center select-all">
+                      {resetResult.new_password}
+                    </code>
+                    <Button size="icon" variant="outline" className="shrink-0 size-9" onClick={handleCopyReset}>
+                      {resetCopied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="sm:justify-center">
+                <Button onClick={() => { setConfirmReset(null); setResetResult(null); }}>Đóng</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

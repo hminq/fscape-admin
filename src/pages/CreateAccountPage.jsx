@@ -42,17 +42,38 @@ export default function CreateAccountPage() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState({});
 
-    const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+    const handleChange = (k, v) => {
+        setForm((p) => ({ ...p, [k]: v }));
+        if (fieldErrors[k]) {
+            setFieldErrors((prev) => {
+                const updated = { ...prev };
+                delete updated[k];
+                return updated;
+            });
+        }
+    };
 
     const handleSave = async () => {
-        if (!form.first_name || !form.email || !form.password) {
-            alert("Vui lòng điền đầy đủ các trường bắt buộc (*)");
-            return;
+        const errors = {};
+        if (!form.first_name.trim()) errors.first_name = "Vui lòng nhập họ";
+        if (!form.last_name.trim()) errors.last_name = "Vui lòng nhập tên";
+        if (!form.email.trim()) {
+            errors.email = "Vui lòng nhập email";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+            errors.email = "Email không đúng định dạng";
+        }
+        if (!form.phone.trim()) errors.phone = "Vui lòng nhập số điện thoại";
+        if (!form.password) errors.password = "Vui lòng nhập mật khẩu";
+        if (form.password && form.password.length < 6) errors.password = "Mật khẩu phải có ít nhất 6 ký tự";
+        if (!form.confirmPassword) errors.confirmPassword = "Vui lòng xác nhận mật khẩu";
+        if (form.password && form.confirmPassword && form.password !== form.confirmPassword) {
+            errors.confirmPassword = "Mật khẩu xác nhận không khớp";
         }
 
-        if (form.password !== form.confirmPassword) {
-            alert("Mật khẩu xác nhận không khớp");
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors({ ...errors, main: "Vui lòng điền đầy đủ các thông tin bắt buộc." });
             return;
         }
 
@@ -71,7 +92,7 @@ export default function CreateAccountPage() {
             });
             navigate("/accounts");
         } catch (err) {
-            alert(err.message || "Đã xảy ra lỗi khi tạo tài khoản.");
+            setFieldErrors({ general: err.message || "Đã xảy ra lỗi khi tạo tài khoản." });
         } finally {
             setSaving(false);
         }
@@ -85,6 +106,15 @@ export default function CreateAccountPage() {
                 <p className="text-sm text-muted-foreground">Thêm thành viên quản trị mới cho hệ thống FScape.</p>
             </div>
 
+            {fieldErrors.general && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-destructive text-white p-1 rounded-full">
+                        <Plus className="size-3 rotate-45" />
+                    </div>
+                    <span className="font-semibold">{fieldErrors.general}</span>
+                </div>
+            )}
+
             <div className="space-y-6">
                 <FormSection title="Thông tin cá nhân">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -94,15 +124,19 @@ export default function CreateAccountPage() {
                                 placeholder="VD: Nguyễn"
                                 value={form.first_name}
                                 onChange={(e) => handleChange("first_name", e.target.value)}
+                                className={fieldErrors.first_name ? "border-destructive animate-shake" : ""}
                             />
+                            {fieldErrors.first_name && <p className="text-xs text-destructive font-medium">{fieldErrors.first_name}</p>}
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Tên</Label>
+                             <Label>Tên *</Label>
                             <Input
                                 placeholder="VD: Văn A"
                                 value={form.last_name}
                                 onChange={(e) => handleChange("last_name", e.target.value)}
+                                className={fieldErrors.last_name ? "border-destructive animate-shake" : ""}
                             />
+                            {fieldErrors.last_name && <p className="text-xs text-destructive font-medium">{fieldErrors.last_name}</p>}
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,15 +147,19 @@ export default function CreateAccountPage() {
                                 placeholder="email@example.com"
                                 value={form.email}
                                 onChange={(e) => handleChange("email", e.target.value)}
+                                className={fieldErrors.email ? "border-destructive animate-shake" : ""}
                             />
+                            {fieldErrors.email && <p className="text-xs text-destructive font-medium">{fieldErrors.email}</p>}
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Số điện thoại</Label>
+                         <div className="space-y-1.5">
+                            <Label>Số điện thoại *</Label>
                             <Input
                                 placeholder="09xx xxx xxx"
                                 value={form.phone}
                                 onChange={(e) => handleChange("phone", e.target.value)}
+                                className={fieldErrors.phone ? "border-destructive animate-shake" : ""}
                             />
+                            {fieldErrors.phone && <p className="text-xs text-destructive font-medium">{fieldErrors.phone}</p>}
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,6 +200,7 @@ export default function CreateAccountPage() {
                                     {showPassword ? <EyeSlash className="size-4" /> : <Eye className="size-4" />}
                                 </Button>
                             </div>
+                            {fieldErrors.password && <p className="text-xs text-destructive font-medium">{fieldErrors.password}</p>}
                         </div>
                         <div className="space-y-1.5">
                             <Label>Xác nhận mật khẩu *</Label>
@@ -183,11 +222,18 @@ export default function CreateAccountPage() {
                                     {showConfirmPassword ? <EyeSlash className="size-4" /> : <Eye className="size-4" />}
                                 </Button>
                             </div>
+                            {fieldErrors.confirmPassword && <p className="text-xs text-destructive font-medium">{fieldErrors.confirmPassword}</p>}
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50 italic">
                         Lưu ý: Mật khẩu nên có ít nhất 8 ký tự, bao gồm chữ số và ký tự đặc biệt để đảm bảo tính an toàn.
                     </p>
+                    {fieldErrors.general && (
+                        <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg flex items-center gap-2">
+                             <CircleNotch className="size-4" />
+                             {fieldErrors.general}
+                        </div>
+                    )}
                 </FormSection>
 
                 <div className="flex items-center justify-end gap-3 pt-4">

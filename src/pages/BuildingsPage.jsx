@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, Eye,
   ArrowLeft, Stack as Layers, CircleNotch,
   ImageSquare as ImagePlus, X, CaretLeft, CaretRight,
   User as UserIcon, Phone, Envelope,
-  ToggleLeft, ToggleRight, FloppyDisk, Users
+  ToggleLeft, ToggleRight, FloppyDisk, Users, CheckCircle
 } from "@phosphor-icons/react";
+import CreateAccountDialog from "@/components/CreateAccountDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +23,91 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
+import { cn } from "@/lib/utils";
 import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 import StatusBar from "@/components/StatusBar";
+
+/* ── global cache for buildings ────────────── */
+const buildingsCache = new Map();
+const statsCache = { data: null, timestamp: 0 };
+const CACHE_TTL = 60000; // 1 minute
+
+function getBuildingsCache(key) {
+  const item = buildingsCache.get(key);
+  if (!item || Date.now() - item.timestamp > CACHE_TTL) return null;
+  return item.data;
+}
+
+function setBuildingsCache(key, data) {
+  buildingsCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function clearCache() {
+  buildingsCache.clear();
+  statsCache.data = null;
+  statsCache.timestamp = 0;
+}
+
+export function removeBuildingFromCache(id) {
+  // Update all list entries in buildingsCache
+  for (const [key, value] of buildingsCache.entries()) {
+    // value is { data: { data: [], totalPages, total }, timestamp }
+    const body = value.data;
+    if (body && Array.isArray(body.data)) {
+      const updatedList = body.data.filter(b => String(b.id) !== String(id));
+      if (updatedList.length !== body.data.length) {
+        buildingsCache.set(key, { 
+          ...value, 
+          data: {
+            ...body,
+            data: updatedList,
+            total: Math.max(0, body.total - 1)
+          },
+          timestamp: Date.now() 
+        });
+      }
+    }
+  }
+  // Also clear stats since total count changed
+  statsCache.data = null;
+}
+
+export function updateBuildingInCache(id, updates) {
+  // Update all list entries in buildingsCache
+  for (const [key, value] of buildingsCache.entries()) {
+    const body = value.data;
+    if (body && Array.isArray(body.data)) {
+      const idx = body.data.findIndex(b => String(b.id) === String(id));
+      if (idx !== -1) {
+        const newData = [...body.data];
+        const updatedItem = { ...newData[idx], ...updates };
+        newData[idx] = updatedItem;
+        
+        const params = new URLSearchParams(key);
+        const activeFilter = params.get("is_active");
+        let finalData = newData;
+        let finalTotal = body.total;
+
+        // Xử lý logic lọc sau khi cập nhật status
+        if (activeFilter === "true" && updatedItem.is_active === false) {
+           finalData = newData.filter(b => String(b.id) !== String(id));
+           finalTotal = Math.max(0, body.total - 1);
+        } else if (activeFilter === "false" && updatedItem.is_active === true) {
+           finalData = newData.filter(b => String(b.id) !== String(id));
+           finalTotal = Math.max(0, body.total - 1);
+        }
+
+        buildingsCache.set(key, { 
+          ...value, 
+          data: { ...body, data: finalData, total: finalTotal },
+          timestamp: Date.now() 
+        });
+      }
+    }
+  }
+}
 
 /* ── helpers ───────────────────────────────── */
 
@@ -195,6 +278,33 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   const [confirmDel, setConfirmDel] = useState(false);
   const thumbInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const [showAddManager, setShowAddManager] = useState(false);
+  const [Managers, setManagers] = useState([]);
+
+  // Refs for auto-scrolling to errors
+  const nameRef = useRef(null);
+  const locationRef = useRef(null);
+  const addressRef = useRef(null);
+  const totalFloorsRef = useRef(null);
+
+  const scrollTo = (ref) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const fetchManagers = useCallback(async () => {
+    try {
+      const res = await apiJson("/api/users/available-managers");
+      setManagers(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch managers:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchManagers();
+  }, [fetchManagers]);
 
   // Staff view state (read-only)
   const [staffList, setStaffList] = useState([]);
@@ -240,6 +350,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
       total_floors: building.total_floors ?? "",
       latitude: building.latitude ?? "",
       longitude: building.longitude ?? "",
+      manager_id: building.manager_id || "",
     });
     setThumbFile(null);
     setThumbPreview(building.thumbnail_url || null);
@@ -265,13 +376,22 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
 
   const validate = () => {
     const e = {};
-    if (!form.name?.trim()) e.name = true;
-    if (!form.location_id) e.location_id = true;
-    if (!form.address?.trim()) e.address = true;
+    if (!form.name?.trim()) e.name = "Tên tòa nhà là bắt buộc";
+    if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
+    if (!form.address?.trim()) e.address = "Địa chỉ là bắt buộc";
     if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
     else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
       e.total_floors = "Số tầng phải từ 1 đến 99";
     setErrors(e);
+    
+    if (Object.keys(e).length > 0) {
+      setTimeout(() => {
+        if (e.name) scrollTo(nameRef);
+        else if (e.location_id) scrollTo(locationRef);
+        else if (e.address) scrollTo(addressRef);
+        else if (e.total_floors) scrollTo(totalFloorsRef);
+      }, 50);
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -309,37 +429,41 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         thumbnail_url: thumbnail_url || undefined,
         images: galleryUrls.length > 0 ? galleryUrls : undefined,
         facilities: facilityIds,
+        manager_id: form.manager_id || undefined,
       };
 
       await apiJson(`/api/buildings/${building.id}`, { method: "PUT", body: payload });
+      
+      const updates = { 
+        name: payload.name, 
+        address: payload.address, 
+        thumbnail_url: payload.thumbnail_url,
+        total_floors: payload.total_floors
+      };
+      updateBuildingInCache(building.id, updates);
+      window.dispatchEvent(new CustomEvent("building-updated", { detail: { id: building.id, updates } }));
+
       setIsEditing(false);
       fetchBuilding();
+      toast.success("Cập nhật tòa nhà thành công");
       if (onUpdateSuccess) onUpdateSuccess();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+      toast.error(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
-  };
-
-  const addGalleryFiles = (files) => {
-    const max = 5;
-    const remaining = max - galleryImages.length;
-    if (remaining <= 0) return;
-    const newImgs = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .slice(0, remaining)
-      .map((f) => ({ file: f, url: URL.createObjectURL(f) }));
-    setGalleryImages((prev) => [...prev, ...newImgs]);
   };
 
   const handleDelete = async () => {
     setSaving(true);
     try {
       await apiJson(`/api/buildings/${buildingId}`, { method: "DELETE" });
+      removeBuildingFromCache(buildingId); // Surgically remove from cache
+      window.dispatchEvent(new CustomEvent("building-deleted", { detail: { id: buildingId } }));
+      toast.success("Xóa tòa nhà thành công");
       onDeleteSuccess();
     } catch (err) {
-      alert(err.message || "Không thể xóa tòa nhà. Vui lòng thử lại.");
+      toast.error(err.message || "Không thể xóa tòa nhà. Vui lòng thử lại.");
     } finally {
       setSaving(false);
       setConfirmDel(false);
@@ -373,91 +497,102 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 pb-20">
       {/* Header */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-4">
         <button
           onClick={onBack}
-          className="mt-0.5 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+          className="mt-1 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="size-4" />
         </button>
-        <div>
-          <div className="flex items-center gap-2.5 mb-0.5">
-            <h1 className="text-lg font-bold">{isEditing ? "Chỉnh sửa: " : ""}{building.name}</h1>
-            {!isEditing && (
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold">
-                <span className={`size-2 rounded-full ${building.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
-                <span className={building.is_active ? "text-success" : "text-muted-foreground"}>
-                  {building.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+        <div className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight">
+                {isEditing ? `Chỉnh sửa: ${building.name}` : building.name}
+              </h1>
+              {!isEditing && (
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold bg-muted/50 px-2 py-0.5 rounded-full border border-border">
+                  <span className={`size-2 rounded-full ${building.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
+                  <span className={building.is_active ? "text-success" : "text-muted-foreground"}>
+                    {building.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                  </span>
                 </span>
-              </span>
+              )}
+            </div>
+            {!isEditing && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-2 h-9" onClick={startEditing}>
+                  <PencilSimple className="size-4" /> Chỉnh sửa
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-2 h-9" onClick={() => setConfirmDel(true)}>
+                  <Trash className="size-4" /> Xóa
+                </Button>
+              </div>
             )}
           </div>
           {!isEditing && (
-            <p className="text-[13px] text-muted-foreground flex items-center gap-1.5">
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
               <MapPin className="size-3.5" /> {building.address}
             </p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-2">
-          {!isEditing && (
-            <Button variant="outline" className="gap-2" onClick={startEditing}>
-              <PencilSimple className="size-4" /> Chỉnh sửa
-            </Button>
-          )}
-        </div>
-
-        {!isEditing && (
-          <Button
-            variant="destructive"
-            className="gap-2"
-            onClick={() => setConfirmDel(true)}
-          >
-            <Trash className="size-4" /> Xóa tòa nhà
-          </Button>
-        )}
-      </div>
-
       {isEditing ? (
-        <form id="edit-building-form" onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
+          {/* Thông tin cơ bản */}
           <Card className="p-5 space-y-5 shadow-none border-border">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Thông tin cơ bản</h2>
+            
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Tên tòa nhà *</Label>
-                <Input value={form.name || ""} onChange={(e) => setFormField("name", e.target.value)}
+              <div className="space-y-1.5" ref={nameRef}>
+                <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
+                <Input value={form.name || ""} 
+                  onChange={(e) => setFormField("name", e.target.value)}
                   className={errors.name ? "border-destructive" : ""} />
+                {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
               </div>
-              <div className="space-y-1.5">
-                <Label>Khu vực *</Label>
-                <Select value={form.location_id || ""} onValueChange={(v) => setFormField("location_id", v)}>
+
+              <div className="space-y-1.5" ref={locationRef}>
+                <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
+                <Select value={form.location_id ? String(form.location_id) : ""} 
+                  onValueChange={(v) => setFormField("location_id", v)}>
                   <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
                     <SelectValue placeholder="Chọn khu vực" />
                   </SelectTrigger>
                   <SelectContent>
                     {locations?.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
+              </div>
+
+              <div className="space-y-1.5 col-span-2 md:col-span-1">
+                <Label className="text-muted-foreground">Người quản lý</Label>
+                <div className="flex flex-col gap-1 p-2 border border-border bg-muted/30 rounded-lg">
+                   <p className="text-sm font-medium">
+                      {building.manager ? `${building.manager.first_name} ${building.manager.last_name}` : "Chưa có quản lý"}
+                   </p>
+                   <p className="text-[11px] text-muted-foreground italic">
+                      {building.manager?.email || ""}
+                   </p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Địa chỉ *</Label>
-              <Input value={form.address || ""} onChange={(e) => setFormField("address", e.target.value)}
-                className={errors.address ? "border-destructive" : ""} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Số tầng</Label>
-              <Input type="number" min="1" max="99" value={form.total_floors || ""}
-                onChange={(e) => setFormField("total_floors", e.target.value)}
-                className={errors.total_floors ? "border-destructive" : ""} />
-              {errors.total_floors && <p className="text-sm text-destructive">{errors.total_floors}</p>}
+            <div className="space-y-1.5 pt-2" ref={addressRef}>
+              <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input value={form.address || ""}
+                  onChange={(e) => setFormField("address", e.target.value)}
+                  className={cn("pl-9", errors.address && "border-destructive")} />
+              </div>
+              {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
             </div>
 
             <MapPicker
@@ -469,83 +604,125 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               }}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Vĩ độ</Label>
-                <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+            <div className="grid grid-cols-3 gap-4 border-t border-border/50 pt-4 mt-2">
+              <div className="space-y-1.5" ref={totalFloorsRef}>
+                <Label className={errors.total_floors ? "text-destructive" : ""}>Số tầng</Label>
+                <div className="relative">
+                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input type="number" min="1" max="99" value={form.total_floors || ""}
+                    onChange={(e) => setFormField("total_floors", e.target.value)}
+                    className={cn("pl-9", errors.total_floors && "border-destructive")} />
+                </div>
+                {errors.total_floors && <p className="text-[11px] text-destructive">{errors.total_floors}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label>Kinh độ</Label>
-                <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+                <Label className="text-muted-foreground">Vĩ độ</Label>
+                <Input value={form.latitude ?? ""} readOnly className="bg-muted/50 border-dashed" />
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Mô tả</Label>
-              <Textarea rows={4} value={form.description || ""}
-                onChange={(e) => setFormField("description", e.target.value)}
-                placeholder="Mô tả ngắn về tòa nhà..." />
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground">Kinh độ</Label>
+                <Input value={form.longitude ?? ""} readOnly className="bg-muted/50 border-dashed" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-5 space-y-5 shadow-none border-border">
-            {/* Thumbnail */}
-            <div className="space-y-1.5">
-              <Label>Ảnh đại diện</Label>
-              {thumbPreview ? (
-                <div className="relative w-48 aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
-                  <img src={thumbPreview} alt="" className="w-full h-full object-cover" />
-                  <button type="button"
-                    onClick={() => { setThumbFile(null); setThumbPreview(null); }}
-                    className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button type="button" onClick={() => thumbInputRef.current?.click()}
-                  className="w-48 aspect-video rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
-                  <ImagePlus className="size-5" />
-                  <span className="text-[11px]">Chọn ảnh</span>
-                </button>
-              )}
-              <input ref={thumbInputRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }
-                  e.target.value = "";
-                }} />
-            </div>
+          {/* Mô tả */}
+          <Card className="p-5 space-y-3 shadow-none border-border">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mô tả</h2>
+            <Textarea rows={4} value={form.description || ""}
+              onChange={(e) => setFormField("description", e.target.value)}
+              placeholder="Mô tả tòa nhà..."
+              className="resize-none focus-visible:ring-1" />
+          </Card>
 
-            {/* Gallery */}
-            <div className="space-y-1.5">
-              <Label>Thư viện ảnh ({galleryImages.length}/5)</Label>
-              <div className="flex flex-wrap gap-2">
-                {galleryImages.map((img, idx) => (
-                  <div key={idx} className="relative group size-20 rounded-lg overflow-hidden border border-border bg-muted">
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+          {/* Hình ảnh */}
+          <Card className="p-5 space-y-5 shadow-none border-border font-medium">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground text-foreground">Hình ảnh</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Thumbnail */}
+              <div className="space-y-2">
+                <Label>Ảnh đại diện</Label>
+                {thumbPreview ? (
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted group ring-1 ring-border/50 shadow-sm">
+                    <img src={thumbPreview} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
                     <button type="button"
-                      onClick={() => setGalleryImages((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="size-3" />
+                      onClick={() => { setThumbFile(null); setThumbPreview(null); }}
+                      className="absolute top-2 right-2 size-8 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80">
+                      <X className="size-4" />
                     </button>
                   </div>
-                ))}
-                {galleryImages.length < 5 && (
-                  <button type="button" onClick={() => galleryInputRef.current?.click()}
-                    className="size-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
-                    <Plus className="size-5" />
+                ) : (
+                  <button type="button" onClick={() => thumbInputRef.current?.click()}
+                    className="w-full aspect-video rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-3 text-muted-foreground hover:border-primary/50 hover:text-primary transition-all hover:bg-primary/5 group">
+                    <ImagePlus className="size-8 transition-transform group-hover:scale-110" />
+                    <span className="text-xs font-semibold">Chọn ảnh đại diện</span>
                   </button>
                 )}
+                <input ref={thumbInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) { setThumbFile(f); setThumbPreview(URL.createObjectURL(f)); }
+                    e.target.value = "";
+                  }} />
               </div>
-              <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden"
-                onChange={(e) => { addGalleryFiles(e.target.files); e.target.value = ""; }} />
+
+              {/* Gallery */}
+              <div className="space-y-2">
+                <Label>Thư viện ảnh ({galleryImages.length}/5)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {galleryImages.map((img, idx) => (
+                    <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted ring-1 ring-border/30">
+                      <img src={img.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                      <button type="button"
+                        onClick={() => setGalleryImages((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {galleryImages.length < 5 && (
+                    <button type="button" onClick={() => galleryInputRef.current?.click()}
+                      className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-primary transition-all hover:bg-primary/5">
+                      <Plus className="size-5" />
+                      <span className="text-[10px] uppercase font-bold">Thêm ảnh</span>
+                    </button>
+                  )}
+                </div>
+                <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    const max = 5 - galleryImages.length;
+                    const newImgs = files.slice(0, max).map(f => ({ file: f, url: URL.createObjectURL(f) }));
+                    setGalleryImages(prev => [...prev, ...newImgs]);
+                    e.target.value = "";
+                  }} />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-5 space-y-5 shadow-none border-border">
+          {/* Tiện ích */}
+          <Card className="p-5 border-border shadow-none">
             <EditFacilityPicker selectedIds={facilityIds} onChange={setFacilityIds} />
           </Card>
-        </form>
+
+          {/* Footer Actions */}
+          <div className="bg-background/95 backdrop-blur-sm border-t border-border p-4 fixed bottom-0 right-0 left-0 md:left-64 flex items-center justify-end gap-3 z-50 px-8 shadow-lg transition-transform animate-in slide-in-from-bottom duration-300">
+            <Button variant="outline" onClick={() => setIsEditing(false)} disabled={saving} className="h-10 px-6">Hủy</Button>
+            <Button onClick={handleSubmit} disabled={saving} className="h-10 px-8 bg-primary shadow-md hover:shadow-lg transition-all active:scale-95">
+              {saving ? <CircleNotch className="size-4 animate-spin mr-2" /> : <CheckCircle className="size-4 mr-2" />}
+              Lưu thay đổi
+            </Button>
+          </div>
+
+          <CreateAccountDialog
+            open={showAddManager}
+            onOpenChange={setShowAddManager}
+            onSaved={() => {
+              fetchManagers();
+              setShowAddManager(false);
+            }}
+          />
+        </div>
       ) : (
         <div className="space-y-6">
           {/* Main info card — thumbnail only */}
@@ -771,17 +948,34 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchBuildings = useCallback(async () => {
+  const fetchBuildings = useCallback(async (isBumping = false) => {
+    const params = new URLSearchParams({ location_id: locId, page, limit: PER_SECTION });
+    if (search.trim()) params.set("search", search.trim());
+    if (filterActive === "active") params.set("is_active", "true");
+    if (filterActive === "inactive") params.set("is_active", "false");
+    const key = params.toString();
+
+    const cached = getBuildingsCache(key);
+    if (cached && !isBumping) {
+      setBuildings(cached.data);
+      setTotalPages(cached.totalPages);
+      setTotal(cached.total);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const params = new URLSearchParams({ location_id: locId, page, limit: PER_SECTION });
-      if (search.trim()) params.set("search", search.trim());
-      if (filterActive === "active") params.set("is_active", "true");
-      if (filterActive === "inactive") params.set("is_active", "false");
       const res = await apiJson(`/api/buildings?${params}`);
-      setBuildings(res.data || []);
-      setTotalPages(res.totalPages || 1);
-      setTotal(res.total || 0);
+      const body = {
+        data: res.data || [],
+        totalPages: res.totalPages || 1,
+        total: res.total || 0
+      };
+      setBuildings(body.data);
+      setTotalPages(body.totalPages);
+      setTotal(body.total);
+      setBuildingsCache(key, body);
     } catch {
       setBuildings([]);
     } finally {
@@ -789,7 +983,45 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
     }
   }, [locId, page, search, filterActive]);
 
-  useEffect(() => { fetchBuildings(); }, [fetchBuildings, refreshKey]);
+  useEffect(() => { 
+    fetchBuildings(refreshKey > 0); 
+  }, [fetchBuildings, refreshKey]);
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const { id, updates } = e.detail;
+      setBuildings((prev) => {
+        const item = prev.find(b => String(b.id) === String(id));
+        if (!item) return prev;
+        
+        const updatedItem = { ...item, ...updates };
+        const activeFilter = filterActive === "active" ? "true" : filterActive === "inactive" ? "false" : null;
+
+        if (activeFilter !== null && (
+            (activeFilter === "true" && updatedItem.is_active === false) ||
+            (activeFilter === "false" && updatedItem.is_active === true)
+        )) {
+          setTotal(p => Math.max(0, p - 1));
+          return prev.filter(b => String(b.id) !== String(id));
+        }
+        return prev.map(b => String(b.id) === String(id) ? updatedItem : b);
+      });
+    };
+    const handleDelete = (e) => {
+      const { id } = e.detail;
+      setBuildings((prev) => {
+        const next = prev.filter(b => String(b.id) !== String(id));
+        if (next.length !== prev.length) setTotal(p => Math.max(0, p - 1));
+        return next;
+      });
+    };
+    window.addEventListener("building-updated", handleUpdate);
+    window.addEventListener("building-deleted", handleDelete);
+    return () => {
+      window.removeEventListener("building-updated", handleUpdate);
+      window.removeEventListener("building-deleted", handleDelete);
+    };
+  }, [locId, page, search, filterActive]);
+
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
   if (!loading && total === 0) return null;
@@ -869,13 +1101,20 @@ export default function BuildingsPage() {
 
   /* stats from /api/buildings/stats */
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, by_location: [] });
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (isBumping = false) => {
+    if (statsCache.data && !isBumping && Date.now() - statsCache.timestamp < CACHE_TTL) {
+      setStats(statsCache.data);
+      return;
+    }
     try {
       const res = await apiJson("/api/buildings/stats");
-      setStats(res.data || { total: 0, active: 0, inactive: 0, by_location: [] });
+      const data = res.data || { total: 0, active: 0, inactive: 0, by_location: [] };
+      setStats(data);
+      statsCache.data = data;
+      statsCache.timestamp = Date.now();
     } catch { /* silent */ }
   }, []);
-  useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
+  useEffect(() => { fetchStats(refreshKey > 0); }, [fetchStats, refreshKey]);
 
   const locationCounts = useMemo(
     () => stats.by_location.map(({ name, count }) => ({ name, count })),
@@ -911,8 +1150,12 @@ export default function BuildingsPage() {
     setToggleError(null);
     try {
       await api.patch(`/api/buildings/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
+      const updates = { is_active: !confirmToggle.is_active };
+      updateBuildingInCache(confirmToggle.id, updates);
+      window.dispatchEvent(new CustomEvent("building-updated", { detail: { id: confirmToggle.id, updates } }));
+      
       setConfirmToggle(null);
-      refresh();
+      fetchStats(); // Update header stats independently 
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật trạng thái.");
     } finally {
@@ -928,7 +1171,7 @@ export default function BuildingsPage() {
         locations={locations}
         onDeleteSuccess={() => {
           setSelectedId(null);
-          refresh();
+          // fetchStats(); // Update statistics
         }}
         onUpdateSuccess={() => {
           refresh();

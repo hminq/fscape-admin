@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, GraduationCap,
   ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings,
-  CaretLeft, CaretRight,
+  CaretLeft, CaretRight, CheckCircle
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,14 @@ import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 const STATUS = {
   true: { label: "Hoạt động" },
   false: { label: "Vô hiệu hóa" },
+};
+
+const EMPTY_FORM = {
+  name: "",
+  address: "",
+  latitude: "",
+  longitude: "",
+  location_id: "",
 };
 
 /* ── DonutChart ─────────────────────────────── */
@@ -227,35 +236,52 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
 /* ── Create / Edit Dialog ───────────────────── */
 
 function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSaved }) {
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    if (mode === "edit" && initialData) {
-      setForm({
-        name: initialData.name || "",
-        address: initialData.address || "",
-        latitude: initialData.latitude ?? "",
-        longitude: initialData.longitude ?? "",
-        location_id: initialData.location_id || "",
-      });
+    if (mode === "create") {
+      const saved = localStorage.getItem("fscape_uni_draft");
+      if (saved) {
+        try {
+          setForm(JSON.parse(saved));
+        } catch {
+          setForm(EMPTY_FORM);
+        }
+      } else {
+        setForm(EMPTY_FORM);
+      }
     } else {
-      setForm({ name: "", address: "", latitude: "", longitude: "", location_id: "" });
+      setForm(initialData || EMPTY_FORM);
     }
     setErrors({});
   }, [open, mode, initialData]);
 
+  // Auto-save draft only in create mode
+  useEffect(() => {
+    if (open && mode === "create" && form !== EMPTY_FORM) {
+      localStorage.setItem("fscape_uni_draft", JSON.stringify(form));
+    }
+  }, [form, open, mode]);
+
   const set = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
+    if (errors[k] || errors.root) setErrors({});
   };
 
   const validate = () => {
     const e = {};
-    if (!form.name?.trim()) e.name = true;
-    if (!form.location_id) e.location_id = true;
+    if (!form.name?.trim()) e.name = "Tên trường là bắt buộc";
+    if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
+    if (form.address?.trim()) {
+       if (!/(?=.*\d)(?=.*[\p{L}])(?:.*,){2,}/u.test(form.address)) {
+          e.address = "Địa chỉ cần đầy đủ (Số nhà, Đường/Phường, Quận/Huyện, Tỉnh/TP)";
+       } else if (!form.latitude || !form.longitude) {
+          e.address = "Vui lòng tìm kiếm địa chỉ hợp lệ trên bản đồ";
+       }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -264,23 +290,29 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
+    setErrors({});
     try {
       const body = {
         name: form.name.trim(),
         address: form.address?.trim() || undefined,
         latitude: form.latitude ? Number(form.latitude) : undefined,
         longitude: form.longitude ? Number(form.longitude) : undefined,
-        ...(mode === "create" ? { location_id: form.location_id } : {}),
+        location_id: form.location_id,
       };
 
       if (mode === "create") {
         await apiJson("/api/universities", { method: "POST", body });
+        localStorage.removeItem("fscape_uni_draft");
+        toast.success(`Đã thêm trường "${body.name}"`);
+        window.dispatchEvent(new CustomEvent("uni-created"));
       } else {
         await apiJson(`/api/universities/${initialData.id}`, { method: "PUT", body });
+        toast.success("Cập nhật trường thành công");
+        window.dispatchEvent(new CustomEvent("uni-updated", { detail: { id: initialData.id, updates: body } }));
       }
       onSaved();
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi.");
+      setErrors({ root: err.message || "Đã xảy ra lỗi." });
     } finally {
       setSaving(false);
     }
@@ -295,13 +327,14 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Tên trường *</Label>
+              <Label className={errors.name ? "text-destructive" : ""}>Tên trường *</Label>
               <Input value={form.name || ""} onChange={(e) => set("name", e.target.value)}
                 placeholder="VD: Đại học Bách Khoa"
                 className={errors.name ? "border-destructive" : ""} />
+              {errors.name && <p className="text-[10px] text-destructive font-medium">{errors.name}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Khu vực *</Label>
+              <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
               <Select value={form.location_id || ""} onValueChange={(v) => set("location_id", v)}>
                 <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Chọn khu vực" />
@@ -312,39 +345,56 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
                   ))}
                 </SelectContent>
               </Select>
+              {errors.location_id && <p className="text-[10px] text-destructive font-medium">{errors.location_id}</p>}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Địa chỉ</Label>
-            <Input value={form.address || ""} onChange={(e) => set("address", e.target.value)}
-              placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM" />
+            <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ</Label>
+            <Input 
+              value={form.address || ""} 
+              onChange={(e) => {
+                set("address", e.target.value);
+                setForm(p => ({ ...p, latitude: "", longitude: "" }));
+              }}
+              placeholder="VD: 268 Lý Thường Kiệt, Q.10, TP.HCM" 
+              className={errors.address ? "border-destructive" : ""}
+            />
+            {errors.address && <p className="text-[10px] text-destructive font-medium leading-tight">{errors.address}</p>}
           </div>
 
           <MapPicker
             latitude={form.latitude}
             longitude={form.longitude}
+            address={form.address}
             onChange={(lat, lng) => {
               set("latitude", lat);
               setForm((p) => ({ ...p, longitude: lng }));
             }}
+            onError={(msg) => setErrors(p => ({ ...p, address: msg }))}
           />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Vĩ độ</Label>
-              <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+              <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/30 cursor-default" />
             </div>
             <div className="space-y-1.5">
               <Label>Kinh độ</Label>
-              <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+              <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/30 cursor-default" />
             </div>
           </div>
+
+          {errors.root && (
+            <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2.5 rounded-lg border border-destructive/10 text-center">
+              {errors.root}
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : (mode === 'create' ? <Plus className="size-4 mr-1.5" /> : <CheckCircle className="size-4 mr-1.5" />)}
               {mode === "create" ? "Thêm trường" : "Lưu thay đổi"}
             </Button>
           </DialogFooter>
@@ -488,6 +538,32 @@ export default function UniversitiesPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const { id, updates } = e.detail;
+      setAllUnis((prev) => prev.map(u => {
+        if (String(u.id) !== String(id)) return u;
+        const loc = locations.find(l => String(l.id) === String(updates.location_id));
+        return { ...u, ...updates, location: loc || u.location };
+      }));
+    };
+    const handleDelete = (e) => {
+      const { id } = e.detail;
+      setAllUnis((prev) => prev.filter(u => String(u.id) !== String(id)));
+    };
+    const handleCreate = () => fetchAll();
+
+    window.addEventListener("uni-updated", handleUpdate);
+    window.addEventListener("uni-deleted", handleDelete);
+    window.addEventListener("uni-created", handleCreate);
+
+    return () => {
+      window.removeEventListener("uni-updated", handleUpdate);
+      window.removeEventListener("uni-deleted", handleDelete);
+      window.removeEventListener("uni-created", handleCreate);
+    };
+  }, [fetchAll, locations]);
+
   const filtered = useMemo(() => allUnis.filter((u) => {
     if (filterActive === "active" && !u.is_active) return false;
     if (filterActive === "inactive" && u.is_active) return false;
@@ -517,10 +593,11 @@ export default function UniversitiesPage() {
     setSaving(true);
     try {
       await apiJson(`/api/universities/${confirmDel.id}`, { method: "DELETE" });
+      toast.success(`Đã xóa trường "${confirmDel.name}"`);
       setConfirmDel(null);
-      fetchAll();
+      window.dispatchEvent(new CustomEvent("uni-deleted", { detail: { id: confirmDel.id } }));
     } catch (err) {
-      alert(err.message || "Không thể xóa.");
+      toast.error(err.message || "Không thể xóa.");
     } finally {
       setSaving(false);
     }
@@ -531,10 +608,12 @@ export default function UniversitiesPage() {
   const handleToggle = async () => {
     setSaving(true);
     setToggleError(null);
+    const updates = { is_active: !confirmToggle.is_active };
     try {
-      await api.patch(`/api/universities/${confirmToggle.id}/status`, { is_active: !confirmToggle.is_active });
+      await api.patch(`/api/universities/${confirmToggle.id}/status`, updates);
+      toast.success(confirmToggle.is_active ? "Đã vô hiệu hóa trường" : "Đã kích hoạt trường");
       setConfirmToggle(null);
-      fetchAll();
+      window.dispatchEvent(new CustomEvent("uni-updated", { detail: { id: confirmToggle.id, updates } }));
     } catch (err) {
       setToggleError(err.message || "Không thể cập nhật.");
     } finally {

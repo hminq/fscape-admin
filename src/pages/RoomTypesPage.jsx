@@ -4,6 +4,7 @@ import {
     CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye,
     Bed, Bathtub, ArrowsOutSimple, Users, Money as Banknote, CaretLeft, CaretRight,
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,8 +109,18 @@ function RoomTypeSummary({ stats, filterActive }) {
 
 /* ── Shared form fields ────────────────────── */
 
-function RoomTypeFormFields({ form, setForm, errors, hideStatus = false }) {
-    const set = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
+function RoomTypeFormFields({ form, setForm, errors, setErrors, hideStatus = false }) {
+    const set = (key) => (e) => {
+        setForm((p) => ({ ...p, [key]: e.target.value }));
+        if (setErrors && (errors[key] || errors.root)) {
+            setErrors((p) => {
+                const newErrs = { ...p };
+                delete newErrs[key];
+                delete newErrs.root;
+                return newErrs;
+            });
+        }
+    };
 
     return (
         <>
@@ -185,7 +196,10 @@ function RoomTypeFormFields({ form, setForm, errors, hideStatus = false }) {
             {!hideStatus && (
                 <div className="space-y-1.5">
                     <Label>Trạng thái</Label>
-                    <Select value={form.is_active} onValueChange={(v) => setForm((p) => ({ ...p, is_active: v }))}>
+                    <Select value={form.is_active} onValueChange={(v) => {
+                        setForm((p) => ({ ...p, is_active: v }));
+                        if (setErrors) setErrors({});
+                    }}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="true">Hoạt động</SelectItem>
@@ -273,7 +287,12 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                             <DialogTitle>Chỉnh sửa loại phòng</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-3 pt-1 max-h-[70vh] overflow-y-auto pr-1">
-                            <RoomTypeFormFields form={form} setForm={setForm} errors={errors} />
+                            <RoomTypeFormFields form={form} setForm={setForm} errors={errors} setErrors={setErrors} />
+                            {errors.root && (
+                                <p className="text-[11px] text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10">
+                                    {errors.root}
+                                </p>
+                            )}
                             <DialogFooter className="pt-2">
                                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                                 <Button type="submit" disabled={saving}>
@@ -286,17 +305,17 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                 ) : confirmDel ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle>Vô hiệu hóa loại phòng</DialogTitle>
+                            <DialogTitle>Xóa loại phòng</DialogTitle>
                         </DialogHeader>
                         <p className="text-sm text-muted-foreground text-center py-2">
-                            Bạn có chắc muốn vô hiệu hóa loại phòng{" "}
+                            Bạn có chắc muốn xóa loại phòng{" "}
                             <strong className="text-foreground">&quot;{rt.name}&quot;</strong>?
                         </p>
                         <DialogFooter className="justify-center gap-2">
                             <Button variant="outline" onClick={() => setConfirmDel(false)}>Hủy</Button>
                             <Button variant="destructive" disabled={saving} onClick={() => onDelete(rt.id)}>
                                 {saving && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-                                Vô hiệu hóa
+                               Xóa loại phòng
                             </Button>
                         </DialogFooter>
                     </>
@@ -357,7 +376,7 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
                                 className="gap-1.5"
                                 onClick={() => setConfirmDel(true)}
                             >
-                                <Trash className="size-3.5" /> Vô hiệu hóa
+                                <Trash className="size-3.5" /> Xóa loại phòng
                             </Button>
                             <div className="flex items-center gap-2">
                                 <Button variant="outline" size="sm" onClick={onManageAssets}>
@@ -382,10 +401,12 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
     const [saving, setSaving] = useState(false);
     const [items, setItems] = useState([]);
     const [assetTypes, setAssetTypes] = useState([]);
+    const [error, setError] = useState(null);
 
     const fetchAssets = useCallback(async () => {
         if (!roomType) return;
         setLoading(true);
+        setError(null);
         try {
             const [typesRes, assignedRes] = await Promise.all([
                 api.get("/api/asset-types?limit=500"),
@@ -399,7 +420,7 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
             }));
             setItems(currentItems);
         } catch (err) {
-            console.error(err);
+            setError("Không thể tải thông tin tài sản.");
         } finally {
             setLoading(false);
         }
@@ -411,15 +432,17 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
 
     const handleSave = async () => {
         if (items.length > 20) {
-            alert("Tối đa chỉ được gán 20 loại tài sản cho một loại phòng.");
+            setError("Tối đa chỉ được gán 20 loại tài sản cho một loại phòng.");
             return;
         }
         setSaving(true);
+        setError(null);
         try {
             await api.put(`/api/room-types/${roomType.id}/assets`, items);
+            toast.success("Đã cập nhật định mức tài sản");
             onOpenChange(false);
         } catch (err) {
-            alert(err.message || "Đã xảy ra lỗi.");
+            setError(err.response?.data?.message || err.message || "Đã xảy ra lỗi.");
         } finally {
             setSaving(false);
         }
@@ -488,6 +511,12 @@ function AssetAssignmentDialog({ open, onOpenChange, roomType }) {
                             )}
                         </div>
                     )}
+
+                    {error && (
+                        <p className="text-[11px] text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10">
+                            {error}
+                        </p>
+                    )}
                 </div>
 
                 <DialogFooter className="pt-4">
@@ -508,16 +537,34 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
     const [form, setForm] = useState(EMPTY_FORM);
     const [errors, setErrors] = useState({});
 
+    // Load draft on mount
     useEffect(() => {
-        if (open) { setForm(EMPTY_FORM); setErrors({}); }
-    }, [open]);
+        const saved = localStorage.getItem("fscape_roomtype_draft");
+        if (saved) {
+            try { setForm(JSON.parse(saved)); } catch { setForm(EMPTY_FORM); }
+        }
+    }, []);
 
-    const handleSubmit = (e) => {
+    // Sync draft to storage
+    useEffect(() => {
+        if (form !== EMPTY_FORM) {
+            localStorage.setItem("fscape_roomtype_draft", JSON.stringify(form));
+        }
+    }, [form]);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const errs = validateForm(form);
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
-        onSave({ ...formToPayload(form), is_active: true });
+        setErrors({});
+        try {
+            await onSave({ ...formToPayload(form), is_active: true });
+            localStorage.removeItem("fscape_roomtype_draft");
+            setForm(EMPTY_FORM);
+        } catch (err) {
+            setErrors({ root: err.response?.data?.message || err.message || "Đã xảy ra lỗi." });
+        }
     };
 
     return (
@@ -527,7 +574,12 @@ function RoomTypeCreateDialog({ open, onOpenChange, onSave, saving }) {
                     <DialogTitle>Thêm loại phòng mới</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 pt-1 max-h-[70vh] overflow-y-auto pr-1">
-                    <RoomTypeFormFields form={form} setForm={setForm} errors={errors} hideStatus />
+                    <RoomTypeFormFields form={form} setForm={setForm} errors={errors} setErrors={setErrors} hideStatus />
+                    {errors.root && (
+                        <p className="text-[11px] text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10">
+                            {errors.root}
+                        </p>
+                    )}
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
                         <Button type="submit" disabled={saving}>
@@ -596,6 +648,42 @@ export default function RoomTypesPage() {
     useEffect(() => { fetchTypes(); }, [fetchTypes]);
     useEffect(() => { setPage(1); }, [search, filterActive]);
 
+    // Event listeners for real-time updates
+    useEffect(() => {
+        const onCreated = () => { fetchTypes(); fetchStats(); };
+        const onUpdated = (e) => {
+            const { id, updates } = e.detail;
+            setTypes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+            
+            // If status changed and we are filtering, remove from view and decrement total
+            if (updates.is_active !== undefined && filterActive !== "all") {
+                const isNowInactive = updates.is_active === false || updates.is_active === "false";
+                const isNowActive = updates.is_active === true || updates.is_active === "true";
+                
+                if ((filterActive === "active" && isNowInactive) || (filterActive === "inactive" && isNowActive)) {
+                    setTypes(prev => prev.filter(t => t.id !== id));
+                    setTotal(p => Math.max(0, p - 1));
+                }
+            }
+            fetchStats();
+        };
+        const onDeleted = (e) => {
+            const { id } = e.detail;
+            setTypes(prev => prev.filter(t => t.id !== id));
+            setTotal(p => Math.max(0, p - 1));
+            fetchStats();
+        };
+
+        window.addEventListener("room-type-created", onCreated);
+        window.addEventListener("room-type-updated", onUpdated);
+        window.addEventListener("room-type-deleted", onDeleted);
+        return () => {
+            window.removeEventListener("room-type-created", onCreated);
+            window.removeEventListener("room-type-updated", onUpdated);
+            window.removeEventListener("room-type-deleted", onDeleted);
+        };
+    }, [filterActive]);
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -615,12 +703,12 @@ export default function RoomTypesPage() {
     const handleCreate = async (data) => {
         setSaving(true);
         try {
-            await api.post("/api/room-types", data);
+            const res = await api.post("/api/room-types", data);
+            toast.success(`Đã thêm loại phòng "${data.name}"`);
             setShowCreate(false);
-            fetchTypes();
-            fetchStats();
+            window.dispatchEvent(new CustomEvent("room-type-created"));
         } catch (err) {
-            alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+            toast.error(err.response?.data?.message || err.message || "Đã xảy ra lỗi.");
         } finally {
             setSaving(false);
         }
@@ -630,11 +718,11 @@ export default function RoomTypesPage() {
         setSaving(true);
         try {
             await api.put(`/api/room-types/${id}`, data);
+            toast.success("Cập nhật loại phòng thành công");
             setDetailType(null);
-            fetchTypes();
-            fetchStats();
+            window.dispatchEvent(new CustomEvent("room-type-updated", { detail: { id, updates: data } }));
         } catch (err) {
-            alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+            toast.error(err.response?.data?.message || err.message || "Đã xảy ra lỗi.");
         } finally {
             setSaving(false);
         }
@@ -644,11 +732,11 @@ export default function RoomTypesPage() {
         setSaving(true);
         try {
             await api.delete(`/api/room-types/${id}`);
+            toast.success("Đã xóa loại phòng");
             setDetailType(null);
-            fetchTypes();
-            fetchStats();
+            window.dispatchEvent(new CustomEvent("room-type-deleted", { detail: { id } }));
         } catch (err) {
-            alert(err.message || "Không thể vô hiệu hóa. Vui lòng thử lại.");
+            toast.error(err.response?.data?.message || err.message || "Không thể xóa.");
         } finally {
             setSaving(false);
         }
@@ -656,15 +744,14 @@ export default function RoomTypesPage() {
 
     const handleToggleConfirm = async () => {
         setSaving(true);
+        const updates = { is_active: !confirmToggle.is_active };
         try {
-            await api.put(`/api/room-types/${confirmToggle.id}`, {
-                is_active: !confirmToggle.is_active,
-            });
+            await api.put(`/api/room-types/${confirmToggle.id}`, updates);
+            toast.success(confirmToggle.is_active ? "Đã vô hiệu hóa loại phòng" : "Đã kích hoạt loại phòng");
             setConfirmToggle(null);
-            fetchTypes();
-            fetchStats();
+            window.dispatchEvent(new CustomEvent("room-type-updated", { detail: { id: confirmToggle.id, updates } }));
         } catch (err) {
-            alert(err.message || "Không thể cập nhật trạng thái. Vui lòng thử lại.");
+            toast.error(err.response?.data?.message || err.message || "Không thể cập nhật.");
         } finally {
             setSaving(false);
         }

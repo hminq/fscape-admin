@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Stack as Layers,
   House,
+  ArrowLeft,
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 /* ── Upload constraints (mirrors server constants/upload.js) ── */
@@ -476,6 +478,10 @@ export default function CreateRoomPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState("single");
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [batchError, setBatchError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const formSectionRef = useRef(null);
   const [form, setForm] = useState({
     room_number: "",
     room_type_id: "",
@@ -515,20 +521,43 @@ export default function CreateRoomPage() {
     fetchResources();
   }, []);
 
-  const handleChange = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const handleChange = (k, v) => {
+    if (k === "building_id") {
+      // Reset floor when building changes
+      setForm((p) => ({ ...p, building_id: v, floor: "" }));
+    } else {
+      setForm((p) => ({ ...p, [k]: v }));
+    }
+    if (formError) setFormError(null);
+    if (fieldErrors[k]) setFieldErrors(p => { const n = { ...p }; delete n[k]; return n; });
+  };
+
+  // Derive floor options from selected building
+  const selectedBuilding = buildings.find(b => b.id === form.building_id);
+  const totalFloors = selectedBuilding?.total_floors || 0;
+  const floorOptions = totalFloors > 0 ? Array.from({ length: totalFloors }, (_, i) => i + 1) : [];
 
   const handleSaveSingle = async () => {
-    if (
-      !form.room_number ||
-      !form.building_id ||
-      !form.room_type_id ||
-      !form.floor
-    ) {
-      alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+    const errs = {};
+    if (!form.room_number?.trim()) errs.room_number = "Vui lòng nhập tên / mã phòng";
+    if (!form.room_type_id) errs.room_type_id = "Vui lòng chọn loại phòng";
+    if (!form.building_id) errs.building_id = "Vui lòng chọn tòa nhà";
+    if (!form.floor) errs.floor = "Vui lòng nhập tầng";
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      // Scroll to the first error field
+      setTimeout(() => {
+        const firstErrKey = Object.keys(errs)[0];
+        const el = formSectionRef.current?.querySelector(`[data-field="${firstErrKey}"]`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
       return;
     }
-
+    setFieldErrors({});
+    setFormError(null);
     setSaving(true);
+    setFormError(null);
     try {
       let thumbnail_url = undefined;
       if (thumbFile) {
@@ -570,9 +599,10 @@ export default function CreateRoomPage() {
       };
 
       await apiJson("/api/rooms", { method: "POST", body: payload });
+      toast.success(`Đã tạo phòng "${payload.room_number}" thành công`);
       navigate("/rooms");
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi khi tạo phòng.");
+      setFormError(err.response?.data?.message || err.message || "Đã xảy ra lỗi khi tạo phòng.");
     } finally {
       setSaving(false);
     }
@@ -580,6 +610,7 @@ export default function CreateRoomPage() {
 
   const handleSaveBatch = async (batch) => {
     setSaving(true);
+    setBatchError(null);
     try {
       let thumbnail_url = undefined;
       if (batch.thumbFile) {
@@ -621,9 +652,10 @@ export default function CreateRoomPage() {
           gallery_images: gallery_urls,
         },
       });
+      toast.success(`Đã tạo ${batch.count} phòng thành công`);
       navigate("/rooms");
     } catch (err) {
-      alert(err.message || "Đã xảy ra lỗi khi tạo phòng hàng loạt.");
+      setBatchError(err.response?.data?.message || err.message || "Đã xảy ra lỗi khi tạo phòng hàng loạt.");
     } finally {
       setSaving(false);
     }
@@ -632,11 +664,21 @@ export default function CreateRoomPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-24">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tạo phòng mới</h1>
-        <p className="text-sm text-muted-foreground">
-          Thêm thông tin hệ thống cho căn phòng mới.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <button
+            type="button"
+            onClick={() => navigate("/rooms")}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1.5"
+          >
+            <ArrowLeft className="size-4" />
+            Danh sách phòng
+          </button>
+          <h1 className="text-2xl font-bold tracking-tight">Tạo phòng mới</h1>
+          <p className="text-sm text-muted-foreground">
+            Thêm thông tin hệ thống cho căn phòng mới.
+          </p>
+        </div>
       </div>
 
       {/* Mode toggle */}
@@ -662,36 +704,45 @@ export default function CreateRoomPage() {
       </div>
 
       {mode === "batch" ? (
-        <BatchForm
-          buildings={buildings}
-          roomTypes={roomTypes}
-          saving={saving}
-          onSave={handleSaveBatch}
-          onCancel={() => navigate("/rooms")}
-        />
+        <>
+          <BatchForm
+            buildings={buildings}
+            roomTypes={roomTypes}
+            saving={saving}
+            onSave={handleSaveBatch}
+            onCancel={() => navigate("/rooms")}
+          />
+          {batchError && (
+            <div className="fixed bottom-20 left-56 right-0 px-8 pointer-events-none">
+              <p className="max-w-4xl mx-auto text-[12px] text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-4 py-2.5 font-medium">
+                {batchError}
+              </p>
+            </div>
+          )}
+        </>
       ) : (
         <>
-          <div className="space-y-6">
+          <div className="space-y-6" ref={formSectionRef}>
             {/* Basic Information */}
             <FormSection title="Thông tin cơ bản">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Tên / Mã phòng *</Label>
+                <div className="space-y-1.5" data-field="room_number">
+                  <Label className={fieldErrors.room_number ? "text-destructive" : ""}>Tên / Mã phòng *</Label>
                   <Input
                     placeholder="VD: A-210"
                     value={form.room_number}
-                    onChange={(e) =>
-                      handleChange("room_number", e.target.value)
-                    }
+                    onChange={(e) => handleChange("room_number", e.target.value)}
+                    className={fieldErrors.room_number ? "border-destructive" : ""}
                   />
+                  {fieldErrors.room_number && <p className="text-[11px] text-destructive">{fieldErrors.room_number}</p>}
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Loại phòng *</Label>
+                <div className="space-y-1.5" data-field="room_type_id">
+                  <Label className={fieldErrors.room_type_id ? "text-destructive" : ""}>Loại phòng *</Label>
                   <Select
                     value={form.room_type_id}
                     onValueChange={(v) => handleChange("room_type_id", v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldErrors.room_type_id ? "border-destructive" : ""}>
                       <SelectValue placeholder="Chọn loại phòng" />
                     </SelectTrigger>
                     <SelectContent>
@@ -702,16 +753,17 @@ export default function CreateRoomPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.room_type_id && <p className="text-[11px] text-destructive">{fieldErrors.room_type_id}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-1.5 col-span-2">
-                  <Label>Tòa nhà *</Label>
+                <div className="space-y-1.5 col-span-2" data-field="building_id">
+                  <Label className={fieldErrors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
                   <Select
                     value={form.building_id}
                     onValueChange={(v) => handleChange("building_id", v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldErrors.building_id ? "border-destructive" : ""}>
                       <SelectValue placeholder="Chọn tòa nhà" />
                     </SelectTrigger>
                     <SelectContent>
@@ -722,16 +774,30 @@ export default function CreateRoomPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.building_id && <p className="text-[11px] text-destructive">{fieldErrors.building_id}</p>}
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Tầng *</Label>
-                  <Input
-                    type="number"
-                    placeholder="VD: 5"
+                <div className="space-y-1.5" data-field="floor">
+                  <Label className={fieldErrors.floor ? "text-destructive" : ""}>
+                    Tầng *
+                    {!form.building_id && <span className="text-[10px] font-normal text-muted-foreground ml-1">(chọn tòa nhà trước)</span>}
+                  </Label>
+                  <Select
                     value={form.floor}
-                    onChange={(e) => handleChange("floor", e.target.value)}
-                    className="text-center"
-                  />
+                    onValueChange={(v) => handleChange("floor", v)}
+                    disabled={!form.building_id || floorOptions.length === 0}
+                  >
+                    <SelectTrigger className={fieldErrors.floor ? "border-destructive" : ""}>
+                      <SelectValue placeholder={!form.building_id ? "Chọn tòa nhà trước" : "Chọn tầng"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {floorOptions.map((f) => (
+                        <SelectItem key={f} value={String(f)}>
+                          Tầng {f}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldErrors.floor && <p className="text-[11px] text-destructive">{fieldErrors.floor}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Trạng thái</Label>
@@ -808,6 +874,13 @@ export default function CreateRoomPage() {
               </div>
             </FormSection>
           </div>
+
+          {/* Inline Form Error */}
+          {formError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3">
+              <p className="text-[12px] text-destructive font-medium">{formError}</p>
+            </div>
+          )}
 
           {/* Sticky Action Bar */}
           <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
