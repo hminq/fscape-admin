@@ -36,7 +36,7 @@ async function uploadFiles(category, files) {
 
 /* ── ThumbnailUploader ─────────────────────── */
 
-function ThumbnailUploader({ file, preview, onSelect, onRemove }) {
+function ThumbnailUploader({ preview, onSelect, onRemove }) {
   const inputRef = useRef(null);
 
   return (
@@ -222,7 +222,7 @@ export default function CreateBuildingPage() {
     if (saved) {
       try {
         return { ...defaultState, ...JSON.parse(saved) };
-      } catch (e) {
+      } catch {
         /* fallback */
       }
     }
@@ -245,8 +245,6 @@ export default function CreateBuildingPage() {
   const managerRef = useRef(null);
   const addressRef = useRef(null);
   const totalFloorsRef = useRef(null);
-  const scrollOffset = 100; // Offset to account for sticky header if any
-
   const scrollTo = (ref) => {
     if (ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -288,14 +286,7 @@ export default function CreateBuildingPage() {
     if (!form.name.trim()) e.name = "Tên tòa nhà là bắt buộc";
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
     if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
-    if (!form.address.trim()) {
-      e.address = "Địa chỉ là bắt buộc";
-    } else if (!/(?=.*\d)(?=.*[\p{L}])(?:.*,){2,}/u.test(form.address)) {
-      e.address = "Địa chỉ cần đầy đủ (Số nhà, Đường/Phường, Quận/Huyện, Tỉnh/TP)";
-    } else if (!form.latitude || !form.longitude) {
-      e.address = "Vui lòng tìm kiếm địa chỉ hợp lệ trên bản đồ";
-    }
-    
+    if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
     if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
     else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
       e.total_floors = "Số tầng phải từ 1 đến 99";
@@ -469,10 +460,7 @@ export default function CreateBuildingPage() {
               <Input
                 placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
                 value={form.address}
-                onChange={(e) => {
-                  set("address", e.target.value);
-                  setForm(p => ({ ...p, latitude: "", longitude: "" }));
-                }}
+                onChange={(e) => set("address", e.target.value)}
                 className={cn("pl-9", errors.address && "border-destructive")}
               />
             </div>
@@ -482,12 +470,10 @@ export default function CreateBuildingPage() {
           <MapPicker
             latitude={form.latitude}
             longitude={form.longitude}
-            address={form.address}
             onChange={(lat, lng) => {
               set("latitude", lat);
-              setForm((p) => ({ ...p, longitude: lng, latitude: lat }));
+              setForm((p) => ({ ...p, longitude: lng }));
             }}
-            onError={(msg) => setErrors(p => ({ ...p, address: msg }))}
           />
 
           <div className="grid grid-cols-3 gap-4">

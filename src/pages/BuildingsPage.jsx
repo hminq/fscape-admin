@@ -279,12 +279,11 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   const thumbInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [showAddManager, setShowAddManager] = useState(false);
-  const [managers, setManagers] = useState([]);
+  const [Managers, setManagers] = useState([]);
 
   // Refs for auto-scrolling to errors
   const nameRef = useRef(null);
   const locationRef = useRef(null);
-  const managerRef = useRef(null);
   const addressRef = useRef(null);
   const totalFloorsRef = useRef(null);
 
@@ -379,14 +378,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
     const e = {};
     if (!form.name?.trim()) e.name = "Tên tòa nhà là bắt buộc";
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
-    if (!form.address?.trim()) {
-      e.address = "Địa chỉ là bắt buộc";
-    } else if (!/(?=.*\d)(?=.*[\p{L}])(?:.*,){2,}/u.test(form.address)) {
-      e.address = "Địa chỉ cần đầy đủ (Số nhà, Đường/Phường, Quận/Huyện, Tỉnh/TP)";
-    } else if (!form.latitude || !form.longitude) {
-      e.address = "Vui lòng tìm kiếm địa chỉ hợp lệ trên bản đồ";
-    }
-    
+    if (!form.address?.trim()) e.address = "Địa chỉ là bắt buộc";
     if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
     else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
       e.total_floors = "Số tầng phải từ 1 đến 99";
@@ -460,17 +452,6 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
     } finally {
       setSaving(false);
     }
-  };
-
-  const addGalleryFiles = (files) => {
-    const max = 5;
-    const remaining = max - galleryImages.length;
-    if (remaining <= 0) return;
-    const newImgs = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .slice(0, remaining)
-      .map((f) => ({ file: f, url: URL.createObjectURL(f) }));
-    setGalleryImages((prev) => [...prev, ...newImgs]);
   };
 
   const handleDelete = async () => {
@@ -607,11 +588,8 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input value={form.address || ""} 
-                  onChange={(e) => {
-                    setFormField("address", e.target.value);
-                    setForm(p => ({ ...p, latitude: "", longitude: "" }));
-                  }}
+                <Input value={form.address || ""}
+                  onChange={(e) => setFormField("address", e.target.value)}
                   className={cn("pl-9", errors.address && "border-destructive")} />
               </div>
               {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
@@ -620,12 +598,10 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             <MapPicker
               latitude={form.latitude}
               longitude={form.longitude}
-              address={form.address}
               onChange={(lat, lng) => {
                 setFormField("latitude", lat);
                 setFormField("longitude", lng);
               }}
-              onError={(msg) => setErrors(p => ({ ...p, address: msg }))}
             />
 
             <div className="grid grid-cols-3 gap-4 border-t border-border/50 pt-4 mt-2">

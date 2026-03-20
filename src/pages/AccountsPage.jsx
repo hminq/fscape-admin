@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Plus, MagnifyingGlass, Users, CircleNotch, Envelope, Phone,
   ToggleLeft, ToggleRight, ShieldCheck, UserGear as UserCog, UserCheck,
@@ -425,7 +426,7 @@ export default function AccountsPage() {
       const res = await apiJson(`/api/users/${confirmReset.id}/reset-password`, { method: "POST" });
       setResetResult(res.data || res);
     } catch (err) {
-      alert(err.message || "Không thể đặt lại mật khẩu.");
+      toast.error(err.message || "Không thể đặt lại mật khẩu.");
     } finally {
       setResetting(false);
     }
@@ -551,8 +552,8 @@ export default function AccountsPage() {
                   Bạn có chắc muốn đặt lại mật khẩu cho tài khoản <br />
                   <strong className="text-foreground text-base">&quot;{confirmReset && fullName(confirmReset)}&quot;</strong>?
                 </p>
-                <p className="text-xs text-warning font-medium p-2 bg-warning/5 rounded-lg border border-warning/10">
-                  ⚠️ Mật khẩu mới sẽ được tạo tự động và hiển thị ngay sau khi bạn xác nhận.
+                <p className="text-xs text-muted-foreground font-medium p-2 bg-muted/50 rounded-lg border border-border">
+                  Mật khẩu mới sẽ được tạo tự động và hiển thị ngay sau khi bạn xác nhận.
                 </p>
               </div>
               <DialogFooter className="gap-2 sm:justify-center">

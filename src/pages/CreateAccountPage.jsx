@@ -106,12 +106,12 @@ export default function CreateAccountPage() {
                 <p className="text-sm text-muted-foreground">Thêm thành viên quản trị mới cho hệ thống FScape.</p>
             </div>
 
-            {fieldErrors.main && (
+            {fieldErrors.general && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="bg-destructive text-white p-1 rounded-full">
                         <Plus className="size-3 rotate-45" />
                     </div>
-                    <span className="font-semibold">{fieldErrors.main}</span>
+                    <span className="font-semibold">{fieldErrors.general}</span>
                 </div>
             )}
 
