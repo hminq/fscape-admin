@@ -9,6 +9,7 @@ import {
   Bell,
   CaretDown,
   Users,
+  CalendarCheck,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/apiClient";
@@ -54,6 +55,12 @@ const navItems = [
     label: "Tài sản",
     icon: Package,
     to: `${BM_PREFIX}/assets`,
+  },
+  {
+    label: "Đặt phòng",
+    icon: CalendarCheck,
+    to: `${BM_PREFIX}/bookings`,
+    children: [{ label: "Danh sách", to: `${BM_PREFIX}/bookings` }],
   },
   {
     label: "Thông báo",

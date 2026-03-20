@@ -79,3 +79,13 @@ export const BILLING_CYCLE_LABELS = {
   CYCLE_6M: "6 tháng",
   ALL_IN: "Trọn gói",
 };
+
+/* ── Booking status ────────────────────────── */
+
+export const BOOKING_STATUS_MAP = {
+  PENDING: { label: "Chờ thanh toán cọc", dot: "bg-amber-500", text: "text-amber-500" },
+  DEPOSIT_PAID: { label: "Đã cọc", dot: "bg-chart-2", text: "text-chart-2" },
+  CONVERTED: { label: "Đã chuyển HĐ", dot: "bg-success", text: "text-success" },
+  CANCELLED: { label: "Đã hủy", dot: "bg-destructive", text: "text-destructive" },
+};
+
