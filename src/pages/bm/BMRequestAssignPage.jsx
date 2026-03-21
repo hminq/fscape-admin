@@ -23,21 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import AssignStaffDialog from "@/components/AssignStaffDialog";
 
 import { REQUEST_TYPE_LABELS } from "@/lib/constants";
 
@@ -48,37 +34,27 @@ export default function BMRequestAssignPage() {
   const { user } = useAuth();
 
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedStaffId, setSelectedStaffId] = useState("");
-  const [assigning, setAssigning] = useState(false);
-  const [assignError, setAssignError] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [reqRes, staffRes] = await Promise.all([
-        api.get(`/api/requests?status=PENDING&limit=${FETCH_LIMIT}`),
-        user.building_id
-          ? api.get(`/api/buildings/${user.building_id}/staffs`)
-          : Promise.resolve([]),
-      ]);
-      setPendingRequests(reqRes.data || []);
-      setStaffList(Array.isArray(staffRes) ? staffRes : staffRes.data || []);
+      const res = await api.get(`/api/requests?status=PENDING&limit=${FETCH_LIMIT}`);
+      setPendingRequests(res.data || []);
     } catch {
       setError("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
-  }, [user.building_id]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -103,32 +79,13 @@ export default function BMRequestAssignPage() {
 
   const openAssignDialog = (request) => {
     setSelectedRequest(request);
-    setSelectedStaffId("");
-    setAssignError(null);
-    setDialogOpen(true);
+    setAssignOpen(true);
   };
 
-  const handleAssign = async () => {
-    if (!selectedStaffId) {
-      setAssignError("Vui lòng chọn nhân viên.");
-      return;
-    }
-    setAssigning(true);
-    setAssignError(null);
-    try {
-      await api.patch(`/api/requests/${selectedRequest.id}/assign`, {
-        assigned_staff_id: selectedStaffId,
-      });
-      setDialogOpen(false);
-      setPendingRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
-    } catch (err) {
-      setAssignError(err?.message || "Phân công thất bại. Vui lòng thử lại.");
-    } finally {
-      setAssigning(false);
-    }
+  const handleAssigned = () => {
+    setPendingRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
+    setSelectedRequest(null);
   };
-
-  const selectedStaff = staffList.find((s) => s.id === selectedStaffId);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -146,11 +103,6 @@ export default function BMRequestAssignPage() {
             <div>
               <p className="text-2xl font-bold">{pendingRequests.length}</p>
               <p className="text-sm text-muted-foreground">yêu cầu đang chờ phân công</p>
-            </div>
-            <div className="w-px h-10 bg-border" />
-            <div>
-              <p className="text-2xl font-bold">{staffList.length}</p>
-              <p className="text-sm text-muted-foreground">nhân viên sẵn sàng</p>
             </div>
           </div>
         </div>
@@ -251,79 +203,16 @@ export default function BMRequestAssignPage() {
         </>
       )}
 
-      {/* ── Assign Dialog ── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Phân công nhân viên</DialogTitle>
-            <DialogDescription>
-              Chọn nhân viên xử lý cho yêu cầu <span className="font-semibold text-foreground">{selectedRequest?.request_number}</span>
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedRequest && (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tiêu đề</span>
-                  <span className="font-medium text-right max-w-[220px] truncate">{selectedRequest.title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Loại</span>
-                  <span>{REQUEST_TYPE_LABELS[selectedRequest.request_type] || selectedRequest.request_type}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Phòng</span>
-                  <span>{selectedRequest.room?.room_number}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cư dân</span>
-                  <span>{selectedRequest.resident?.last_name} {selectedRequest.resident?.first_name}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nhân viên xử lý</label>
-                {staffList.length === 0 ? (
-                  <p className="text-sm text-destructive">Không có nhân viên nào trong tòa nhà.</p>
-                ) : (
-                  <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chọn nhân viên..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {staffList.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.last_name} {s.first_name} — {s.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {selectedStaff && (
-                  <p className="text-xs text-muted-foreground">
-                    SĐT: {selectedStaff.phone || "Chưa cập nhật"}
-                  </p>
-                )}
-              </div>
-
-              {assignError && (
-                <p className="text-sm text-destructive">{assignError}</p>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={assigning}>
-              Hủy
-            </Button>
-            <Button onClick={handleAssign} disabled={assigning || staffList.length === 0}>
-              {assigning && <CircleNotch className="size-4 animate-spin mr-1.5" />}
-              Xác nhận phân công
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Assign Dialog (reusable) ── */}
+      <AssignStaffDialog
+        buildingId={user.building_id}
+        requestId={selectedRequest?.id}
+        requestNumber={selectedRequest?.request_number}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onAssigned={handleAssigned}
+      />
     </div>
   );
 }
+

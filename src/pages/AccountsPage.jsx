@@ -6,6 +6,7 @@ import {
   CaretLeft, CaretRight, Eye, Copy, Check, CheckCircle,
   Buildings, Key, ArrowCounterClockwise,
 } from "@phosphor-icons/react";
+import { ROLE_LABELS, ROLE_STYLE_MAP, ROLE_ORDER } from "@/lib/constants";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,15 +31,20 @@ import { formatDate as fmt } from "@/lib/utils";
 
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 
-const ROLE_MAP = {
-  ADMIN: { label: "Quản trị viên", color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1", icon: ShieldCheck },
-  BUILDING_MANAGER: { label: "Quản lý tòa nhà", color: "text-chart-2 border-chart-2/20 bg-chart-2/5", dot: "bg-chart-2", icon: UserCog },
-  STAFF: { label: "Nhân viên", color: "text-chart-3 border-chart-3/20 bg-chart-3/5", dot: "bg-chart-3", icon: UserCheck },
-  RESIDENT: { label: "Cư dân", color: "text-chart-4 border-chart-4/20 bg-chart-4/5", dot: "bg-chart-4", icon: Users },
-  CUSTOMER: { label: "Khách hàng", color: "text-chart-5 border-chart-5/20 bg-chart-5/5", dot: "bg-chart-5", icon: Users },
+const ROLE_ICON_MAP = {
+  ADMIN: ShieldCheck,
+  BUILDING_MANAGER: UserCog,
+  STAFF: UserCheck,
+  RESIDENT: Users,
+  CUSTOMER: Users,
 };
 
-const ROLE_ORDER = ["ADMIN", "BUILDING_MANAGER", "STAFF", "RESIDENT", "CUSTOMER"];
+const ROLE_MAP = Object.fromEntries(
+  ROLE_ORDER.map((key) => [
+    key,
+    { label: ROLE_LABELS[key], ...ROLE_STYLE_MAP[key], icon: ROLE_ICON_MAP[key] },
+  ])
+);
 
 const STATUS = {
   true: { label: "Hoạt động" },

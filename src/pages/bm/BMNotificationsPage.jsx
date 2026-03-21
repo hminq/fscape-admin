@@ -6,6 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDateTime } from "@/lib/utils";
+import { NOTIFICATION_TYPE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,14 +25,7 @@ import {
 
 const PER_PAGE = 10;
 
-const NOTIFICATION_TYPE_LABELS = {
-  BM_ANNOUNCEMENT: "Thông báo BM",
-  REQUEST_STATUS_CHANGED: "Cập nhật yêu cầu",
-  CONTRACT_STATUS_CHANGED: "Cập nhật hợp đồng",
-  INVOICE_CREATED: "Hóa đơn mới",
-  PAYMENT_RECEIVED: "Thanh toán",
-  SYSTEM: "Hệ thống",
-};
+
 
 const READ_FILTERS = [
   { key: "all", label: "Tất cả" },

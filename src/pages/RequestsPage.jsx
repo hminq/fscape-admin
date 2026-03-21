@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   MagnifyingGlass, Eye,
-  Door, User, ChatCircleText,
+  ChatCircleText,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,12 +17,9 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { REQUEST_TYPE_LABELS, REQUEST_TYPES, REQUEST_STATUS_MAP } from "@/lib/constants";
-import { formatDate as fmt, formatDateTime as fmtFull } from "@/lib/utils";
+import { formatDate as fmt } from "@/lib/utils";
 
 /* ── constants ──────────────────────────────── */
 
@@ -133,180 +131,10 @@ function RequestSummary({ stats, activeFilter }) {
   );
 }
 
-/* ── Detail Dialog ───────────────────────────── */
-
-function RequestDetailDialog({ open, onOpenChange, requestId }) {
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open || !requestId) { setDetail(null); return; }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/api/requests/${requestId}`);
-        if (!cancelled) setDetail(res.data || res);
-      } catch {
-        if (!cancelled) setDetail(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open, requestId]);
-
-  if (!open) return null;
-
-  const st = detail ? (STATUS_MAP[detail.status] || {}) : {};
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Chi tiết yêu cầu</DialogTitle>
-        </DialogHeader>
-
-        {loading || !detail ? (
-          <div className="flex items-center justify-center py-10">
-            <CircleNotch className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Info card */}
-            <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Mã yêu cầu</span>
-                <span className="font-mono text-xs font-medium">{detail.request_number}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Trạng thái</span>
-                <span className={`flex items-center gap-1.5 font-medium ${st.text}`}>
-                  <span className={`size-2 rounded-full ${st.dot}`} />
-                  {st.label || detail.status}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Loại</span>
-                <span className="font-medium">{TYPE_MAP[detail.request_type] || detail.request_type}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Tiêu đề</span>
-                <span className="font-medium text-right max-w-[200px] truncate">{detail.title}</span>
-              </div>
-              {detail.room && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5"><Door className="size-3.5" /> Phòng</span>
-                  <span className="font-medium">
-                    {detail.room.room_number}{detail.room.floor != null && ` — Tầng ${detail.room.floor}`}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground flex items-center gap-1.5"><User className="size-3.5" /> Cư dân</span>
-                <span className="font-medium">{fullName(detail.resident)}</span>
-              </div>
-              {detail.staff && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Nhân viên</span>
-                  <span className="font-medium">{fullName(detail.staff)}</span>
-                </div>
-              )}
-              {detail.request_price != null && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Giá dịch vụ</span>
-                  <span className="font-medium">{Number(detail.request_price).toLocaleString("vi-VN")} ₫</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Ngày tạo</span>
-                <span>{fmtFull(detail.created_at)}</span>
-              </div>
-              {detail.completed_at && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Hoàn thành</span>
-                  <span>{fmtFull(detail.completed_at)}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Description */}
-            {detail.description && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Mô tả</p>
-                <p className="text-sm bg-muted rounded-lg p-3 whitespace-pre-wrap">{detail.description}</p>
-              </div>
-            )}
-
-            {/* Completion note */}
-            {detail.completion_note && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Ghi chú hoàn thành</p>
-                <p className="text-sm bg-muted rounded-lg p-3 whitespace-pre-wrap">{detail.completion_note}</p>
-              </div>
-            )}
-
-            {/* Feedback */}
-            {detail.feedback_rating != null && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Đánh giá</p>
-                <div className="text-sm bg-muted rounded-lg p-3">
-                  <p className="font-medium">{detail.feedback_rating}/5</p>
-                  {detail.feedback_comment && <p className="text-muted-foreground mt-1">{detail.feedback_comment}</p>}
-                </div>
-              </div>
-            )}
-
-            {/* Images */}
-            {detail.images?.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Hình ảnh ({detail.images.length})</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {detail.images.map((img) => (
-                    <div key={img.id} className="aspect-square rounded-lg border border-border overflow-hidden bg-muted">
-                      <img src={img.image_url} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Status history */}
-            {detail.status_history?.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Lịch sử trạng thái</p>
-                <div className="space-y-2">
-                  {detail.status_history.map((h) => {
-                    const toSt = STATUS_MAP[h.to_status] || {};
-                    return (
-                      <div key={h.id} className="flex items-start gap-2.5 text-xs">
-                        <span className={`size-2 rounded-full mt-1.5 shrink-0 ${toSt.dot || "bg-muted-foreground"}`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">{toSt.label || h.to_status}</span>
-                            <span className="text-muted-foreground whitespace-nowrap">{fmtFull(h.created_at)}</span>
-                          </div>
-                          {h.modifier && (
-                            <p className="text-muted-foreground">{fullName(h.modifier)} ({h.modifier.role})</p>
-                          )}
-                          {h.reason && <p className="text-muted-foreground">{h.reason}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /* ── Main Page ──────────────────────────────── */
 
 export default function RequestsPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -318,8 +146,6 @@ export default function RequestsPage() {
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState("all");
   const [filterType, setFilterType] = useState("all");
-
-  const [detailId, setDetailId] = useState(null);
 
   useEffect(() => {
     api.get("/api/requests/stats")
@@ -451,7 +277,7 @@ export default function RequestsPage() {
                     <TableCell className="pr-4">
                       <div className="flex items-center justify-end">
                         <Button size="icon" variant="ghost" className="size-8"
-                          title="Chi tiết" onClick={() => setDetailId(req.id)}>
+                          title="Chi tiết" onClick={() => navigate(`/requests/${req.id}`)}>
                           <Eye className="size-4" />
                         </Button>
                       </div>
@@ -464,12 +290,6 @@ export default function RequestsPage() {
         </Card>
       )}
 
-      {/* Detail dialog */}
-      <RequestDetailDialog
-        open={!!detailId}
-        onOpenChange={(v) => !v && setDetailId(null)}
-        requestId={detailId}
-      />
     </div>
   );
 }

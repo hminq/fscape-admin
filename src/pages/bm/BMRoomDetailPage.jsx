@@ -8,38 +8,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
+import { ROOM_STATUS_MAP, CONTRACT_STATUS_MAP, BOOKING_STATUS_MAP, TERM_TYPE_LABELS } from "@/lib/constants";
 import ModelViewer, { is3DFile } from "@/components/ModelViewer";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── constants ──────────────────────────────────────────── */
 
-const STATUS_CFG = {
-  AVAILABLE: { label: "Còn trống", bg: "bg-success", text: "text-success" },
-  OCCUPIED: { label: "Đã thuê", bg: "bg-primary", text: "text-primary" },
-  LOCKED: { label: "Khóa", bg: "bg-destructive", text: "text-destructive" },
-};
 
-const CONTRACT_STATUS_LABEL = {
-  PENDING_CUSTOMER_SIGNATURE: "Chờ cư dân ký",
-  PENDING_MANAGER_SIGNATURE: "Chờ BM ký",
-  ACTIVE: "Đang hiệu lực",
-  EXPIRING_SOON: "Sắp hết hạn",
-  FINISHED: "Đã kết thúc",
-  TERMINATED: "Đã chấm dứt",
-};
+const STATUS_CFG = Object.fromEntries(
+  Object.entries(ROOM_STATUS_MAP).map(([k, v]) => [k, { label: v.label, bg: v.bg || v.dot, text: v.text }])
+);
 
-const BOOKING_STATUS_LABEL = {
-  PENDING: "Chờ xử lý",
-  DEPOSIT_PAID: "Đã đặt cọc",
-  CONVERTED: "Đã chuyển HĐ",
-  CANCELLED: "Đã hủy",
-};
-
-const TERM_TYPE_LABEL = {
-  FIXED_TERM: "Có thời hạn",
-  INDEFINITE: "Không thời hạn",
-};
+const CONTRACT_STATUS_LABEL = Object.fromEntries(
+  Object.entries(CONTRACT_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
+const BOOKING_STATUS_LABEL = Object.fromEntries(
+  Object.entries(BOOKING_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
+const TERM_TYPE_LABEL = TERM_TYPE_LABELS;
 
 const fmtPrice = (p) => p ? parseFloat(p).toLocaleString("vi-VN") : "—";
 

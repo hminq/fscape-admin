@@ -8,6 +8,18 @@ export const ROLE_LABELS = {
   CUSTOMER: "Khách hàng",
 };
 
+/* ── Role display (CSS-only, no React components) ───── */
+
+export const ROLE_STYLE_MAP = {
+  ADMIN: { color: "text-chart-1 border-chart-1/20 bg-chart-1/5", dot: "bg-chart-1" },
+  BUILDING_MANAGER: { color: "text-chart-2 border-chart-2/20 bg-chart-2/5", dot: "bg-chart-2" },
+  STAFF: { color: "text-chart-3 border-chart-3/20 bg-chart-3/5", dot: "bg-chart-3" },
+  RESIDENT: { color: "text-chart-4 border-chart-4/20 bg-chart-4/5", dot: "bg-chart-4" },
+  CUSTOMER: { color: "text-chart-5 border-chart-5/20 bg-chart-5/5", dot: "bg-chart-5" },
+};
+
+export const ROLE_ORDER = ["ADMIN", "BUILDING_MANAGER", "STAFF", "RESIDENT", "CUSTOMER"];
+
 /* ── Request type labels ────────────────────── */
 
 export const REQUEST_TYPE_LABELS = {
@@ -82,12 +94,86 @@ export const BILLING_CYCLE_LABELS = {
   ALL_IN: "Trọn gói",
 };
 
-/* ── Booking status ────────────────────────── */
+/* ── Room status ──────────────────────────── */
+
+export const ROOM_STATUS_MAP = {
+  AVAILABLE: { label: "Còn trống", dot: "bg-success", text: "text-success", bg: "bg-success" },
+  OCCUPIED: { label: "Đã thuê", dot: "bg-primary", text: "text-primary", bg: "bg-primary" },
+  MAINTENANCE: { label: "Bảo trì", dot: "bg-amber-500", text: "text-amber-500", bg: "bg-amber-500" },
+  LOCKED: { label: "Đã khóa", dot: "bg-destructive", text: "text-destructive", bg: "bg-destructive" },
+};
+
+/* ── Asset status ─────────────────────────── */
+
+export const ASSET_STATUS_MAP = {
+  AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success" },
+  IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary" },
+};
+
+/* ── Asset history action labels ──────────── */
+
+export const ASSET_HISTORY_ACTION_LABELS = {
+  INITIAL_CREATE: "Tạo mới",
+  CHECK_IN: "Nhận phòng",
+  CHECK_OUT: "Trả phòng",
+  MOVE: "Di chuyển",
+  UPDATE_INFO: "Cập nhật",
+};
+
+/* ── Term type labels ────────────────────── */
+
+export const TERM_TYPE_LABELS = {
+  FIXED_TERM: "Có thời hạn",
+  INDEFINITE: "Không thời hạn",
+};
+
+/* ── Inspection type labels ────────────────── */
+
+export const INSPECTION_TYPE_LABELS = {
+  CHECK_IN: "Nhận phòng",
+  CHECK_OUT: "Trả phòng",
+};
+
+/* ── Inspection status ────────────────────── */
+
+export const INSPECTION_STATUS_MAP = {
+  NO_DISCREPANCY: { label: "Đầy đủ", dot: "bg-success", text: "text-success" },
+  SETTLED: { label: "Đã xử lý", dot: "bg-primary", text: "text-primary" },
+  PENDING_SETTLEMENT: { label: "Chờ xử lý", dot: "bg-amber-500", text: "text-amber-500" },
+};
+
+/* ── Asset condition ──────────────────────── */
+
+export const ASSET_CONDITION_MAP = {
+  GOOD: { label: "Tốt", color: "text-success", bg: "bg-success/15" },
+  BROKEN: { label: "Hỏng", color: "text-destructive", bg: "bg-destructive/15" },
+};
+
+/* ── Booking status ───────────────────────── */
 
 export const BOOKING_STATUS_MAP = {
   PENDING: { label: "Chờ thanh toán cọc", dot: "bg-amber-500", text: "text-amber-500" },
   DEPOSIT_PAID: { label: "Đã cọc", dot: "bg-chart-2", text: "text-chart-2" },
   CONVERTED: { label: "Đã chuyển HĐ", dot: "bg-success", text: "text-success" },
   CANCELLED: { label: "Đã hủy", dot: "bg-destructive", text: "text-destructive" },
+};
+
+/* ── Notification type labels ────────────── */
+
+export const NOTIFICATION_TYPE_LABELS = {
+  BM_ANNOUNCEMENT: "Thông báo BM",
+  REQUEST_STATUS_CHANGED: "Cập nhật yêu cầu",
+  CONTRACT_STATUS_CHANGED: "Cập nhật hợp đồng",
+  INVOICE_CREATED: "Hóa đơn mới",
+  PAYMENT_RECEIVED: "Thanh toán",
+  SYSTEM: "Hệ thống",
+};
+
+/* ── Gender labels ───────────────────────── */
+
+export const GENDER_LABELS = {
+  MALE: "Nam",
+  FEMALE: "Nữ",
+  OTHER: "Khác",
 };
 

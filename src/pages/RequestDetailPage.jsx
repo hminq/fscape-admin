@@ -15,7 +15,6 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,10 +41,9 @@ function InfoCell({ icon: Icon, label, value }) {
   );
 }
 
-export default function BMRequestDetailPage() {
+export default function RequestDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +92,7 @@ export default function BMRequestDetailPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl py-14 text-center">
+      <div className="mx-auto max-w-5xl py-14 text-center">
         <p className="text-sm text-destructive">{error}</p>
         <Button variant="outline" size="sm" className="mt-3" onClick={fetchRequest}>Thử lại</Button>
       </div>
@@ -103,9 +101,9 @@ export default function BMRequestDetailPage() {
 
   if (!request) {
     return (
-      <div className="mx-auto max-w-4xl py-14 text-center space-y-3">
+      <div className="mx-auto max-w-5xl py-14 text-center space-y-3">
         <p className="text-sm text-destructive">Không tìm thấy yêu cầu.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/building-manager/requests")}>Quay lại</Button>
+        <Button variant="outline" size="sm" onClick={() => navigate("/requests")}>Quay lại</Button>
       </div>
     );
   }
@@ -113,6 +111,7 @@ export default function BMRequestDetailPage() {
   const r = request;
   const attachments = (r.images || []).filter((i) => i.image_type === "ATTACHMENT");
   const completionImgs = (r.images || []).filter((i) => i.image_type === "COMPLETION");
+  const hasActions = r.status === "PENDING" || r.status === "REVIEWED";
 
   const residentName = r.resident
     ? `${r.resident.last_name || ""} ${r.resident.first_name || ""}`.trim()
@@ -126,7 +125,7 @@ export default function BMRequestDetailPage() {
       {/* Header */}
       <div className="flex items-start gap-3">
         <button
-          onClick={() => navigate("/building-manager/requests")}
+          onClick={() => navigate("/requests")}
           className="mt-0.5 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="size-4" />
@@ -143,7 +142,7 @@ export default function BMRequestDetailPage() {
       </div>
 
       {/* Action bar */}
-      {(r.status === "PENDING" || r.status === "REVIEWED") && (
+      {hasActions && (
         <div className="flex items-center gap-2 border-b border-border pb-4">
           {r.status === "PENDING" && (
             <Button className="gap-1.5" onClick={() => setAssignOpen(true)}>
@@ -212,6 +211,7 @@ export default function BMRequestDetailPage() {
 
       {/* Room, Resident, Staff */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Room */}
         <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
           <div className="p-5">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
@@ -228,6 +228,7 @@ export default function BMRequestDetailPage() {
           </div>
         </Card>
 
+        {/* Resident */}
         <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
           <div className="p-5">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
@@ -246,6 +247,7 @@ export default function BMRequestDetailPage() {
         </Card>
       </div>
 
+      {/* Staff */}
       {r.staff && (
         <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
           <div className="p-5">
@@ -300,7 +302,7 @@ export default function BMRequestDetailPage() {
         </Card>
       )}
 
-      {/* Lịch sử trạng thái */}
+      {/* Status history */}
       {r.status_history && r.status_history.length > 0 && (
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -333,6 +335,43 @@ export default function BMRequestDetailPage() {
           </div>
         </Card>
       )}
+
+      {/* Assign staff dialog */}
+      <AssignStaffDialog
+        buildingId={r.room?.building_id || r.room?.building?.id}
+        requestId={r.id}
+        requestNumber={r.request_number}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onAssigned={fetchRequest}
+      />
+
+      {/* Confirm action dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={(v) => !v && setConfirmAction(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Xác nhận thao tác</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn{" "}
+              {confirmAction === "REFUNDED" ? "hoàn tiền" : "đóng"}{" "}
+              yêu cầu <span className="font-semibold text-foreground">{r.request_number}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>
+              Hủy
+            </Button>
+            <Button
+              variant={confirmAction === "REFUNDED" ? "destructive" : "default"}
+              onClick={() => handleStatusAction(confirmAction)}
+              disabled={actionLoading}
+            >
+              {actionLoading && <CircleNotch className="size-4 animate-spin mr-1.5" />}
+              Xác nhận
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

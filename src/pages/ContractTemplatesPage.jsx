@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
     Plus, MagnifyingGlass, CircleNotch, FileText, Eye, CaretLeft, CaretRight,
@@ -71,7 +72,7 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
             await api.put(`/api/contract-templates/${template.id}`, { is_active: !template.is_active });
             onToggle();
         } catch (err) {
-            alert(err.message || "Lỗi");
+            toast.error(err.message || "Lỗi");
         } finally { setSaving(false); }
     };
 
@@ -81,7 +82,7 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
             await api.delete(`/api/contract-templates/${template.id}`);
             onDelete();
         } catch (err) {
-            alert(err.message || "Lỗi");
+            toast.error(err.message || "Lỗi");
         } finally { setSaving(false); }
     };
 

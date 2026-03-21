@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  MagnifyingGlass, Eye,
-  CalendarDots, House, CalendarBlank, CalendarCheck, ClockCountdown
+  MagnifyingGlass, Eye, CalendarCheck,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDate } from "@/lib/utils";
@@ -15,9 +15,6 @@ import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import StatusDot from "@/components/StatusDot";
 import { BOOKING_STATUS_MAP } from "@/lib/constants";
 
@@ -37,109 +34,16 @@ const fmtVND = (v) => {
   return Number(v).toLocaleString("vi-VN") + " đ";
 };
 
-/* ── BookingDetailDialog ──────────────────────────────────────── */
-
-function BookingDetailDialog({ open, onOpenChange, booking }) {
-  if (!open || !booking) return null;
-
-  const st = STATUS_MAP[booking.status] || STATUS_MAP.PENDING;
-  const customerName = booking.customer
-    ? `${booking.customer.last_name || ""} ${booking.customer.first_name || ""}`.trim()
-    : "—";
-  const roomLabel = booking.room
-    ? `Phòng ${booking.room.room_number || ""}${booking.room.building?.name ? " — " + booking.room.building.name : ""}`
-    : "—";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5">
-            {booking.booking_number}
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.dot.replace("bg-", "bg-").replace(/\/\d+/, "")}/15 ${st.text}`}>
-              {st.label}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-1">
-          {/* Info grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><House className="size-3" /> Phòng</p>
-              <p className="text-sm font-semibold">{roomLabel}</p>
-              {booking.room?.room_type?.name && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">{booking.room.room_type.name}</p>
-              )}
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><CalendarBlank className="size-3" /> Ngày tạo</p>
-              <p className="text-sm font-semibold">{formatDate(booking.created_at)}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><CalendarDots className="size-3" /> Nhận phòng dự kiến</p>
-              <p className="text-sm font-semibold text-primary">{formatDate(booking.check_in_date)}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><ClockCountdown className="size-3" /> Thời hạn</p>
-              <p className="text-sm font-semibold">{booking.duration_months} tháng</p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-            <p className="text-[11px] text-muted-foreground mb-2">Khách hàng</p>
-            <div className="font-semibold text-sm">{customerName}</div>
-            <div className="text-[12px] text-muted-foreground mt-1 flex gap-3">
-              <span>{booking.customer?.email}</span>
-              <span>{booking.customer?.phone}</span>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Giá phòng</span>
-              <span className="font-medium">{fmtVND(booking.room_price_snapshot)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
-              <span className="font-semibold">Tiền cọc yêu cầu</span>
-              <span className="font-bold text-base text-primary">{fmtVND(booking.deposit_amount)}</span>
-            </div>
-          </div>
-
-          {booking.deposit_paid_at && (
-            <div className="rounded-lg border border-success/30 bg-success/5 p-3">
-              <p className="text-sm font-semibold text-success">Đã thanh toán cọc</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Thời gian: {formatDate(booking.deposit_paid_at, true)}</p>
-            </div>
-          )}
-
-          {booking.cancelled_at && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex flex-col gap-1">
-              <p className="text-sm font-semibold text-destructive">Đã hủy</p>
-              <p className="text-xs text-muted-foreground">Thời gian: {formatDate(booking.cancelled_at, true)}</p>
-              <p className="text-sm text-foreground mt-1">Lý do: {booking.cancellation_reason}</p>
-            </div>
-          )}
-
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── BookingListTable ──────────────────────────────────────────── */
 
 export default function BookingListTable({ buildingId, isBM }) {
+  const navigate = useNavigate();
   const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState("all");
   const [page, setPage] = useState(1);
-  const [detailItem, setDetailItem] = useState(null);
 
   const fetchBookings = useCallback(() => {
     setLoading(true);
@@ -251,7 +155,7 @@ export default function BookingListTable({ buildingId, isBM }) {
                     : "—";
                   
                   return (
-                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetailItem(b)}>
+                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`${isBM ? "/building-manager" : ""}/bookings/${b.id}`)}>
                       <TableCell className="pl-4 text-muted-foreground text-xs">
                         {(page - 1) * PER_PAGE + idx + 1}
                       </TableCell>
@@ -268,7 +172,7 @@ export default function BookingListTable({ buildingId, isBM }) {
                       <TableCell className="text-right font-medium">{fmtVND(b.deposit_amount)}</TableCell>
                       <TableCell><StatusDot status={b.status} statusMap={STATUS_MAP} /></TableCell>
                       <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="size-8" onClick={() => setDetailItem(b)}>
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => navigate(`${isBM ? "/building-manager" : ""}/bookings/${b.id}`)}>
                           <Eye className="size-4" />
                         </Button>
                       </TableCell>
@@ -281,11 +185,6 @@ export default function BookingListTable({ buildingId, isBM }) {
         </>
       )}
 
-      <BookingDetailDialog
-        open={!!detailItem}
-        onOpenChange={(v) => !v && setDetailItem(null)}
-        booking={detailItem}
-      />
     </div>
   );
 }

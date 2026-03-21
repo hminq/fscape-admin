@@ -5,6 +5,7 @@ import {
   Stack as Layers, ToggleLeft, ToggleRight, CircleNotch,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
+import { ROOM_STATUS_MAP } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,11 +19,7 @@ import defaultRoomImg from "@/assets/default_building_img.jpg";
 
 const FETCH_LIMIT = 999;
 
-const ROOM_STATUS_MAP = {
-  AVAILABLE: { label: "Còn trống", dot: "bg-success", text: "text-success" },
-  OCCUPIED: { label: "Đã thuê", dot: "bg-primary", text: "text-primary" },
-  LOCKED: { label: "Đã khóa", dot: "bg-destructive", text: "text-destructive" },
-};
+
 
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả" },

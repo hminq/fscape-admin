@@ -6,6 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { formatDateTime } from "@/lib/utils";
+import { ASSET_STATUS_MAP, ASSET_HISTORY_ACTION_LABELS } from "@/lib/constants";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,7 @@ import { LoadingState, EmptyState } from "@/components/StateDisplay";
 const FETCH_LIMIT = 999;
 const PER_PAGE = 10;
 
-const STATUS_MAP = {
-  AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success" },
-  IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary" },
-};
+const STATUS_MAP = ASSET_STATUS_MAP;
 
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả" },
@@ -109,13 +107,7 @@ function QRDialog({ open, onOpenChange, asset }) {
 
 /* ── Action labels ──────────────────────────────────────── */
 
-const ACTION_LABELS = {
-  INITIAL_CREATE: "Tạo mới",
-  CHECK_IN: "Nhận phòng",
-  CHECK_OUT: "Trả phòng",
-  MOVE: "Di chuyển",
-  UPDATE_INFO: "Cập nhật",
-};
+const ACTION_LABELS = ASSET_HISTORY_ACTION_LABELS;
 
 /* ── Detail Dialog (read-only, fetches full data + history) ── */
 

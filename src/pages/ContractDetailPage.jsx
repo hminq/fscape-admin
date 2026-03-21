@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, CircleNotch, FileText, DownloadSimple, FilePdf,
   User as UserIcon, Envelope, House, CalendarDots,
-  CurrencyDollar, ClockCountdown, PencilSimple, Notebook,
+  CurrencyDollar, ClockCountdown, PencilSimple,
+  ClipboardText, CaretDown, CaretUp,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,8 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS } from "@/lib/constants";
+import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP } from "@/lib/constants";
 import defaultUserImg from "@/assets/default_user_img.jpg";
+
+/* ── helpers ───────────────────────────────────────────── */
 
 const STATUS_MAP = CONTRACT_STATUS_MAP;
 const BILLING_CYCLE_LABEL = BILLING_CYCLE_LABELS;
@@ -22,6 +25,20 @@ const fmtVND = (v) => {
   if (v == null) return "—";
   return Number(v).toLocaleString("vi-VN") + " đ";
 };
+
+/** Map status → banner color classes */
+const STATUS_BANNER_COLORS = {
+  ACTIVE:                     { border: "border-success/30",     bg: "bg-success/10",     dot: "bg-success",     text: "text-success" },
+  FINISHED:                   { border: "border-primary/30",     bg: "bg-primary/10",     dot: "bg-primary",     text: "text-primary" },
+  EXPIRING_SOON:              { border: "border-amber-500/30",   bg: "bg-amber-500/10",   dot: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400" },
+  PENDING_CUSTOMER_SIGNATURE: { border: "border-chart-2/30",     bg: "bg-chart-2/10",     dot: "bg-chart-2",     text: "text-chart-2" },
+  PENDING_MANAGER_SIGNATURE:  { border: "border-chart-4/30",     bg: "bg-chart-4/10",     dot: "bg-chart-4",     text: "text-chart-4" },
+  PENDING_FIRST_PAYMENT:      { border: "border-chart-3/30",     bg: "bg-chart-3/10",     dot: "bg-chart-3",     text: "text-chart-3" },
+  PENDING_CHECK_IN:           { border: "border-chart-1/30",     bg: "bg-chart-1/10",     dot: "bg-chart-1",     text: "text-chart-1" },
+  TERMINATED:                 { border: "border-destructive/30", bg: "bg-destructive/10", dot: "bg-destructive", text: "text-destructive" },
+};
+
+/* ── reusable components ───────────────────────────────── */
 
 function InfoCell({ icon: Icon, label, value, sub }) {
   return (
@@ -61,6 +78,73 @@ function SignatureCard({ label, signedAt, signatureUrl, name }) {
   );
 }
 
+function InspectionCard({ inspection }) {
+  const [expanded, setExpanded] = useState(false);
+  const isCheckOut = inspection.type === "CHECK_OUT";
+  const st = INSPECTION_STATUS_MAP[inspection.status];
+  const performerName = inspection.performer
+    ? `${inspection.performer.last_name || ""} ${inspection.performer.first_name || ""}`.trim()
+    : "—";
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          {st && (
+            <div className="flex items-center gap-1.5">
+              <span className={`size-1.5 rounded-full ${st.dot}`} />
+              <span className={`text-xs font-medium ${st.text}`}>{st.label}</span>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Người thực hiện: <span className="font-medium text-foreground">{performerName}</span>
+            {" · "}{formatDateTime(inspection.created_at)}
+          </p>
+          {isCheckOut && Number(inspection.penalty_total) > 0 && (
+            <p className="text-xs text-destructive font-medium">
+              Phạt: {fmtVND(inspection.penalty_total)}
+            </p>
+          )}
+        </div>
+        {inspection.items?.length > 0 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="shrink-0 size-8 rounded-lg border border-border bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
+          >
+            {expanded ? <CaretUp className="size-4" /> : <CaretDown className="size-4" />}
+          </button>
+        )}
+      </div>
+
+      {expanded && inspection.items?.length > 0 && (
+        <div className="border-t border-border px-4 py-3 space-y-2">
+          {inspection.items.map((item) => {
+            const cond = ASSET_CONDITION_MAP[item.condition];
+            return (
+              <div key={item.id} className="flex items-center justify-between text-xs gap-2">
+                <div className="min-w-0">
+                  <span className="font-medium">{item.asset?.name || item.qr_code}</span>
+                  {item.asset?.asset_type?.name && (
+                    <span className="text-muted-foreground ml-1.5">({item.asset.asset_type.name})</span>
+                  )}
+                  {item.note && <span className="text-muted-foreground ml-1.5">— {item.note}</span>}
+                </div>
+                {cond && (
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold ${cond.bg} ${cond.color}`}>
+                    {cond.label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── main page ─────────────────────────────────────────── */
+
 export default function ContractDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -68,6 +152,8 @@ export default function ContractDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [inspections, setInspections] = useState([]);
+  const [inspLoading, setInspLoading] = useState(false);
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -83,6 +169,22 @@ export default function ContractDetailPage() {
     };
     fetchContract();
   }, [id]);
+
+  useEffect(() => {
+    if (!contract?.room?.id) return;
+    const fetchInspections = async () => {
+      setInspLoading(true);
+      try {
+        const res = await api.get(`/api/inspections?room_id=${contract.room.id}`);
+        setInspections(res.data || res || []);
+      } catch {
+        /* silent — inspections are supplementary */
+      } finally {
+        setInspLoading(false);
+      }
+    };
+    fetchInspections();
+  }, [contract?.room?.id]);
 
   if (loading) {
     return (
@@ -102,6 +204,7 @@ export default function ContractDetailPage() {
   }
 
   const st = STATUS_MAP[contract.status] || STATUS_MAP.ACTIVE;
+  const bannerColors = STATUS_BANNER_COLORS[contract.status];
 
   const customerName = contract.customer
     ? `${contract.customer.last_name || ""} ${contract.customer.first_name || ""}`.trim()
@@ -128,9 +231,6 @@ export default function ContractDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-2.5 mb-0.5">
             <h1 className="text-lg font-bold">{contract.contract_number}</h1>
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.badge}`}>
-              {st.label}
-            </span>
           </div>
           <p className="text-[13px] text-muted-foreground flex items-center gap-1.5">
             <FileText className="size-3.5" /> Hợp đồng thuê phòng
@@ -174,9 +274,29 @@ export default function ContractDetailPage() {
             <InfoCell icon={PencilSimple} label="Chu kỳ thanh toán" value={BILLING_CYCLE_LABEL[contract.billing_cycle] || contract.billing_cycle || "—"} />
           </div>
         </div>
+
+        {/* Status banner */}
+        {bannerColors && (
+          <div className={`border-t ${bannerColors.border} ${bannerColors.bg} px-5 py-3 flex items-center justify-between`}>
+            <div className="flex items-center gap-2">
+              <span className={`size-2 rounded-full ${bannerColors.dot}`} />
+              <span className={`text-sm font-semibold ${bannerColors.text}`}>{st.label}</span>
+            </div>
+            {contract.status === "EXPIRING_SOON" && contract.end_date && (
+              <span className="text-xs text-amber-600/80 dark:text-amber-400/80">
+                Kết thúc: {formatDate(contract.end_date)}
+              </span>
+            )}
+            {contract.signature_expires_at && (contract.status === "PENDING_CUSTOMER_SIGNATURE" || contract.status === "PENDING_MANAGER_SIGNATURE") && (
+              <span className={`text-xs ${bannerColors.text} opacity-80`}>
+                Hạn ký: {formatDateTime(contract.signature_expires_at)}
+              </span>
+            )}
+          </div>
+        )}
       </Card>
 
-      {/* Customer & Manager */}
+      {/* Customer & Room */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Customer */}
         <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
@@ -245,27 +365,42 @@ export default function ContractDetailPage() {
             name={managerName}
           />
         </div>
+      </section>
 
-        {contract.signature_expires_at && !contract.manager_signed_at && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
-            <ClockCountdown className="size-4 text-amber-500 shrink-0" />
-            <p className="text-xs text-amber-500 font-medium">
-              Hạn ký: {formatDateTime(contract.signature_expires_at)}
-            </p>
+      {/* Inspections */}
+      <section>
+        <h2 className="text-base font-bold mb-3 flex items-center gap-2">
+          <ClipboardText className="size-4 text-primary" /> Kiểm tra tài sản
+        </h2>
+        {inspLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <CircleNotch className="animate-spin text-muted-foreground size-5" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Nhận phòng (Check-in)</p>
+              {inspections.find((i) => i.type === "CHECK_IN") ? (
+                <InspectionCard inspection={inspections.find((i) => i.type === "CHECK_IN")} />
+              ) : (
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <p className="text-sm text-muted-foreground">Chưa thực hiện</p>
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Trả phòng (Check-out)</p>
+              {inspections.find((i) => i.type === "CHECK_OUT") ? (
+                <InspectionCard inspection={inspections.find((i) => i.type === "CHECK_OUT")} />
+              ) : (
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <p className="text-sm text-muted-foreground">Chưa thực hiện</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
-
-      {/* Template */}
-      {contract.template && (
-        <section>
-          <h2 className="text-base font-bold mb-3">Mẫu hợp đồng</h2>
-          <div className="flex items-center rounded-xl border border-border bg-card p-3 gap-3">
-            <Notebook className="size-4 text-muted-foreground shrink-0" />
-            <p className="text-sm font-semibold">{contract.template.name || "Mẫu hợp đồng"}</p>
-          </div>
-        </section>
-      )}
 
       {/* Notes */}
       {contract.notes && (
@@ -287,7 +422,7 @@ export default function ContractDetailPage() {
 
       {/* Contract preview dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Xem hợp đồng — {contract.contract_number}</DialogTitle>
           </DialogHeader>

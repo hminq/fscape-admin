@@ -27,7 +27,9 @@ import ContractDetailPage from "./pages/ContractDetailPage";
 import ContractTemplatesPage from "./pages/ContractTemplatesPage";
 import ContractTemplateEditorPage from "./pages/ContractTemplateEditorPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import InvoiceDetailPage from "./pages/InvoiceDetailPage";
 import RequestsPage from "./pages/RequestsPage";
+import RequestDetailPage from "./pages/RequestDetailPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import SystemLogsPage from "./pages/SystemLogsPage";
 import BMLayout from "./layouts/BMLayout";
@@ -47,6 +49,7 @@ import BMRequestAssignPage from "./pages/bm/BMRequestAssignPage";
 import BMRequestDetailPage from "./pages/bm/BMRequestDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import BookingsPage from "./pages/BookingsPage";
+import BookingDetailPage from "./pages/BookingDetailPage";
 import BMBookingsPage from "./pages/bm/BMBookingsPage";
 
 export default function App() {
@@ -75,6 +78,7 @@ export default function App() {
               <Route path="notifications" element={<BMNotificationsPage />} />
               <Route path="notifications/create" element={<BMNotificationCreatePage />} />
               <Route path="bookings" element={<BMBookingsPage />} />
+              <Route path="bookings/:id" element={<BookingDetailPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
@@ -107,8 +111,11 @@ export default function App() {
               <Route path="contracts/templates/create" element={<ContractTemplateEditorPage />} />
               <Route path="contracts/templates/:id/edit" element={<ContractTemplateEditorPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="bookings" element={<BookingsPage />} />
+              <Route path="bookings/:id" element={<BookingDetailPage />} />
               <Route path="requests" element={<RequestsPage />} />
+              <Route path="requests/:id" element={<RequestDetailPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />
               <Route path="profile" element={<ProfilePage />} />

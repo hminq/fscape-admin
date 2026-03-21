@@ -24,11 +24,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { apiJson, api } from "@/lib/apiClient";
 import { formatDate as fmt } from "@/lib/utils";
+import { ASSET_STATUS_MAP } from "@/lib/constants";
 
-const STATUS_MAP = {
-  AVAILABLE: { label: "Sẵn sàng", dot: "bg-success", text: "text-success" },
-  IN_USE: { label: "Đang sử dụng", dot: "bg-primary", text: "text-primary" },
-};
+const STATUS_MAP = ASSET_STATUS_MAP;
 
 /* ── Status Bar (straight bar, filter-reactive) ── */
 

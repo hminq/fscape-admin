@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
     ArrowLeft, PencilSimple, Trash, MapPin, Stack as Layers, House,
     Envelope, Phone, CircleNotch, CurrencyDollar, Users, ArrowsOutSimple,
@@ -14,34 +15,28 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { formatDate as fmtDate } from "@/lib/utils";
+import { ROOM_STATUS_MAP, CONTRACT_STATUS_MAP, BOOKING_STATUS_MAP, REQUEST_STATUS_MAP } from "@/lib/constants";
 import ModelViewer, { is3DFile } from "@/components/ModelViewer";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 
-const STATUS_CFG = {
-    AVAILABLE: { label: "Còn trống", bg: "bg-success", text: "text-success" },
-    OCCUPIED: { label: "Đã thuê", bg: "bg-primary", text: "text-primary" },
-    MAINTENANCE: { label: "Bảo trì", bg: "bg-amber-500", text: "text-amber-500" },
-    LOCKED: { label: "Khóa", bg: "bg-destructive", text: "text-destructive" },
-};
+
+const STATUS_CFG = Object.fromEntries(
+  Object.entries(ROOM_STATUS_MAP).map(([k, v]) => [k, { label: v.label, bg: v.bg || v.dot, text: v.text }])
+);
+
+const CONTRACT_STATUS_LABEL = Object.fromEntries(
+  Object.entries(CONTRACT_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
+const BOOKING_STATUS_LABEL = Object.fromEntries(
+  Object.entries(BOOKING_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
+const REQUEST_STATUS_LABEL = Object.fromEntries(
+  Object.entries(REQUEST_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
 
 const fmtPrice = (p) => p ? parseFloat(p).toLocaleString("vi-VN") : "—";
-
-const CONTRACT_STATUS_LABEL = {
-    DRAFT: "Nháp", PENDING_CUSTOMER_SIGNATURE: "Chờ KH ký",
-    PENDING_MANAGER_SIGNATURE: "Chờ QL ký", ACTIVE: "Đang hiệu lực",
-    EXPIRING_SOON: "Sắp hết hạn", EXPIRED: "Đã hết hạn",
-    TERMINATED: "Đã chấm dứt", CANCELLED: "Đã hủy",
-};
-const BOOKING_STATUS_LABEL = {
-    PENDING: "Chờ xử lý", DEPOSIT_PAID: "Đã đặt cọc",
-    CONFIRMED: "Đã xác nhận", CANCELLED: "Đã hủy", CONVERTED: "Đã chuyển HĐ",
-};
-const REQUEST_STATUS_LABEL = {
-    PENDING: "Chờ xử lý", IN_PROGRESS: "Đang xử lý",
-    RESOLVED: "Đã giải quyết", CLOSED: "Đã đóng",
-};
 
 export default function RoomDetailPage() {
     const { id } = useParams();
@@ -74,7 +69,7 @@ export default function RoomDetailPage() {
             await api.delete(`/api/rooms/${room.id}`);
             navigate("/rooms");
         } catch (err) {
-            alert(err.message || "Xóa thất bại");
+            toast.error(err.message || "Xóa thất bại");
         } finally {
             setSaving(false);
             setConfirmDel(false);
@@ -159,7 +154,7 @@ export default function RoomDetailPage() {
                     </Button>
                     {isLocked && (
                         <span className="text-xs text-amber-600 font-medium">
-                            Có hợp đồng/đặt cọc đang hoạt động — không thể chỉnh sửa
+                            Phòng đang được sử dụng — không thể chỉnh sửa
                         </span>
                     )}
                 </div>

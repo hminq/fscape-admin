@@ -20,17 +20,15 @@ import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import StatusBar from "@/components/StatusBar";
 import { formatDate } from "@/lib/utils";
 import defaultUserImg from "@/assets/default_user_img.jpg";
+import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
 const PER_PAGE = 10;
 
-const CONTRACT_STATUS_LABELS = {
-  ACTIVE: "Đang hiệu lực",
-  EXPIRING_SOON: "Sắp hết hạn",
-  PENDING_CUSTOMER_SIGNATURE: "Chờ cư dân ký",
-  PENDING_MANAGER_SIGNATURE: "Chờ BM ký",
-};
+const CONTRACT_STATUS_LABELS = Object.fromEntries(
+  Object.entries(CONTRACT_STATUS_MAP).map(([k, v]) => [k, v.label])
+);
 
 const fullName = (u) =>
   [u.last_name, u.first_name].filter(Boolean).join(" ") || "—";

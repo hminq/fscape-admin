@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Receipt, MagnifyingGlass, Eye,
-  CurrencyDollar, CalendarDots,
-  ClockCountdown, User as UserIcon, House, Envelope,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
@@ -20,11 +19,8 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import StatusDot from "@/components/StatusDot";
-import { INVOICE_STATUS_MAP, INVOICE_TYPE_LABELS, INVOICE_ITEM_TYPE_LABELS } from "@/lib/constants";
+import { INVOICE_STATUS_MAP, INVOICE_TYPE_LABELS } from "@/lib/constants";
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -147,158 +143,6 @@ function InvoiceSummary({ stats, filter }) {
   );
 }
 
-/* ── Detail Dialog ──────────────────────────────────────── */
-
-const ITEM_TYPE_MAP = INVOICE_ITEM_TYPE_LABELS;
-
-function InvoiceDetailDialog({ open, onOpenChange, invoiceId }) {
-  const [invoice, setInvoice] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open || !invoiceId) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/api/invoices/${invoiceId}`);
-        if (!cancelled) setInvoice(res.data || res);
-      } catch {
-        if (!cancelled) setInvoice(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open, invoiceId]);
-
-  if (!open) return null;
-
-  const st = invoice ? (STATUS_MAP[invoice.status] || STATUS_MAP.UNPAID) : null;
-  const customerName = invoice?.contract?.customer
-    ? `${invoice.contract.customer.last_name || ""} ${invoice.contract.customer.first_name || ""}`.trim()
-    : "—";
-  const roomLabel = invoice?.contract?.room
-    ? `${invoice.contract.room.room_number || ""}${invoice.contract.room.building?.name ? " — " + invoice.contract.room.building.name : ""}`
-    : "—";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        {loading || !invoice ? (
-          <div className="flex items-center justify-center py-12">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground/40" />
-          </div>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2.5">
-                {invoice.invoice_number}
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.dot.replace("bg-", "bg-").replace(/\/\d+/, "")}/15 ${st.text}`}>
-                  {st.label}
-                </span>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 py-1">
-              {/* Type badge */}
-              <p className="text-xs text-muted-foreground">{TYPE_MAP[invoice.invoice_type] || invoice.invoice_type}</p>
-
-              {/* Info grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                  <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><CalendarDots className="size-3" /> Kỳ thanh toán</p>
-                  <p className="text-sm font-semibold">{formatDate(invoice.billing_period_start)} → {formatDate(invoice.billing_period_end)}</p>
-                </div>
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                  <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><ClockCountdown className="size-3" /> Hạn thanh toán</p>
-                  <p className="text-sm font-semibold">{formatDate(invoice.due_date)}</p>
-                </div>
-              </div>
-
-              {/* Customer & Room */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                  <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><UserIcon className="size-3" /> Khách hàng</p>
-                  <p className="text-sm font-semibold">{customerName}</p>
-                  {invoice.contract?.customer?.email && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1"><Envelope className="size-3" /> {invoice.contract.customer.email}</p>
-                  )}
-                </div>
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                  <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1"><House className="size-3" /> Phòng</p>
-                  <p className="text-sm font-semibold">{roomLabel}</p>
-                  {invoice.contract?.contract_number && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">HĐ: {invoice.contract.contract_number}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Amounts */}
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Tiền thuê</span>
-                  <span className="font-medium">{fmtVND(invoice.room_rent)}</span>
-                </div>
-                {Number(invoice.request_fees) > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Phí dịch vụ</span>
-                    <span className="font-medium">{fmtVND(invoice.request_fees)}</span>
-                  </div>
-                )}
-                {Number(invoice.penalty_fees) > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Phí phạt</span>
-                    <span className="font-medium">{fmtVND(invoice.penalty_fees)}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
-                  <span className="font-semibold">Tổng cộng</span>
-                  <span className="font-bold text-base">{fmtVND(invoice.total_amount)}</span>
-                </div>
-              </div>
-
-              {/* Line items */}
-              {invoice.items?.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Chi tiết ({invoice.items.length})</p>
-                  <div className="space-y-1.5">
-                    {invoice.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-sm rounded-lg border border-border/50 bg-card p-2.5">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm truncate">{item.description}</p>
-                          <p className="text-[11px] text-muted-foreground">{ITEM_TYPE_MAP[item.item_type] || item.item_type}</p>
-                        </div>
-                        <span className="font-medium shrink-0 ml-3">{fmtVND(item.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Payment info */}
-              {invoice.paid_at && (
-                <div className="rounded-lg border border-success/30 bg-success/5 p-3">
-                  <p className="text-sm font-semibold text-success">Đã thanh toán</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Thời gian: {formatDateTime(invoice.paid_at)}</p>
-                </div>
-              )}
-
-              {/* Notes */}
-              {invoice.notes && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ghi chú</p>
-                  <p className="text-sm mt-0.5">{invoice.notes}</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /* ── Main Page ──────────────────────────────────────────── */
 
 export default function InvoicesPage() {
@@ -313,7 +157,7 @@ export default function InvoicesPage() {
   const [filterKey, setFilterKey] = useState("all");
   const [filterType, setFilterType] = useState("__all__");
   const [page, setPage] = useState(1);
-  const [detailId, setDetailId] = useState(null);
+  const navigate = useNavigate();
 
   const fetchInvoices = useCallback(() => {
     setLoading(true);
@@ -420,7 +264,7 @@ export default function InvoicesPage() {
                 </TableHeader>
                 <TableBody>
                   {invoices.map((inv, idx) => (
-                    <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetailId(inv.id)}>
+                    <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/invoices/${inv.id}`)}>
                       <TableCell className="pl-4 text-muted-foreground text-xs">
                         {(page - 1) * PER_PAGE + idx + 1}
                       </TableCell>
@@ -432,7 +276,7 @@ export default function InvoicesPage() {
                       <TableCell className="text-right font-medium">{fmtVND(inv.total_amount)}</TableCell>
                       <TableCell><StatusDot status={inv.status} statusMap={STATUS_MAP} /></TableCell>
                       <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="size-8" onClick={() => setDetailId(inv.id)}>
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => navigate(`/invoices/${inv.id}`)}>
                           <Eye className="size-4" />
                         </Button>
                       </TableCell>
@@ -445,11 +289,6 @@ export default function InvoicesPage() {
         </>
       )}
 
-      <InvoiceDetailDialog
-        open={!!detailId}
-        onOpenChange={(v) => !v && setDetailId(null)}
-        invoiceId={detailId}
-      />
     </div>
   );
 }
