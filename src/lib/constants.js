@@ -41,6 +41,8 @@ export const REQUEST_STATUS_MAP = {
 export const CONTRACT_STATUS_MAP = {
   PENDING_CUSTOMER_SIGNATURE: { label: "Chờ KH ký", dot: "bg-chart-2", text: "text-chart-2", badge: "bg-chart-2/15 text-chart-2" },
   PENDING_MANAGER_SIGNATURE: { label: "Chờ QL ký", dot: "bg-chart-4", text: "text-chart-4", badge: "bg-chart-4/15 text-chart-4" },
+  PENDING_FIRST_PAYMENT: { label: "Chờ thanh toán", dot: "bg-chart-3", text: "text-chart-3", badge: "bg-chart-3/15 text-chart-3" },
+  PENDING_CHECK_IN: { label: "Chờ nhận phòng", dot: "bg-chart-1", text: "text-chart-1", badge: "bg-chart-1/15 text-chart-1" },
   ACTIVE: { label: "Đang hiệu lực", dot: "bg-success", text: "text-success", badge: "bg-success/15 text-success" },
   EXPIRING_SOON: { label: "Sắp hết hạn", dot: "bg-amber-500", text: "text-amber-500", badge: "bg-amber-500/15 text-amber-500" },
   FINISHED: { label: "Đã kết thúc", dot: "bg-primary", text: "text-primary", badge: "bg-primary/15 text-primary" },
