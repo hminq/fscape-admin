@@ -10,6 +10,7 @@ import {
   CaretDown,
   Users,
   CalendarCheck,
+  Scales,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/apiClient";
@@ -50,6 +51,11 @@ const navItems = [
       { label: "Danh sách", to: `${BM_PREFIX}/contracts` },
       { label: "Chờ ký", to: `${BM_PREFIX}/contracts/pending` },
     ],
+  },
+  {
+    label: "Quyết toán",
+    icon: Scales,
+    to: `${BM_PREFIX}/settlements`,
   },
   {
     label: "Tài sản",

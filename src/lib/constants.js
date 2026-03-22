@@ -61,6 +61,13 @@ export const CONTRACT_STATUS_MAP = {
   TERMINATED: { label: "Đã chấm dứt", dot: "bg-destructive", text: "text-destructive", badge: "bg-destructive/15 text-destructive" },
 };
 
+/* ── Settlement status ─────────────────────── */
+
+export const SETTLEMENT_STATUS_MAP = {
+  FINALIZED: { label: "Chờ xử lý", dot: "bg-amber-500", text: "text-amber-500" },
+  CLOSED:    { label: "Đã đóng",   dot: "bg-success",   text: "text-success" },
+};
+
 /* ── Invoice status ────────────────────────── */
 
 export const INVOICE_STATUS_MAP = {

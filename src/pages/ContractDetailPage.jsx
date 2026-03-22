@@ -4,7 +4,7 @@ import {
   ArrowLeft, CircleNotch, FileText, DownloadSimple, FilePdf,
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple,
-  ClipboardText, CaretDown, CaretUp,
+  ClipboardText, CaretDown, CaretUp, Scales,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP } from "@/lib/constants";
+import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── helpers ───────────────────────────────────────────── */
@@ -154,6 +154,8 @@ export default function ContractDetailPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [inspections, setInspections] = useState([]);
   const [inspLoading, setInspLoading] = useState(false);
+  const [settlement, setSettlement] = useState(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -185,6 +187,22 @@ export default function ContractDetailPage() {
     };
     fetchInspections();
   }, [contract?.room?.id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchSettlement = async () => {
+      setSettlementLoading(true);
+      try {
+        const res = await api.get(`/api/settlements/contract/${id}`);
+        setSettlement(res.data || null);
+      } catch {
+        /* silent — settlement may not exist yet */
+      } finally {
+        setSettlementLoading(false);
+      }
+    };
+    fetchSettlement();
+  }, [id]);
 
   if (loading) {
     return (
@@ -398,6 +416,89 @@ export default function ContractDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* Settlement */}
+      <section>
+        <h2 className="text-base font-bold mb-3 flex items-center gap-2">
+          <Scales className="size-4 text-primary" /> Quyết toán
+        </h2>
+        {settlementLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <CircleNotch className="animate-spin text-muted-foreground size-5" />
+          </div>
+        ) : settlement ? (
+          <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
+            <div className="p-5 space-y-4">
+              {/* Status + date */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`size-2 rounded-full ${SETTLEMENT_STATUS_MAP[settlement.status]?.dot || "bg-muted"}`} />
+                  <span className={`text-sm font-semibold ${SETTLEMENT_STATUS_MAP[settlement.status]?.text || ""}`}>
+                    {SETTLEMENT_STATUS_MAP[settlement.status]?.label || settlement.status}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateTime(settlement.finalized_at)}
+                </span>
+              </div>
+
+              {/* Amount summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <InfoCell icon={CurrencyDollar} label="Tiền cọc ban đầu" value={fmtVND(settlement.deposit_original_amount)} />
+                <InfoCell icon={CurrencyDollar} label="Tổng phạt" value={fmtVND(settlement.total_penalty_amount)} />
+                <InfoCell icon={CurrencyDollar} label="Phí dịch vụ chưa TT" value={fmtVND(settlement.total_unbilled_service_amount)} />
+                {Number(settlement.amount_refund_to_resident) > 0 ? (
+                  <InfoCell icon={CurrencyDollar} label="Hoàn trả cư dân" value={
+                    <span className="text-success">{fmtVND(settlement.amount_refund_to_resident)}</span>
+                  } />
+                ) : Number(settlement.amount_due_from_resident) > 0 ? (
+                  <InfoCell icon={CurrencyDollar} label="Cư dân phải trả" value={
+                    <span className="text-destructive">{fmtVND(settlement.amount_due_from_resident)}</span>
+                  } />
+                ) : (
+                  <InfoCell icon={CurrencyDollar} label="Kết quả" value="Không cần trao đổi" />
+                )}
+              </div>
+
+              {/* Settlement items */}
+              {settlement.items?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chi tiết khoản mục</p>
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {settlement.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between px-3 py-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="font-medium">{item.description}</span>
+                          <span className="text-muted-foreground ml-2">
+                            ({item.item_type === "ASSET_PENALTY" ? "Phạt tài sản"
+                              : item.item_type === "UNBILLED_SERVICE" ? "Phí dịch vụ"
+                              : item.item_type === "DEPOSIT_OFFSET" ? "Khấu trừ cọc"
+                              : item.item_type})
+                          </span>
+                        </div>
+                        <span className={`shrink-0 font-semibold tabular-nums ${Number(item.amount) < 0 ? "text-success" : "text-foreground"}`}>
+                          {fmtVND(item.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Closed info */}
+              {settlement.closed_at && (
+                <p className="text-xs text-muted-foreground">
+                  Đóng lúc: {formatDateTime(settlement.closed_at)}
+                </p>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <p className="text-sm text-muted-foreground">Chưa có quyết toán</p>
           </div>
         )}
       </section>

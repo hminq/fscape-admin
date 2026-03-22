@@ -5,15 +5,17 @@ import {
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple,
   PencilLine as PenLine, ClipboardText, CaretDown, CaretUp,
+  BellRinging, Scales,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP } from "@/lib/constants";
+import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── helpers ───────────────────────────────────────────── */
@@ -44,6 +46,14 @@ const CONTRACT_STYLES = `
     margin-bottom: 0 !important;
   }
 `;
+
+/** Map status → reminder config (only statuses that support manual reminders) */
+const REMINDER_CONFIG = {
+  PENDING_CUSTOMER_SIGNATURE: { type: "SIGN", label: "Nhắc ký hợp đồng", desc: "Nhắc khách hàng ký hợp đồng" },
+  PENDING_FIRST_PAYMENT:      { type: "PAY_FIRST_RENT", label: "Nhắc thanh toán", desc: "Nhắc khách hàng thanh toán tiền phòng kỳ đầu" },
+  PENDING_CHECK_IN:           { type: "CHECK_IN", label: "Nhắc nhận phòng", desc: "Nhắc khách hàng nhận phòng" },
+  EXPIRING_SOON:              { type: "EXPIRING", label: "Nhắc gia hạn", desc: "Nhắc khách hàng gia hạn hợp đồng" },
+};
 
 /** Map status → banner color classes */
 const STATUS_BANNER_COLORS = {
@@ -173,6 +183,10 @@ export default function BMContractDetailPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [inspections, setInspections] = useState([]);
   const [inspLoading, setInspLoading] = useState(false);
+  const [settlement, setSettlement] = useState(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderLoading, setReminderLoading] = useState(false);
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -205,6 +219,22 @@ export default function BMContractDetailPage() {
     fetchInspections();
   }, [contract?.room?.id]);
 
+  useEffect(() => {
+    if (!id) return;
+    const fetchSettlement = async () => {
+      setSettlementLoading(true);
+      try {
+        const res = await api.get(`/api/settlements/contract/${id}`);
+        setSettlement(res.data || null);
+      } catch {
+        /* silent — settlement may not exist yet */
+      } finally {
+        setSettlementLoading(false);
+      }
+    };
+    fetchSettlement();
+  }, [id]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -225,6 +255,7 @@ export default function BMContractDetailPage() {
   const st = STATUS_MAP[contract.status] || STATUS_MAP.ACTIVE;
   const bannerColors = STATUS_BANNER_COLORS[contract.status];
   const isPendingManagerSign = contract.status === "PENDING_MANAGER_SIGNATURE";
+  const reminderCfg = REMINDER_CONFIG[contract.status];
 
   const customerName = contract.customer
     ? `${contract.customer.last_name || ""} ${contract.customer.first_name || ""}`.trim()
@@ -276,6 +307,11 @@ export default function BMContractDetailPage() {
               <a href={contract.pdf_url} target="_blank" rel="noopener noreferrer">
                 <DownloadSimple className="size-4" /> Tải PDF
               </a>
+            </Button>
+          )}
+          {reminderCfg && (
+            <Button variant="outline" className="gap-2" onClick={() => setReminderOpen(true)}>
+              <BellRinging className="size-4" /> {reminderCfg.label}
             </Button>
           )}
         </div>
@@ -429,6 +465,89 @@ export default function BMContractDetailPage() {
         )}
       </section>
 
+      {/* Settlement */}
+      <section>
+        <h2 className="text-base font-bold mb-3 flex items-center gap-2">
+          <Scales className="size-4 text-primary" /> Quyết toán
+        </h2>
+        {settlementLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <CircleNotch className="animate-spin text-muted-foreground size-5" />
+          </div>
+        ) : settlement ? (
+          <Card className="overflow-hidden border-border shadow-sm py-0 gap-0">
+            <div className="p-5 space-y-4">
+              {/* Status + date */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`size-2 rounded-full ${SETTLEMENT_STATUS_MAP[settlement.status]?.dot || "bg-muted"}`} />
+                  <span className={`text-sm font-semibold ${SETTLEMENT_STATUS_MAP[settlement.status]?.text || ""}`}>
+                    {SETTLEMENT_STATUS_MAP[settlement.status]?.label || settlement.status}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateTime(settlement.finalized_at)}
+                </span>
+              </div>
+
+              {/* Amount summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <InfoCell icon={CurrencyDollar} label="Tiền cọc ban đầu" value={fmtVND(settlement.deposit_original_amount)} />
+                <InfoCell icon={CurrencyDollar} label="Tổng phạt" value={fmtVND(settlement.total_penalty_amount)} />
+                <InfoCell icon={CurrencyDollar} label="Phí dịch vụ chưa TT" value={fmtVND(settlement.total_unbilled_service_amount)} />
+                {Number(settlement.amount_refund_to_resident) > 0 ? (
+                  <InfoCell icon={CurrencyDollar} label="Hoàn trả cư dân" value={
+                    <span className="text-success">{fmtVND(settlement.amount_refund_to_resident)}</span>
+                  } />
+                ) : Number(settlement.amount_due_from_resident) > 0 ? (
+                  <InfoCell icon={CurrencyDollar} label="Cư dân phải trả" value={
+                    <span className="text-destructive">{fmtVND(settlement.amount_due_from_resident)}</span>
+                  } />
+                ) : (
+                  <InfoCell icon={CurrencyDollar} label="Kết quả" value="Không cần trao đổi" />
+                )}
+              </div>
+
+              {/* Settlement items */}
+              {settlement.items?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chi tiết khoản mục</p>
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {settlement.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between px-3 py-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="font-medium">{item.description}</span>
+                          <span className="text-muted-foreground ml-2">
+                            ({item.item_type === "ASSET_PENALTY" ? "Phạt tài sản"
+                              : item.item_type === "UNBILLED_SERVICE" ? "Phí dịch vụ"
+                              : item.item_type === "DEPOSIT_OFFSET" ? "Khấu trừ cọc"
+                              : item.item_type})
+                          </span>
+                        </div>
+                        <span className={`shrink-0 font-semibold tabular-nums ${Number(item.amount) < 0 ? "text-success" : "text-foreground"}`}>
+                          {fmtVND(item.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Closed info */}
+              {settlement.closed_at && (
+                <p className="text-xs text-muted-foreground">
+                  Đóng lúc: {formatDateTime(settlement.closed_at)}
+                </p>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <p className="text-sm text-muted-foreground">Chưa có quyết toán</p>
+          </div>
+        )}
+      </section>
+
       {/* Notes */}
       {contract.notes && (
         <section>
@@ -459,6 +578,60 @@ export default function BMContractDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Send reminder dialog */}
+      {reminderCfg && (
+        <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Gửi nhắc nhở</DialogTitle>
+              <DialogDescription>{reminderCfg.desc}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Người nhận</p>
+                <p className="text-sm font-semibold">{customerName}</p>
+                {contract.customer?.email && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Envelope className="size-3" /> {contract.customer.email}
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hợp đồng</p>
+                <p className="text-sm font-semibold">{contract.contract_number}</p>
+                <p className="text-xs text-muted-foreground">{roomLabel}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReminderOpen(false)} disabled={reminderLoading}>
+                Hủy
+              </Button>
+              <Button
+                className="gap-2"
+                disabled={reminderLoading}
+                onClick={async () => {
+                  setReminderLoading(true);
+                  try {
+                    const res = await api.post(`/api/contracts/${id}/send-reminder`, {
+                      reminder_type: reminderCfg.type,
+                    });
+                    toast.success(res.message || "Đã gửi email nhắc nhở thành công");
+                    setReminderOpen(false);
+                  } catch (err) {
+                    toast.error(err?.message || "Không thể gửi email nhắc nhở");
+                  } finally {
+                    setReminderLoading(false);
+                  }
+                }}
+              >
+                {reminderLoading && <CircleNotch className="size-4 animate-spin" />}
+                Gửi nhắc nhở
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

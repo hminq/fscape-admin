@@ -51,6 +51,7 @@ import ProfilePage from "./pages/ProfilePage";
 import BookingsPage from "./pages/BookingsPage";
 import BookingDetailPage from "./pages/BookingDetailPage";
 import BMBookingsPage from "./pages/bm/BMBookingsPage";
+import BMSettlementsPage from "./pages/bm/BMSettlementsPage";
 
 export default function App() {
   return (
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="contracts/pending" element={<BMContractsPendingPage />} />
               <Route path="contracts/:id" element={<BMContractDetailPage />} />
               <Route path="contracts/:id/sign" element={<BMContractSignPage />} />
+              <Route path="settlements" element={<BMSettlementsPage />} />
               <Route path="assets" element={<BMAssetsPage />} />
               <Route path="notifications" element={<BMNotificationsPage />} />
               <Route path="notifications/create" element={<BMNotificationCreatePage />} />
