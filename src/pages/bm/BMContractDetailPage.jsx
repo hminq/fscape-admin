@@ -5,7 +5,7 @@ import {
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple,
   PencilLine as PenLine, ClipboardText, CaretDown, CaretUp,
-  BellRinging, Scales,
+  BellRinging, Scales, Prohibit,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
+import TerminateContractDialog from "@/components/TerminateContractDialog";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── helpers ───────────────────────────────────────────── */
@@ -187,19 +188,21 @@ export default function BMContractDetailPage() {
   const [settlementLoading, setSettlementLoading] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderLoading, setReminderLoading] = useState(false);
+  const [terminateOpen, setTerminateOpen] = useState(false);
+
+  const fetchContract = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/api/contracts/${id}`);
+      setContract(res.data || res);
+    } catch {
+      setError("Không thể tải thông tin hợp đồng.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContract = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/api/contracts/${id}`);
-        setContract(res.data || res);
-      } catch {
-        setError("Không thể tải thông tin hợp đồng.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchContract();
   }, [id]);
 
@@ -256,6 +259,7 @@ export default function BMContractDetailPage() {
   const bannerColors = STATUS_BANNER_COLORS[contract.status];
   const isPendingManagerSign = contract.status === "PENDING_MANAGER_SIGNATURE";
   const reminderCfg = REMINDER_CONFIG[contract.status];
+  const canTerminate = !["TERMINATED", "FINISHED"].includes(contract.status);
 
   const customerName = contract.customer
     ? `${contract.customer.last_name || ""} ${contract.customer.first_name || ""}`.trim()
@@ -315,11 +319,18 @@ export default function BMContractDetailPage() {
             </Button>
           )}
         </div>
-        {isPendingManagerSign && (
-          <Button className="gap-2" onClick={() => navigate(`/building-manager/contracts/${contract.id}/sign`)}>
-            <PenLine className="size-4" /> Ký hợp đồng
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canTerminate && (
+            <Button variant="destructive" className="gap-2" onClick={() => setTerminateOpen(true)}>
+              <Prohibit className="size-4" /> Chấm dứt
+            </Button>
+          )}
+          {isPendingManagerSign && (
+            <Button className="gap-2" onClick={() => navigate(`/building-manager/contracts/${contract.id}/sign`)}>
+              <PenLine className="size-4" /> Ký hợp đồng
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Contract Info Card */}
@@ -631,6 +642,16 @@ export default function BMContractDetailPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Terminate contract dialog */}
+      {canTerminate && (
+        <TerminateContractDialog
+          contract={contract}
+          open={terminateOpen}
+          onOpenChange={setTerminateOpen}
+          onTerminated={fetchContract}
+        />
       )}
     </div>
   );

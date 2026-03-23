@@ -4,7 +4,7 @@ import {
   ArrowLeft, CircleNotch, FileText, DownloadSimple, FilePdf,
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple,
-  ClipboardText, CaretDown, CaretUp, Scales,
+  ClipboardText, CaretDown, CaretUp, Scales, Prohibit,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
+import TerminateContractDialog from "@/components/TerminateContractDialog";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 /* ── helpers ───────────────────────────────────────────── */
@@ -156,19 +157,21 @@ export default function ContractDetailPage() {
   const [inspLoading, setInspLoading] = useState(false);
   const [settlement, setSettlement] = useState(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
+  const [terminateOpen, setTerminateOpen] = useState(false);
+
+  const fetchContract = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/api/contracts/${id}`);
+      setContract(res.data || res);
+    } catch {
+      setError("Không thể tải thông tin hợp đồng.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContract = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/api/contracts/${id}`);
-        setContract(res.data || res);
-      } catch {
-        setError("Không thể tải thông tin hợp đồng.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchContract();
   }, [id]);
 
@@ -223,6 +226,7 @@ export default function ContractDetailPage() {
 
   const st = STATUS_MAP[contract.status] || STATUS_MAP.ACTIVE;
   const bannerColors = STATUS_BANNER_COLORS[contract.status];
+  const canTerminate = !["TERMINATED", "FINISHED"].includes(contract.status);
 
   const customerName = contract.customer
     ? `${contract.customer.last_name || ""} ${contract.customer.first_name || ""}`.trim()
@@ -275,6 +279,11 @@ export default function ContractDetailPage() {
             </Button>
           )}
         </div>
+        {canTerminate && (
+          <Button variant="destructive" className="gap-2" onClick={() => setTerminateOpen(true)}>
+            <Prohibit className="size-4" /> Chấm dứt hợp đồng
+          </Button>
+        )}
       </div>
 
       {/* Contract Info Card */}
@@ -533,6 +542,16 @@ export default function ContractDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Terminate contract dialog */}
+      {canTerminate && (
+        <TerminateContractDialog
+          contract={contract}
+          open={terminateOpen}
+          onOpenChange={setTerminateOpen}
+          onTerminated={fetchContract}
+        />
+      )}
     </div>
   );
 }
