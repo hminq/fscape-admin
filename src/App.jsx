@@ -52,6 +52,7 @@ import BookingsPage from "./pages/BookingsPage";
 import BookingDetailPage from "./pages/BookingDetailPage";
 import BMBookingsPage from "./pages/bm/BMBookingsPage";
 import BMSettlementsPage from "./pages/bm/BMSettlementsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="bookings/:id" element={<BookingDetailPage />} />
               <Route path="requests" element={<RequestsPage />} />
               <Route path="requests/:id" element={<RequestDetailPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />
               <Route path="profile" element={<ProfilePage />} />
