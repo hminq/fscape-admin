@@ -202,7 +202,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
 
 /* ── Role Section (self-fetching, server-side pagination) ── */
 
-const PER_SECTION = 8;
+const PER_SECTION = 10;
 
 function RoleSection({ role, search, filterActive, onToggle, onView, onReset, refreshKey }) {
   const [accounts, setAccounts] = useState([]);
@@ -224,7 +224,7 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
       const res = await apiJson(`/api/users?${params}`);
       const body = res.data || res;
       setAccounts(body.data || []);
-      setTotalPages(body.totalPages || 1);
+      setTotalPages(body.total_pages || body.totalPages || 1);
       setTotal(body.total || 0);
     } catch {
       setAccounts([]);
