@@ -305,33 +305,40 @@ export default function RequestDetailPage() {
       {/* Status history */}
       {r.status_history && r.status_history.length > 0 && (
         <Card className="p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-5">
             <Clock className="size-4 text-primary" />
             <span className="text-sm font-semibold">Lịch sử trạng thái</span>
           </div>
-          <div className="relative pl-5 space-y-4">
-            <div className="absolute left-[7px] top-1.5 bottom-1.5 w-px bg-border" />
-            {[...r.status_history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((h) => (
-              <div key={h.id} className="relative">
-                <div className="absolute -left-5 top-1.5 size-2.5 rounded-full bg-primary ring-2 ring-background" />
-                <div className="flex items-center gap-2 text-sm">
-                  <StatusDot status={h.to_status} statusMap={STATUS_MAP} />
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}</span>
-                </div>
-                {h.modifier && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    bởi {h.modifier.last_name} {h.modifier.first_name} ({ROLE_LABELS[h.modifier.role] ?? h.modifier.role})
-                  </p>
-                )}
-                {h.reason && (
-                  <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-start gap-1">
-                    <MessageSquare className="size-3 shrink-0 mt-0.5" />
-                    {h.reason}
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="relative ml-3">
+            {[...r.status_history]
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .map((h, idx, arr) => {
+                const s = STATUS_MAP[h.to_status] || { dot: "bg-muted-foreground/30", text: "text-muted-foreground", label: h.to_status };
+                const isLast = idx === arr.length - 1;
+                return (
+                  <div key={h.id} className="relative pl-6 pb-5 last:pb-0">
+                    {!isLast && (
+                      <div className="absolute left-[4.5px] top-3 bottom-0 w-px bg-border" />
+                    )}
+                    <div className={`absolute left-0 top-[5px] size-2.5 rounded-full ring-2 ring-background ${s.dot}`} />
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-sm font-medium ${s.text}`}>{s.label}</span>
+                      <span className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}</span>
+                    </div>
+                    {h.modifier && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        bởi {h.modifier.last_name} {h.modifier.first_name} ({ROLE_LABELS[h.modifier.role] ?? h.modifier.role})
+                      </p>
+                    )}
+                    {h.reason && (
+                      <p className="text-xs text-muted-foreground/70 mt-1 flex items-start gap-1.5">
+                        <MessageSquare className="size-3 shrink-0 mt-0.5" />
+                        {h.reason}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </Card>
       )}

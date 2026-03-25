@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Bell, PaperPlaneTilt, CircleNotch, Buildings,
-  Door, Warning, ArrowLeft,
+  Door, Warning, ArrowLeft, MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,10 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -22,6 +18,96 @@ const TARGET_OPTIONS = [
   { value: "building", label: "Toàn bộ tòa nhà", icon: Buildings },
   { value: "room", label: "Phòng cụ thể", icon: Door },
 ];
+
+/* ── Room Picker with search ────────────────────────────── */
+
+function RoomPicker({ rooms, loadingRooms, roomId, onSelect, search, onSearch }) {
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rooms;
+    const q = search.trim().toLowerCase();
+    return rooms.filter((r) =>
+      r.room_number?.toLowerCase().includes(q) ||
+      r.room_type?.name?.toLowerCase().includes(q)
+    );
+  }, [rooms, search]);
+
+  const selectedRoom = roomId ? rooms.find((r) => r.id === roomId) : null;
+
+  if (loadingRooms) {
+    return (
+      <div className="space-y-1.5">
+        <Label>Chọn phòng</Label>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+          <CircleNotch className="size-4 animate-spin" /> Đang tải...
+        </div>
+      </div>
+    );
+  }
+
+  if (rooms.length === 0) {
+    return (
+      <div className="space-y-1.5">
+        <Label>Chọn phòng</Label>
+        <p className="text-sm text-muted-foreground py-2">Không có phòng nào đang có cư dân.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label>Chọn phòng</Label>
+
+      {selectedRoom ? (
+        /* Selected room badge */
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+          <Door className="size-4 text-primary shrink-0" />
+          <span className="font-medium">
+            Phòng {selectedRoom.room_number}
+            {selectedRoom.room_type?.name && ` — ${selectedRoom.room_type.name}`}
+          </span>
+          <button type="button" className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => { onSelect(""); onSearch(""); }}>
+            Đổi phòng
+          </button>
+        </div>
+      ) : (
+        /* Search input + room list */
+        <>
+          <div className="relative">
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm phòng..."
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <div className="max-h-[200px] overflow-y-auto rounded-lg border border-border">
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-3 text-center">Không tìm thấy phòng</p>
+            ) : (
+              filtered.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => onSelect(r.id)}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 text-foreground"
+                >
+                  <Door className="size-4 shrink-0 text-muted-foreground" />
+                  <span>Phòng {r.room_number}</span>
+                  {r.room_type?.name && (
+                    <span className="text-xs text-muted-foreground">— {r.room_type.name}</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ── Main Page ──────────────────────────────────────────── */
 
@@ -35,6 +121,7 @@ export default function BMNotificationCreatePage() {
   const [target, setTarget] = useState("building");
   const [roomId, setRoomId] = useState("");
 
+  const [roomSearch, setRoomSearch] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -146,30 +233,14 @@ export default function BMNotificationCreatePage() {
 
           {/* Room picker (when target = room) */}
           {target === "room" && (
-            <div className="space-y-1.5">
-              <Label>Chọn phòng</Label>
-              {loadingRooms ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <CircleNotch className="size-4 animate-spin" /> Đang tải...
-                </div>
-              ) : rooms.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">Không có phòng nào đang có cư dân.</p>
-              ) : (
-                <Select value={roomId || undefined} onValueChange={setRoomId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn phòng" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        Phòng {r.room_number}
-                        {r.room_type?.name && ` — ${r.room_type.name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            <RoomPicker
+              rooms={rooms}
+              loadingRooms={loadingRooms}
+              roomId={roomId}
+              onSelect={setRoomId}
+              search={roomSearch}
+              onSearch={setRoomSearch}
+            />
           )}
 
           {/* Title */}
