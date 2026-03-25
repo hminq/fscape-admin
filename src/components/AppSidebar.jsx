@@ -9,6 +9,7 @@ import {
   FileText,
   Receipt,
   ChatCircleText,
+  Bell,
   Scroll,
   CaretDown,
   CalendarCheck,
@@ -83,6 +84,12 @@ const navItems = [
     icon: ChatCircleText,
     to: "/requests",
     children: [{ label: "Danh sách", to: "/requests" }],
+  },
+  {
+    label: "Thông báo",
+    icon: Bell,
+    to: "/notifications",
+    children: [{ label: "Danh sách", to: "/notifications" }],
   },
   {
     label: "Nhật ký",
