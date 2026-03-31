@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { CalendarDots } from "@phosphor-icons/react";
 import AppSidebar from "../components/AppSidebar";
+import NotificationNavButton from "../components/NotificationNavButton";
 import UserMenu from "../components/UserMenu";
 
 export default function AdminLayout() {
@@ -17,6 +18,7 @@ export default function AdminLayout() {
             <span>{new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
           </div>
 
+          <NotificationNavButton to="/notifications" />
           <UserMenu profilePath="/profile" />
         </header>
 

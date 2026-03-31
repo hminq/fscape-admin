@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   SquaresFour,
@@ -6,14 +6,12 @@ import {
   Package,
   FileText,
   ChatCircleText,
-  Bell,
   CaretDown,
   Users,
   CalendarCheck,
   Scales,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/apiClient";
 import fscapeLogo from "@/assets/fscape-logo.svg";
 
 const BM_PREFIX = "/building-manager";
@@ -68,14 +66,9 @@ const navItems = [
     to: `${BM_PREFIX}/bookings`,
     children: [{ label: "Danh sách", to: `${BM_PREFIX}/bookings` }],
   },
-  {
-    label: "Thông báo",
-    icon: Bell,
-    to: `${BM_PREFIX}/notifications`,
-  },
 ];
 
-function SidebarItem({ item, badge }) {
+function SidebarItem({ item }) {
   const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
   const isActive = location.pathname === item.to ||
@@ -96,14 +89,7 @@ function SidebarItem({ item, badge }) {
           )
         }
       >
-        <span className="relative shrink-0">
-          <item.icon className="size-5" />
-          {badge > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white">
-              {badge > 9 ? "9+" : badge}
-            </span>
-          )}
-        </span>
+        <item.icon className="size-5 shrink-0" />
         <span>{item.label}</span>
       </NavLink>
     );
@@ -163,21 +149,6 @@ function SidebarItem({ item, badge }) {
 }
 
 export default function BMSidebar() {
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnread = useCallback(async () => {
-    try {
-      const res = await api.get("/api/notifications/unread-count");
-      setUnreadCount(res.count || 0);
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchUnread]);
-
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-sidebar-border bg-sidebar py-4">
       <div className="flex items-center px-4 mb-6">
@@ -191,8 +162,7 @@ export default function BMSidebar() {
 
       <nav className="flex flex-1 flex-col gap-0.5 px-3 overflow-y-auto">
         {navItems.map((item) => (
-          <SidebarItem key={item.label} item={item}
-            badge={item.to === `${BM_PREFIX}/notifications` ? unreadCount : 0} />
+          <SidebarItem key={item.label} item={item} />
         ))}
       </nav>
     </aside>

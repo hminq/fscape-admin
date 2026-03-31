@@ -9,6 +9,13 @@ import { NOTIFICATION_TYPE_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Pagination from "@/components/Pagination";
 import SectionHeader from "@/components/SectionHeader";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
@@ -26,11 +33,14 @@ const PER_PAGE = 10;
 
 const TYPE_FILTERS = [
   { key: "all", label: "Tất cả" },
-  { key: "BM_ANNOUNCEMENT", label: "Thông báo BM" },
+  { key: "REQUEST_CREATED", label: "Yêu cầu mới" },
+  { key: "REQUEST_CREATED_SUCCESS", label: "Tạo yêu cầu thành công" },
+  { key: "REQUEST_ASSIGNED", label: "Phân công yêu cầu" },
   { key: "REQUEST_STATUS_CHANGED", label: "Yêu cầu" },
-  { key: "CONTRACT_STATUS_CHANGED", label: "Hợp đồng" },
-  { key: "INVOICE_CREATED", label: "Hóa đơn" },
-  { key: "PAYMENT_RECEIVED", label: "Thanh toán" },
+  { key: "CONTRACT_TERMINATED", label: "Hợp đồng bị chấm dứt" },
+  { key: "CONTRACT_TERMINATION_INITIATED", label: "Khởi tạo chấm dứt hợp đồng" },
+  { key: "CHECKOUT_REQUEST_ASSIGNED", label: "Phân công trả phòng" },
+  { key: "INVOICE", label: "Hóa đơn" },
   { key: "SYSTEM", label: "Hệ thống" },
 ];
 
@@ -188,7 +198,8 @@ export default function NotificationsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <Card className="p-3">
+        <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -198,16 +209,22 @@ export default function NotificationsPage() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {TYPE_FILTERS.map((f) => (
-            <Button key={f.key} size="sm"
-              variant={typeFilter === f.key ? "default" : "outline"}
-              onClick={() => setTypeFilter(f.key)}>
-              {f.label}
-            </Button>
-          ))}
+        <div className="min-w-[220px]">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Lọc theo loại thông báo" />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPE_FILTERS.map((f) => (
+                <SelectItem key={f.key} value={f.key}>
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </div>
+        </div>
+      </Card>
 
       {/* Content */}
       {loading ? (

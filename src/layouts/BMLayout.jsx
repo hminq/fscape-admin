@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { CalendarDots } from "@phosphor-icons/react";
 import BMSidebar from "../components/BMSidebar";
+import NotificationNavButton from "../components/NotificationNavButton";
 import UserMenu from "../components/UserMenu";
 
 export default function BMLayout() {
@@ -15,6 +16,7 @@ export default function BMLayout() {
             <span>{new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
           </div>
 
+          <NotificationNavButton to="/building-manager/notifications" />
           <UserMenu profilePath="/building-manager/profile" />
         </header>
 

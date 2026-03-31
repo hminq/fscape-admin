@@ -33,6 +33,10 @@ const READ_FILTERS = [
   { key: "read", label: "Đã đọc" },
 ];
 
+function emitUnreadChanged(count) {
+  window.dispatchEvent(new CustomEvent("notifications:unread-changed", { detail: { count } }));
+}
+
 /* ── Main Page ──────────────────────────────────────────── */
 
 export default function BMNotificationsPage() {
@@ -77,7 +81,9 @@ export default function BMNotificationsPage() {
   const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await api.get("/api/notifications/unread-count");
-      setUnreadCount(res.count || 0);
+      const count = res.count || 0;
+      setUnreadCount(count);
+      emitUnreadChanged(count);
     } catch { /* ignore */ }
   }, []);
 
@@ -94,7 +100,11 @@ export default function BMNotificationsPage() {
           n.notification_id === notifId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
         )
       );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      setUnreadCount((c) => {
+        const next = Math.max(0, c - 1);
+        emitUnreadChanged(next);
+        return next;
+      });
     } catch { /* ignore */ }
   };
 
@@ -104,6 +114,7 @@ export default function BMNotificationsPage() {
       await api.patch("/api/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
       setUnreadCount(0);
+      emitUnreadChanged(0);
     } catch { /* ignore */ }
     setMarkingAll(false);
   };

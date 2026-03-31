@@ -169,7 +169,16 @@ export const BOOKING_STATUS_MAP = {
 
 export const NOTIFICATION_TYPE_LABELS = {
   BM_ANNOUNCEMENT: "Thông báo BM",
+  REQUEST_CREATED: "Yêu cầu mới",
+  REQUEST_CREATED_SUCCESS: "Tạo yêu cầu thành công",
+  REQUEST_ASSIGNED: "Phân công yêu cầu",
   REQUEST_STATUS_CHANGED: "Cập nhật yêu cầu",
+  CONTRACT_TERMINATED: "Hợp đồng bị chấm dứt",
+  CONTRACT_TERMINATION_INITIATED: "Khởi tạo chấm dứt hợp đồng",
+  CHECKOUT_REQUEST_ASSIGNED: "Phân công trả phòng",
+  INVOICE: "Hóa đơn",
+
+  // Legacy/compatibility types
   CONTRACT_STATUS_CHANGED: "Cập nhật hợp đồng",
   INVOICE_CREATED: "Hóa đơn mới",
   PAYMENT_RECEIVED: "Thanh toán",
@@ -183,4 +192,3 @@ export const GENDER_LABELS = {
   FEMALE: "Nữ",
   OTHER: "Khác",
 };
-

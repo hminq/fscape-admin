@@ -1,12 +1,22 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, apiJson } from "@/lib/apiClient";
+import { api, apiJson, apiRequest } from "@/lib/apiClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Lock, FloppyDisk, Eye, EyeSlash, ArrowLeft } from "@phosphor-icons/react";
+import { User, Lock, FloppyDisk, Eye, EyeSlash, ArrowLeft, Camera, CircleNotch } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
+import defaultUserImg from "@/assets/default_user_img.jpg";
+
+const NAME_REGEX = /^[\p{L}\s]+$/u;
+const PHONE_REGEX = /^[0-9+ ]{8,20}$/;
+const PROFILE_FIELD_LABELS = {
+  first_name: "Họ",
+  last_name: "Tên",
+  phone: "Số điện thoại",
+  avatar_url: "Ảnh đại diện",
+};
 
 export default function ProfilePage() {
   const { user, login, token } = useAuth();
@@ -17,10 +27,13 @@ export default function ProfilePage() {
     first_name: "",
     last_name: "",
     phone: "",
+    avatar_url: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profileMsg, setProfileMsg] = useState(null);
+  const [profileErrors, setProfileErrors] = useState({});
 
   // Password form
   const [pwForm, setPwForm] = useState({
@@ -43,6 +56,7 @@ export default function ProfilePage() {
           first_name: data.data?.first_name || "",
           last_name: data.data?.last_name || "",
           phone: data.data?.phone || "",
+          avatar_url: data.data?.avatar_url || "",
         });
       } catch {
         setProfileMsg({ type: "error", text: "Không thể tải thông tin hồ sơ" });
@@ -57,14 +71,19 @@ export default function ProfilePage() {
   async function handleSaveProfile(e) {
     e.preventDefault();
     setProfileMsg(null);
+    const validationErrors = validateProfileForm(form);
+    setProfileErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+
     setSaving(true);
     try {
       const data = await apiJson("/api/user-profile/me", {
         method: "PUT",
         body: {
-          first_name: form.first_name.trim(),
-          last_name: form.last_name.trim(),
+          first_name: form.first_name.trim() || undefined,
+          last_name: form.last_name.trim() || undefined,
           phone: form.phone.trim() || undefined,
+          avatar_url: form.avatar_url || undefined,
         },
       });
 
@@ -74,13 +93,75 @@ export default function ProfilePage() {
       login(token, {
         ...user,
         name: fullName || user.email,
+        avatar_url: u.avatar_url || user.avatar_url,
       });
+      setProfileErrors({});
+      setForm((prev) => ({
+        ...prev,
+        first_name: u.first_name || "",
+        last_name: u.last_name || "",
+        phone: u.phone || "",
+        avatar_url: u.avatar_url || "",
+      }));
 
       setProfileMsg({ type: "success", text: "Cập nhật hồ sơ thành công" });
     } catch (err) {
+      const backendErrors = mapBackendProfileErrors(err);
+      if (Object.keys(backendErrors).length > 0) {
+        setProfileErrors(backendErrors);
+      }
       setProfileMsg({ type: "error", text: err?.message || "Cập nhật thất bại" });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type?.startsWith("image/")) {
+      setProfileMsg({ type: "error", text: "Vui lòng chọn file ảnh hợp lệ" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileMsg({ type: "error", text: "Ảnh không được vượt quá 5MB" });
+      return;
+    }
+
+    setProfileMsg(null);
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const uploadRes = await apiRequest("/api/upload?type=avatar", { method: "POST", body: fd });
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error(errData.message || "Upload ảnh thất bại");
+      }
+      const uploadedData = await uploadRes.json();
+      const avatarUrl = uploadedData?.urls?.[0];
+      if (!avatarUrl) throw new Error("Không nhận được URL ảnh sau khi upload");
+
+      const data = await apiJson("/api/user-profile/me", {
+        method: "PUT",
+        body: { avatar_url: avatarUrl },
+      });
+
+      const u = data.data ?? {};
+      const fullName = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+      login(token, {
+        ...user,
+        name: fullName || user.email,
+        avatar_url: u.avatar_url || avatarUrl,
+      });
+      setForm((prev) => ({ ...prev, avatar_url: u.avatar_url || avatarUrl }));
+      setProfileMsg({ type: "success", text: "Cập nhật ảnh đại diện thành công" });
+    } catch (err) {
+      setProfileMsg({ type: "error", text: err?.message || "Cập nhật ảnh đại diện thất bại" });
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -118,6 +199,12 @@ export default function ProfilePage() {
 
   function handleFormChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setProfileErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   }
 
   function handlePwChange(field, value) {
@@ -147,6 +234,72 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* ── Avatar Section ── */}
+      <div className="rounded-xl border border-border bg-background">
+        <div className="flex items-center gap-2.5 border-b border-border px-6 py-4">
+          <Camera className="size-5 text-primary" weight="duotone" />
+          <h2 className="text-sm font-semibold">Ảnh đại diện</h2>
+        </div>
+
+        <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <img
+              src={form.avatar_url || defaultUserImg}
+              alt="Avatar"
+              className="size-16 rounded-full border object-cover"
+              onError={(e) => { e.target.src = defaultUserImg; }}
+            />
+            <div>
+              <p className="text-sm font-medium text-foreground">Ảnh hồ sơ</p>
+              <p className="text-xs text-muted-foreground">PNG/JPG/JPEG, tối đa 5MB</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+            <Button variant="outline" asChild disabled={uploadingAvatar}>
+              <label htmlFor="avatar-upload" className="cursor-pointer">
+                {uploadingAvatar ? (
+                  <>
+                    <CircleNotch className="size-4 animate-spin" />
+                    Đang tải lên...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="size-4" />
+                    Tải ảnh mới
+                  </>
+                )}
+              </label>
+            </Button>
+          </div>
+        </div>
+        {profileErrors.avatar_url && (
+          <div className="px-6 pb-4">
+            <p className="text-xs text-destructive">{profileErrors.avatar_url}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Profile message */}
+      {profileMsg && (
+        <div
+          className={`rounded-lg px-3 py-2 text-sm ${
+            profileMsg.type === "success"
+              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+              : "border border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          {profileMsg.text}
+        </div>
+      )}
+
       {/* ── Profile Info Section ── */}
       <form onSubmit={handleSaveProfile} className="rounded-xl border border-border bg-background">
         <div className="flex items-center gap-2.5 border-b border-border px-6 py-4">
@@ -155,55 +308,48 @@ export default function ProfilePage() {
         </div>
 
         <div className="space-y-4 px-6 py-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="first_name">Họ</Label>
+              <Label htmlFor="first_name" className={profileErrors.first_name ? "text-destructive" : ""}>Họ</Label>
               <Input
                 id="first_name"
                 placeholder="Nguyễn"
                 value={form.first_name}
                 onChange={(e) => handleFormChange("first_name", e.target.value)}
+                className={profileErrors.first_name ? "border-destructive focus-visible:ring-destructive/20" : ""}
               />
+              {profileErrors.first_name && <p className="text-xs text-destructive">{profileErrors.first_name}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="last_name">Tên</Label>
+              <Label htmlFor="last_name" className={profileErrors.last_name ? "text-destructive" : ""}>Tên</Label>
               <Input
                 id="last_name"
                 placeholder="Văn A"
                 value={form.last_name}
                 onChange={(e) => handleFormChange("last_name", e.target.value)}
+                className={profileErrors.last_name ? "border-destructive focus-visible:ring-destructive/20" : ""}
               />
+              {profileErrors.last_name && <p className="text-xs text-destructive">{profileErrors.last_name}</p>}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="phone">Số điện thoại</Label>
+            <Label htmlFor="phone" className={profileErrors.phone ? "text-destructive" : ""}>Số điện thoại</Label>
             <Input
               id="phone"
               type="tel"
               placeholder="0901234567"
               value={form.phone}
               onChange={(e) => handleFormChange("phone", e.target.value)}
+              className={profileErrors.phone ? "border-destructive focus-visible:ring-destructive/20" : ""}
             />
+            {profileErrors.phone && <p className="text-xs text-destructive">{profileErrors.phone}</p>}
           </div>
 
           <div className="space-y-1.5">
             <Label>Email</Label>
             <Input value={user?.email || ""} disabled className="bg-muted/50" />
           </div>
-
-          {/* Profile message */}
-          {profileMsg && (
-            <div
-              className={`rounded-lg px-3 py-2 text-sm ${
-                profileMsg.type === "success"
-                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                  : "border border-destructive/30 bg-destructive/10 text-destructive"
-              }`}
-            >
-              {profileMsg.text}
-            </div>
-          )}
         </div>
 
         <div className="flex justify-end border-t border-border px-6 py-3">
@@ -322,4 +468,42 @@ export default function ProfilePage() {
       </form>
     </div>
   );
+}
+
+function validateProfileForm(form) {
+  const errors = {};
+  const firstName = form.first_name.trim();
+  const lastName = form.last_name.trim();
+  const phone = form.phone.trim();
+
+  if (firstName) {
+    if (firstName.length > 100) errors.first_name = "Họ tối đa 100 ký tự";
+    else if (!NAME_REGEX.test(firstName)) errors.first_name = "Họ chỉ được chứa chữ cái và khoảng trắng";
+  }
+  if (lastName) {
+    if (lastName.length > 100) errors.last_name = "Tên tối đa 100 ký tự";
+    else if (!NAME_REGEX.test(lastName)) errors.last_name = "Tên chỉ được chứa chữ cái và khoảng trắng";
+  }
+  if (phone && !PHONE_REGEX.test(phone)) {
+    errors.phone = "Số điện thoại không hợp lệ";
+  }
+
+  return errors;
+}
+
+function mapBackendProfileErrors(err) {
+  const apiErrors = err?.data?.errors;
+  if (!Array.isArray(apiErrors) || apiErrors.length === 0) return {};
+  const mapped = {};
+
+  for (const item of apiErrors) {
+    const path = item?.path;
+    const msg = item?.msg;
+    if (!path || !msg) continue;
+    if (PROFILE_FIELD_LABELS[path] && !mapped[path]) {
+      mapped[path] = msg;
+    }
+  }
+
+  return mapped;
 }

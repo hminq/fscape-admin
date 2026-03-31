@@ -29,9 +29,10 @@ export default function UserMenu({ profilePath }) {
         className="rounded-lg transition-opacity hover:opacity-80"
       >
         <img
-          src={defaultUserImg}
+          src={user?.avatar_url || defaultUserImg}
           alt={user?.name}
           className="size-9 rounded-lg object-cover ring-1 ring-border"
+          onError={(e) => { e.currentTarget.src = defaultUserImg; }}
         />
       </button>
 
@@ -40,9 +41,10 @@ export default function UserMenu({ profilePath }) {
           {/* User info card */}
           <div className="flex items-center gap-3 px-4 py-4">
             <img
-              src={defaultUserImg}
+              src={user?.avatar_url || defaultUserImg}
               alt={user?.name}
               className="size-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
+              onError={(e) => { e.currentTarget.src = defaultUserImg; }}
             />
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{user?.name}</p>
