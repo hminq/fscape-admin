@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Buildings, CaretLeft, CaretRight, CheckCircle } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -579,20 +580,19 @@ export default function LocationsPage() {
       </div>
 
       {/* Table */}
-      <Card className="overflow-hidden py-0 gap-0">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchLocations}>
-              Thử lại
-            </Button>
-          </div>
-        ) : (
-          <>
+      {loading ? (
+        <LoadingState className="py-20" />
+      ) : error ? (
+        <div className="py-14 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchLocations}>
+            Thử lại
+          </Button>
+        </div>
+      ) : sorted.length === 0 ? (
+        <EmptyState icon={MapPin} message="Không tìm thấy khu vực nào" />
+      ) : (
+        <Card className="overflow-hidden py-0 gap-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -621,14 +621,7 @@ export default function LocationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-14 text-center text-muted-foreground">
-                      Không tìm thấy khu vực nào.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sorted.map((loc, idx) => (
+                  {sorted.map((loc, idx) => (
                     <TableRow key={loc.id}>
                       <TableCell className="pl-4 text-muted-foreground text-xs">
                         {(page - 1) * limit + idx + 1}
@@ -673,12 +666,10 @@ export default function LocationsPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ))}
               </TableBody>
             </Table>
 
-            {/* Pagination header */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-2 mb-2 px-4">
                 <p className="text-sm font-medium text-muted-foreground">{total} kết quả</p>
@@ -695,9 +686,8 @@ export default function LocationsPage() {
                 </div>
               </div>
             )}
-          </>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Detail / Edit / Delete dialog */}
       <LocationDetailDialog

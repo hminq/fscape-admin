@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
-  User, X, Scroll,
+  User, X, Scroll, ListBullets,
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -269,14 +270,9 @@ export default function AuditLogsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState className="py-20" />
       ) : logs.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Scroll className="size-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Không có nhật ký nào</p>
-        </div>
+        <EmptyState icon={ListBullets} message="Không có nhật ký nào" />
       ) : (
         <Card className="overflow-hidden py-0 gap-0">
           <Table>

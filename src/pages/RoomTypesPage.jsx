@@ -5,6 +5,7 @@ import {
     Bed, Bathtub, ArrowsOutSimple, Users, Money as Banknote, CaretLeft, CaretRight,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -821,22 +822,21 @@ export default function RoomTypesPage() {
             )}
 
             {/* Table */}
+            {loading ? (
+                <LoadingState className="py-20" />
+            ) : error ? (
+                <div className="py-14 text-center">
+                    <p className="text-sm text-destructive">{error}</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={fetchTypes}>
+                        Thử lại
+                    </Button>
+                </div>
+            ) : sorted.length === 0 ? (
+                <EmptyState icon={Bed} message="Không tìm thấy loại phòng nào" />
+            ) : (
             <Card className="overflow-hidden py-0 gap-0">
-                {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-                    </div>
-                ) : error ? (
-                    <div className="py-14 text-center">
-                        <p className="text-sm text-destructive">{error}</p>
-                        <Button variant="outline" size="sm" className="mt-3" onClick={fetchTypes}>
-                            Thử lại
-                        </Button>
-                    </div>
-                ) : (
-                    <>
-                        <Table>
-                            <TableHeader>
+                <Table>
+                    <TableHeader>
                                 <TableRow className="bg-muted/30">
                                     <TableHead className="w-12 pl-4">#</TableHead>
                                     <TableHead>Loại phòng</TableHead>
@@ -849,12 +849,7 @@ export default function RoomTypesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {sorted.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="py-14 text-center text-muted-foreground">Không tìm thấy loại phòng nào.</TableCell>
-                                    </TableRow>
-                                ) : (
-                                    sorted.map((t, idx) => (
+                                {sorted.map((t, idx) => (
                                         <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetailType(t)}>
                                             <TableCell className="pl-4 text-muted-foreground text-xs">{(page - 1) * limit + idx + 1}</TableCell>
                                             <TableCell>
@@ -900,14 +895,11 @@ export default function RoomTypesPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
+                                    ))}
                             </TableBody>
                         </Table>
-
-                    </>
-                )}
             </Card>
+            )}
 
             <RoomTypeDetailDialog
                 open={!!detailType && !showAssetDialog}

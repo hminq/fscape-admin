@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     MagnifyingGlass, CircleNotch, UserPlus, UserMinus, MapPin,
-    Envelope, Phone, ArrowLeft, Users
+    Envelope, Phone, ArrowLeft, Users, ShieldCheck
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -11,10 +12,11 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { apiJson } from "@/lib/apiClient";
+import { cdnUrl } from "@/lib/utils";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
-const thumb = (b) => b.thumbnail_url || defaultBuildingImg;
+const thumb = (b) => cdnUrl(b.thumbnail_url) || defaultBuildingImg;
 
 export default function BuildingStaffPage() {
     const { id } = useParams();
@@ -124,7 +126,7 @@ export default function BuildingStaffPage() {
     const UserRow = ({ user }) => (
         <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
             <div className="flex items-center gap-3">
-                <img src={user.avatar_url || defaultUserImg} alt=""
+                <img src={cdnUrl(user.avatar_url) || defaultUserImg} alt=""
                     className="size-10 rounded-lg object-cover ring-1 ring-border"
                     onError={e => { e.target.src = defaultUserImg; }} />
                 <div>
@@ -221,7 +223,7 @@ export default function BuildingStaffPage() {
                             )}
                         </div>
                         {managers.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2 pl-1">Chưa có quản lý được gán.</p>
+                            <EmptyState icon={ShieldCheck} message="Chưa có quản lý được gán" className="min-h-[15vh] mb-4" />
                         ) : (
                             <div className="space-y-2">
                                 {managers.map(u => <UserRow key={u.id} user={u} />)}
@@ -243,7 +245,7 @@ export default function BuildingStaffPage() {
                             </Button>
                         </div>
                         {staff.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2 pl-1">Chưa có nhân viên được gán.</p>
+                            <EmptyState icon={Users} message="Chưa có nhân viên được gán" className="min-h-[15vh] mb-4" />
                         ) : (
                             <div className="space-y-2">
                                 {staff.map(u => <UserRow key={u.id} user={u} />)}
@@ -272,14 +274,12 @@ export default function BuildingStaffPage() {
                                 <CircleNotch className="size-4 animate-spin" /> Đang tải...
                             </div>
                         ) : filteredAvail.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-8">
-                                Không tìm thấy {assignRole === "BUILDING_MANAGER" ? "quản lý" : "nhân viên"} chưa được gán.
-                            </p>
+                            <EmptyState icon={Users} message={`Không tìm thấy ${assignRole === "BUILDING_MANAGER" ? "quản lý" : "nhân viên"} chưa được gán`} className="min-h-[15vh] my-4" />
                         ) : (
                             filteredAvail.map(u => (
                                 <div key={u.id} className="flex items-center justify-between rounded-lg border border-border p-2.5 hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-2.5">
-                                        <img src={u.avatar_url || defaultUserImg} alt=""
+                                        <img src={cdnUrl(u.avatar_url) || defaultUserImg} alt=""
                                             className="size-8 rounded-md object-cover ring-1 ring-border"
                                             onError={e => { e.target.src = defaultUserImg; }} />
                                         <div>

@@ -13,7 +13,7 @@ import {
   TableHeader, TableRow,
 } from "@/components/ui/table";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, cdnUrl } from "@/lib/utils";
 import {
   INVOICE_TYPE_LABELS, INVOICE_ITEM_TYPE_LABELS,
 } from "@/lib/constants";
@@ -210,7 +210,7 @@ export default function InvoiceDetailPage() {
             {invoice.contract?.customer ? (
               <div className="flex items-start gap-3">
                 <img
-                  src={invoice.contract.customer.avatar_url || defaultUserImg}
+                  src={cdnUrl(invoice.contract.customer.avatar_url) || defaultUserImg}
                   alt=""
                   className="size-11 rounded-lg object-cover ring-1 ring-border shrink-0"
                   onError={(e) => { e.target.src = defaultUserImg; }}

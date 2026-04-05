@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SignOut, User, ShieldCheck } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/constants";
+import { cdnUrl } from "@/lib/utils";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
 export default function UserMenu({ profilePath }) {
@@ -29,7 +30,7 @@ export default function UserMenu({ profilePath }) {
         className="rounded-lg transition-opacity hover:opacity-80"
       >
         <img
-          src={user?.avatar_url || defaultUserImg}
+          src={cdnUrl(user?.avatar_url) || defaultUserImg}
           alt={user?.name}
           className="size-9 rounded-lg object-cover ring-1 ring-border"
           onError={(e) => { e.currentTarget.src = defaultUserImg; }}
@@ -41,7 +42,7 @@ export default function UserMenu({ profilePath }) {
           {/* User info card */}
           <div className="flex items-center gap-3 px-4 py-4">
             <img
-              src={user?.avatar_url || defaultUserImg}
+              src={cdnUrl(user?.avatar_url) || defaultUserImg}
               alt={user?.name}
               className="size-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
               onError={(e) => { e.currentTarget.src = defaultUserImg; }}

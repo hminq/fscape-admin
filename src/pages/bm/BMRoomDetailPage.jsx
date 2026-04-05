@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/apiClient";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cdnUrl } from "@/lib/utils";
 import { ROOM_STATUS_MAP, CONTRACT_STATUS_MAP, BOOKING_STATUS_MAP, TERM_TYPE_LABELS } from "@/lib/constants";
 import ModelViewer, { is3DFile } from "@/components/ModelViewer";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
@@ -69,12 +69,12 @@ export default function BMRoomDetailPage() {
 
   const statusCfg = STATUS_CFG[room.status] || STATUS_CFG.AVAILABLE;
 
-  const thumbnail = room.thumbnail_url
-    || (Array.isArray(room.images) && typeof room.images[0] === "string" ? room.images[0] : room.images?.[0]?.image_url)
+  const thumbnail = cdnUrl(room.thumbnail_url)
+    || cdnUrl(Array.isArray(room.images) && typeof room.images[0] === "string" ? room.images[0] : room.images?.[0]?.image_url)
     || defaultRoomImg;
 
   const gallery = Array.isArray(room.images) && room.images.length > 0
-    ? room.images.map((img) => (typeof img === "string" ? img : img?.image_url))
+    ? room.images.map((img) => cdnUrl(typeof img === "string" ? img : img?.image_url))
     : [];
 
   const infoItems = [
@@ -165,13 +165,13 @@ export default function BMRoomDetailPage() {
         <section>
           <h2 className="text-base font-bold mb-3">Mô hình 3D</h2>
           {is3DFile(room.image_3d_url) ? (
-            <ModelViewer url={room.image_3d_url} />
+            <ModelViewer url={cdnUrl(room.image_3d_url)} />
           ) : (
             <div className="rounded-xl border border-border bg-muted p-4 flex items-center gap-3">
               <Cube className="size-6 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">File 3D</p>
-                <a href={room.image_3d_url} target="_blank" rel="noreferrer"
+                <a href={cdnUrl(room.image_3d_url)} target="_blank" rel="noreferrer"
                   className="text-xs text-primary underline">
                   {room.image_3d_url.split("/").pop()}
                 </a>
@@ -186,7 +186,7 @@ export default function BMRoomDetailPage() {
         <section>
           <h2 className="text-base font-bold mb-3">Bản vẽ</h2>
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <img src={room.blueprint_url} alt="Blueprint"
+            <img src={cdnUrl(room.blueprint_url)} alt="Blueprint"
               className="w-full h-48 object-cover"
               onError={(e) => { e.target.src = defaultRoomImg; }} />
           </div>
@@ -200,7 +200,7 @@ export default function BMRoomDetailPage() {
           <div className="flex items-center rounded-xl border border-border bg-card p-3">
             <div className="flex items-center gap-3">
               <img
-                src={room.current_resident.avatar_url || defaultUserImg}
+                src={cdnUrl(room.current_resident.avatar_url) || defaultUserImg}
                 alt=""
                 className="size-10 rounded-lg object-cover ring-1 ring-border"
                 onError={(e) => { e.target.src = defaultUserImg; }}

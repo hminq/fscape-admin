@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, cdnUrl } from "@/lib/utils";
 import { BOOKING_STATUS_MAP, BILLING_CYCLE_LABELS } from "@/lib/constants";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 
@@ -209,7 +209,7 @@ export default function BookingDetailPage() {
             {booking.customer ? (
               <div className="flex items-start gap-3">
                 <img
-                  src={booking.customer.avatar_url || defaultUserImg}
+                  src={cdnUrl(booking.customer.avatar_url) || defaultUserImg}
                   alt=""
                   className="size-11 rounded-lg object-cover ring-1 ring-border shrink-0"
                   onError={(e) => { e.target.src = defaultUserImg; }}

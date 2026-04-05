@@ -15,7 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, cdnUrl } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -273,9 +273,9 @@ export default function RequestDetailPage() {
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {attachments.map((img) => (
-                <a key={img.id} href={img.image_url} target="_blank" rel="noopener noreferrer"
+                <a key={img.id} href={cdnUrl(img.image_url)} target="_blank" rel="noopener noreferrer"
                   className="block aspect-video rounded-lg border border-border overflow-hidden bg-muted hover:opacity-80 transition-opacity">
-                  <img src={img.image_url} alt="" className="size-full object-cover" />
+                  <img src={cdnUrl(img.image_url)} alt="" className="size-full object-cover" />
                 </a>
               ))}
             </div>
@@ -292,9 +292,9 @@ export default function RequestDetailPage() {
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {completionImgs.map((img) => (
-                <a key={img.id} href={img.image_url} target="_blank" rel="noopener noreferrer"
+                <a key={img.id} href={cdnUrl(img.image_url)} target="_blank" rel="noopener noreferrer"
                   className="block aspect-video rounded-lg border border-border overflow-hidden bg-muted hover:opacity-80 transition-opacity">
-                  <img src={img.image_url} alt="" className="size-full object-cover" />
+                  <img src={cdnUrl(img.image_url)} alt="" className="size-full object-cover" />
                 </a>
               ))}
             </div>

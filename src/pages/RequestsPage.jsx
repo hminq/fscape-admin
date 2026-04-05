@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MagnifyingGlass, Eye,
+  MagnifyingGlass, Eye, Wrench,
   ChatCircleText,
 } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
-import { LoadingState } from "@/components/StateDisplay";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead,
@@ -236,7 +236,7 @@ export default function RequestsPage() {
           <Button variant="outline" size="sm" className="mt-3" onClick={fetchPage}>Thử lại</Button>
         </div>
       ) : requests.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">Không tìm thấy yêu cầu nào.</div>
+        <EmptyState icon={Wrench} message="Không tìm thấy yêu cầu nào" />
       ) : (
         <Card className="overflow-hidden py-0 gap-0">
           <Table>

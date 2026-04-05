@@ -7,6 +7,7 @@ import {
   Buildings, Key, ArrowCounterClockwise,
 } from "@phosphor-icons/react";
 import { ROLE_LABELS, ROLE_STYLE_MAP, ROLE_ORDER } from "@/lib/constants";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ import {
 import { api, apiJson } from "@/lib/apiClient";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 import StatusBar from "@/components/StatusBar";
-import { formatDate as fmt } from "@/lib/utils";
+import { formatDate as fmt, cdnUrl } from "@/lib/utils";
 
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
 
@@ -154,7 +155,7 @@ function AccountDetailDialog({ open, onOpenChange, account }) {
 
         <div className="flex flex-col items-center gap-3 pb-2">
           <img
-            src={account.avatar_url || defaultUserImg}
+            src={cdnUrl(account.avatar_url) || defaultUserImg}
             alt={name}
             className="size-20 rounded-full object-cover ring-2 ring-border"
           />
@@ -247,7 +248,7 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
   // Reset to page 1 when search or filter changes
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
-  if (!loading && total === 0) return null;
+  if (!loading && total === 0 && !search && filterActive === "all") return null;
 
   return (
     <section>
@@ -276,6 +277,11 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
         )}
       </div>
 
+      {loading ? (
+        <LoadingState className="py-10" />
+      ) : accounts.length === 0 ? (
+        <EmptyState icon={Icon} message={`Không tìm thấy ${roleMeta.label?.toLowerCase() || role} nào`} />
+      ) : (
       <Card className="overflow-hidden py-0 gap-0">
         <Table>
           <TableHeader>
@@ -288,13 +294,7 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
-                  <CircleNotch className="size-5 animate-spin text-muted-foreground mx-auto" />
-                </TableCell>
-              </TableRow>
-            ) : accounts.map((acc, idx) => {
+            {accounts.map((acc, idx) => {
               const st = STATUS[acc.is_active] || STATUS["true"];
               return (
                 <TableRow key={acc.id}>
@@ -348,6 +348,7 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
           </TableBody>
         </Table>
       </Card>
+      )}
     </section>
   );
 }

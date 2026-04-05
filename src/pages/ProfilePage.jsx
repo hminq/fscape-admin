@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
+import { cdnUrl } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Lock, FloppyDisk, Eye, EyeSlash, ArrowLeft, Camera, CircleNotch } from "@phosphor-icons/react";
@@ -244,7 +245,7 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <img
-              src={form.avatar_url || defaultUserImg}
+              src={cdnUrl(form.avatar_url) || defaultUserImg}
               alt="Avatar"
               className="size-16 rounded-full border object-cover"
               onError={(e) => { e.target.src = defaultUserImg; }}

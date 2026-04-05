@@ -17,8 +17,7 @@ import {
 import Pagination from "@/components/Pagination";
 import SectionHeader from "@/components/SectionHeader";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
-import StatusBar from "@/components/StatusBar";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cdnUrl } from "@/lib/utils";
 import defaultUserImg from "@/assets/default_user_img.jpg";
 import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 
@@ -90,7 +89,7 @@ function ResidentDetailDialog({ open, onOpenChange, resident, contracts }) {
         {/* Profile */}
         <div className="flex flex-col items-center gap-3 pb-2">
           <img
-            src={resident.avatar_url || defaultUserImg}
+            src={cdnUrl(resident.avatar_url) || defaultUserImg}
             alt={fullName(resident)}
             className="size-20 rounded-full object-cover ring-2 ring-border"
           />
@@ -143,7 +142,9 @@ export default function BMResidentsPage() {
 
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState("all");
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [detailResident, setDetailResident] = useState(null);
   const [contractMap, setContractMap] = useState({});
@@ -154,13 +155,24 @@ export default function BMResidentsPage() {
     setLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams({
+        role: "RESIDENT",
+        page,
+        limit: PER_PAGE
+      });
+      if (search.trim()) params.set("search", search.trim());
+      if (filterActive === "active") params.set("is_active", "true");
+      if (filterActive === "inactive") params.set("is_active", "false");
+
       const [usersRes, statsRes, contractsRes] = await Promise.all([
-        api.get("/api/users?role=RESIDENT&limit=999"),
+        api.get(`/api/users?${params}`),
         api.get("/api/users/stats"),
         api.get("/api/contracts?status=ACTIVE,EXPIRING_SOON&limit=999"),
       ]);
       const body = usersRes.data || usersRes;
-      setAllResidents(body.data || body || []);
+      setAllResidents(body.data || []);
+      setTotalPages(body.totalPages || 1);
+      setTotal(body.total || 0);
       setStats(statsRes.data || statsRes);
 
       const contracts = contractsRes.data || [];
@@ -177,43 +189,22 @@ export default function BMResidentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, filterActive]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   /* ── derived data ─────────────────────────────────────── */
 
   const residentStats = useMemo(() => {
-    let active = 0;
-    let inactive = 0;
-    allResidents.forEach((r) => {
-      if (r.is_active) active++;
-      else inactive++;
-    });
-    return { active, inactive, total: active + inactive };
-  }, [allResidents]);
+    if (!stats) return { total: 0 };
+    const residentInfo = (stats.by_role || []).find(r => r.role === "RESIDENT");
+    const count = residentInfo ? residentInfo.count : 0;
+    return { total: count };
+  }, [stats]);
 
-  const filtered = useMemo(() => {
-    return allResidents.filter((r) => {
-      if (filterActive === "active" && !r.is_active) return false;
-      if (filterActive === "inactive" && r.is_active) return false;
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        const name = fullName(r).toLowerCase();
-        if (
-          !name.includes(q) &&
-          !r.email?.toLowerCase().includes(q) &&
-          !r.phone?.includes(q)
-        ) return false;
-      }
-      return true;
-    });
-  }, [allResidents, filterActive, search]);
+  const visible = allResidents;
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-
-  useEffect(() => { setPage(0); }, [filterActive, search]);
+  useEffect(() => { setPage(1); }, [filterActive, search]);
 
   /* ── render ───────────────────────────────────────────── */
 
@@ -238,13 +229,6 @@ export default function BMResidentsPage() {
                 <p className="text-sm text-muted-foreground mt-1">Cư dân</p>
               </div>
             </div>
-            <div className="w-px h-14 bg-border shrink-0" />
-            <StatusBar
-              active={residentStats.active}
-              inactive={residentStats.inactive}
-              filter={filterActive}
-              label="cư dân"
-            />
           </div>
         </div>
       )}
@@ -287,10 +271,10 @@ export default function BMResidentsPage() {
         <EmptyState icon={Users} message="Không tìm thấy cư dân nào" />
       ) : (
         <>
-          <SectionHeader icon={Users} count={filtered.length} countUnit="cư dân">
-            <Pagination page={page + 1} totalPages={totalPages}
-              onPrev={() => setPage((p) => Math.max(0, p - 1))}
-              onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))} />
+          <SectionHeader icon={Users} count={total} countUnit="cư dân">
+            <Pagination page={page} totalPages={totalPages}
+              onPrev={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))} />
           </SectionHeader>
 
           <Card className="overflow-hidden py-0 gap-0">
@@ -312,12 +296,12 @@ export default function BMResidentsPage() {
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="pl-4 text-muted-foreground text-xs">
-                        {page * PER_PAGE + idx + 1}
+                        {(page - 1) * PER_PAGE + idx + 1}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <img
-                            src={r.avatar_url || defaultUserImg}
+                            src={cdnUrl(r.avatar_url) || defaultUserImg}
                             alt={fullName(r)}
                             className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
                           />

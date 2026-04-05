@@ -6,8 +6,9 @@ import {
   ArrowLeft, Stack as Layers, CircleNotch,
   ImageSquare as ImagePlus, X, CaretLeft, CaretRight,
   User as UserIcon, Phone, Envelope,
-  ToggleLeft, ToggleRight, FloppyDisk, Users, CheckCircle
+  ToggleLeft, ToggleRight, FloppyDisk, Users, CheckCircle, Buildings
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
-import { cn } from "@/lib/utils";
+import { cn, cdnUrl } from "@/lib/utils";
 import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -111,7 +112,7 @@ export function updateBuildingInCache(id, updates) {
 
 /* ── helpers ───────────────────────────────── */
 
-const thumb = (b) => b.thumbnail_url || defaultBuildingImg;
+const thumb = (b) => cdnUrl(b.thumbnail_url) || defaultBuildingImg;
 
 const PER_SECTION = 6;
 
@@ -353,10 +354,10 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
       manager_id: building.manager_id || "",
     });
     setThumbFile(null);
-    setThumbPreview(building.thumbnail_url || null);
+    setThumbPreview(cdnUrl(building.thumbnail_url) || null);
     setGalleryImages(
       (building.images || []).map((img) => ({
-        url: img.image_url || img.url || img,
+        url: cdnUrl(img.image_url || img.url || img),
         existing: true,
       }))
     );
@@ -488,7 +489,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   }
 
   const gallery = (building.images?.length ? building.images : [null])
-    .map((img) => img?.image_url || img?.url || img || defaultBuildingImg);
+    .map((img) => cdnUrl(img?.image_url || img?.url || img) || defaultBuildingImg);
 
   const infoItems = [
     { label: "Khu vực", value: building.location?.name },
@@ -781,7 +782,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
                         <div key={u.id} className="flex items-center rounded-xl border border-border bg-card p-3">
                           <div className="flex items-center gap-3">
                             <img
-                              src={u.avatar_url || defaultUserImg}
+                              src={cdnUrl(u.avatar_url) || defaultUserImg}
                               alt=""
                               className="size-10 rounded-lg object-cover ring-1 ring-border"
                               onError={e => { e.target.src = defaultUserImg; }}
@@ -1024,7 +1025,7 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
 
   useEffect(() => { setPage(1); }, [search, filterActive]);
 
-  if (!loading && total === 0) return null;
+  useEffect(() => { setPage(1); }, [search, filterActive]);
 
   const showPaging = totalPages > 1;
 
@@ -1059,9 +1060,9 @@ function LocationSection({ locId, name, search, filterActive, onView, onToggle, 
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <CircleNotch className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState className="py-12" />
+      ) : buildings.length === 0 ? (
+        <EmptyState icon={Buildings} message="Không tìm thấy tòa nhà nào" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {buildings.map((b) => (

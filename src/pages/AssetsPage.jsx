@@ -4,6 +4,7 @@ import {
   Buildings, CaretLeft, CaretRight, DownloadSimple, Printer,
   Door, Eye, CheckCircle
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -608,9 +609,9 @@ function BuildingAssetSection({ building, search, statusFilter, onDetail, onQR, 
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground/40" />
-        </div>
+        <LoadingState className="py-10" />
+      ) : assets.length === 0 ? (
+        <EmptyState icon={Package} message="Không tìm thấy tài sản nào" />
       ) : (
         <Card className="overflow-hidden py-0 gap-0">
           <Table>
@@ -761,11 +762,9 @@ export default function AssetsPage() {
 
       {/* Content — per-building sections */}
       {loadingInit ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState className="py-20" />
       ) : buildings.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">Không tìm thấy tòa nhà nào.</div>
+        <EmptyState icon={Buildings} message="Không tìm thấy tòa nhà nào" />
       ) : (
         <div className="space-y-8">
           {buildings.map((b) => (

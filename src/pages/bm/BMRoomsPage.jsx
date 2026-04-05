@@ -13,6 +13,7 @@ import {
   DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
+import { cdnUrl } from "@/lib/utils";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 
 /* ── constants ──────────────────────────────────────────── */
@@ -75,7 +76,7 @@ function RoomCard({ room, onView, onToggle }) {
   const s = ROOM_STATUS_MAP[room.status] || ROOM_STATUS_MAP.AVAILABLE;
   const isOccupied = room.status === "OCCUPIED";
   const isLocked = room.status === "LOCKED";
-  const imageUrl = room.images?.[0]?.image_url || room.thumbnail_url || defaultRoomImg;
+  const imageUrl = cdnUrl(room.images?.[0]?.image_url || room.thumbnail_url) || defaultRoomImg;
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-shadow hover:shadow-md flex flex-row h-[140px] group">

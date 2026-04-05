@@ -44,56 +44,48 @@ export default function BookingListTable({ buildingId, isBM }) {
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState("all");
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const fetchBookings = useCallback(() => {
     setLoading(true);
-    api.get(`/api/bookings?limit=9999`)
+    
+    // Construct query parameters
+    const params = new URLSearchParams({
+      page,
+      limit: PER_PAGE,
+    });
+    
+    if (filterKey !== "all") params.set("status", filterKey);
+    if (search.trim()) params.set("search", search.trim());
+    if (buildingId) params.set("building_id", buildingId);
+
+    api.get(`/api/bookings?${params}`)
       .then((res) => {
         // Handle if API returns { data: [...] } or just an array
-        const list = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        const payload = res.data || {};
+        const list = Array.isArray(payload.data) ? payload.data : (Array.isArray(res.data) ? res.data : []);
         setAllBookings(list);
+        if (payload.pagination) {
+          setTotal(payload.pagination.total);
+          setTotalPages(payload.pagination.totalPages);
+        } else if (res.total != null) {
+          setTotal(res.total);
+          setTotalPages(res.totalPages || Math.ceil(res.total / PER_PAGE));
+        } else {
+          setTotal(list.length);
+          setTotalPages(Math.ceil(list.length / PER_PAGE) || 1);
+        }
       })
-      .catch(() => setAllBookings([]))
+      .catch(() => {
+        setAllBookings([]);
+        setTotal(0);
+        setTotalPages(1);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, filterKey, search, buildingId]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
-
-  // Client-side filtering
-  const filtered = useMemo(() => {
-    return allBookings.filter((b) => {
-      // 1. Filter by building (for BM)
-      if (isBM) {
-        if (!buildingId) return false;
-        if (b.room?.building?.id !== buildingId) return false;
-      } else if (buildingId) {
-        if (b.room?.building?.id !== buildingId) return false;
-      }
-      
-      // 2. Filter by status
-      if (filterKey !== "all" && b.status !== filterKey) {
-        return false;
-      }
-      
-      // 3. Search
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        const bName = b.booking_number?.toLowerCase() || "";
-        const cName = `${b.customer?.first_name || ""} ${b.customer?.last_name || ""}`.toLowerCase();
-        const rName = b.room?.room_number?.toLowerCase() || "";
-        
-        if (!bName.includes(q) && !cName.includes(q) && !rName.includes(q)) {
-          return false;
-        }
-      }
-      
-      return true;
-    }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [allBookings, buildingId, filterKey, search]);
-
-  const total = filtered.length;
-  const totalPages = Math.ceil(total / PER_PAGE) || 1;
-  const pagedBookings = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   useEffect(() => { setPage(1); }, [filterKey, search, buildingId]);
 
@@ -149,7 +141,7 @@ export default function BookingListTable({ buildingId, isBM }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pagedBookings.map((b, idx) => {
+                {allBookings.map((b, idx) => {
                   const customerName = b.customer
                     ? `${b.customer.last_name || ""} ${b.customer.first_name || ""}`.trim()
                     : "—";

@@ -4,6 +4,7 @@ import {
     CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, Money as Banknote,
     CaretLeft, CaretRight, CheckCircle
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -611,22 +612,21 @@ export default function AssetTypesPage() {
             )}
 
             {/* Table */}
+            {loading ? (
+                <LoadingState className="py-20" />
+            ) : error ? (
+                <div className="py-14 text-center">
+                    <p className="text-sm text-destructive">{error}</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={fetchTypes}>
+                        Thử lại
+                    </Button>
+                </div>
+            ) : sorted.length === 0 ? (
+                <EmptyState icon={Package} message="Không tìm thấy loại tài sản nào" />
+            ) : (
             <Card className="overflow-hidden py-0 gap-0">
-                {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-                    </div>
-                ) : error ? (
-                    <div className="py-14 text-center">
-                        <p className="text-sm text-destructive">{error}</p>
-                        <Button variant="outline" size="sm" className="mt-3" onClick={fetchTypes}>
-                            Thử lại
-                        </Button>
-                    </div>
-                ) : (
-                    <>
-                        <Table>
-                            <TableHeader>
+                <Table>
+                    <TableHeader>
                                 <TableRow className="bg-muted/30">
                                     <TableHead className="w-12 pl-4">#</TableHead>
                                     <TableHead>Loại tài sản</TableHead>
@@ -641,12 +641,7 @@ export default function AssetTypesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {sorted.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="py-14 text-center text-muted-foreground">Không tìm thấy loại tài sản nào.</TableCell>
-                                    </TableRow>
-                                ) : (
-                                    sorted.map((t, idx) => (
+                                {sorted.map((t, idx) => (
                                         <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetailType(t)}>
                                             <TableCell className="pl-4 text-muted-foreground text-xs">{(page - 1) * limit + idx + 1}</TableCell>
                                             <TableCell>
@@ -680,14 +675,11 @@ export default function AssetTypesPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
+                                    ))}
                             </TableBody>
                         </Table>
-
-                    </>
-                )}
             </Card>
+            )}
 
             <AssetTypeDetailDialog open={!!detailType} onOpenChange={(v) => !v && setDetailType(null)} assetType={detailType} onSave={handleUpdate} onDelete={handleDelete} saving={saving} />
             <AssetTypeCreateDialog open={showCreate} onOpenChange={setShowCreate} onSave={handleCreate} saving={saving} />

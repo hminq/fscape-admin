@@ -5,6 +5,7 @@ import {
   CaretLeft, CaretRight, CircleNotch, ToggleLeft, ToggleRight
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { api } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { cdnUrl } from "@/lib/utils";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 
 /* ── Status Bar ──────────────────────────────────── */
@@ -67,7 +69,7 @@ function RoomCard({ room, onView, onToggle }) {
     : isOccupied ? "Đã thuê"
       : "Đã khóa";
 
-  const imageUrl = room.images?.[0]?.image_url || room.thumbnail_url || room.images?.[0] || defaultRoomImg;
+  const imageUrl = cdnUrl(room.images?.[0]?.image_url || room.thumbnail_url || room.images?.[0]) || defaultRoomImg;
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-shadow hover:shadow-md flex flex-row h-[140px] group">
@@ -200,9 +202,7 @@ function BuildingRoomSection({ building, search, statusFilter, onToggle, onView,
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground/40" />
-        </div>
+        <LoadingState className="py-10" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms.map((r) => (
@@ -387,15 +387,9 @@ export default function RoomsPage() {
 
       {/* Content — per-building sections */}
       {loadingInit ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <CircleNotch className="size-10 animate-spin text-muted-foreground/50" />
-          <p className="text-sm font-bold text-muted-foreground/60">Đang tải danh sách phòng...</p>
-        </div>
+        <LoadingState className="py-24" />
       ) : visibleBuildings.length === 0 ? (
-        <div className="text-center py-24 bg-muted/30 rounded-2xl border border-dashed border-border">
-          <House className="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-muted-foreground font-bold">Không tìm thấy tòa nhà nào.</p>
-        </div>
+        <EmptyState icon={House} message="Không tìm thấy tòa nhà nào" />
       ) : (
         <div className="space-y-10 mt-2">
           {visibleBuildings.map((b) => (

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   MagnifyingGlass, CircleNotch, CaretLeft, CaretRight, Eye,
-  X, Scroll,
+  X, Scroll, Code,
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -227,14 +228,9 @@ export default function SystemLogsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState className="py-20" />
       ) : logs.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Scroll className="size-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Không có nhật ký hệ thống nào</p>
-        </div>
+        <EmptyState icon={Code} message="Không có nhật ký hệ thống nào" />
       ) : (
         <Card className="overflow-hidden py-0 gap-0">
           <Table>

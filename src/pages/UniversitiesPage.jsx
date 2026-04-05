@@ -4,6 +4,7 @@ import {
   ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings,
   CaretLeft, CaretRight, CheckCircle
 } from "@phosphor-icons/react";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -438,10 +439,13 @@ function LocationSection({ name, universities, onView, onToggle }) {
         )}
       </div>
 
-      <Card className="overflow-hidden py-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
+      {universities.length === 0 ? (
+        <EmptyState icon={GraduationCap} message="Không tìm thấy trường nào" />
+      ) : (
+        <Card className="overflow-hidden py-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Tên trường</TableHead>
               <TableHead>Trạng thái</TableHead>
@@ -492,6 +496,7 @@ function LocationSection({ name, universities, onView, onToggle }) {
           </TableBody>
         </Table>
       </Card>
+      )}
     </section>
   );
 }
@@ -673,16 +678,14 @@ export default function UniversitiesPage() {
       {/* List grouped by location */}
       <div>
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <LoadingState className="py-20" />
         ) : error ? (
           <div className="py-14 text-center">
             <p className="text-sm text-destructive">{error}</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">Không tìm thấy trường nào.</div>
+          <EmptyState icon={GraduationCap} message="Không tìm thấy trường nào" />
         ) : (
           <div className="space-y-8">
             {locationGroups.map(([locId, group]) => (

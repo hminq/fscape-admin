@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, MagnifyingGlass, PencilSimple, Trash, WifiHigh, ToggleLeft, ToggleRight, CaretUp, CaretDown, CaretUpDown, CircleNotch, Eye, CaretLeft, CaretRight, CheckCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -581,19 +582,19 @@ export default function FacilitiesPage() {
       </div>
 
       {/* Table */}
+      {loading ? (
+        <LoadingState className="py-20" />
+      ) : error ? (
+        <div className="py-14 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchFacilities}>
+            Thử lại
+          </Button>
+        </div>
+      ) : sorted.length === 0 ? (
+        <EmptyState icon={WifiHigh} message="Không tìm thấy tiện ích nào" />
+      ) : (
       <Card className="overflow-hidden py-0 gap-0">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={fetchFacilities}>
-              Thử lại
-            </Button>
-          </div>
-        ) : (
           <>
             <Table>
               <TableHeader>
@@ -623,14 +624,7 @@ export default function FacilitiesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-14 text-center text-muted-foreground">
-                      Không tìm thấy tiện ích nào.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sorted.map((item, idx) => (
+                  {sorted.map((item, idx) => (
                     <TableRow key={item.id}>
                       <TableCell className="pl-4 text-muted-foreground text-xs">
                         {(page - 1) * limit + idx + 1}
@@ -674,13 +668,12 @@ export default function FacilitiesPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ))}
               </TableBody>
             </Table>
           </>
-        )}
       </Card>
+      )}
 
       {/* Detail / Edit / Delete dialog */}
       <FacilityDetailDialog
