@@ -17,9 +17,9 @@ import {
     DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
-import { formatDate as fmt } from "@/lib/utils";
+import { formatDate as fmt, cleanContractHtml } from "@/lib/utils";
 import Pagination from "@/components/Pagination";
-import { LoadingState } from "@/components/StateDisplay";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 
 /* ── Summary Card ──────────────────────────── */
 
@@ -88,7 +88,7 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-[95vw] sm:max-w-4xl">
                 {confirmDel ? (
                     <>
                         <DialogHeader><DialogTitle>Vô hiệu hóa mẫu</DialogTitle></DialogHeader>
@@ -131,8 +131,8 @@ function TemplateDetailDialog({ open, onOpenChange, template, onEdit, onToggle, 
                             {/* HTML preview */}
                             <div>
                                 <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Xem trước</p>
-                                <div className="max-h-[350px] overflow-y-auto rounded-lg border border-border/50 bg-white p-4">
-                                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: template.content || "" }} />
+                                <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-border/50 bg-white p-4">
+                                    <div className="prose prose-sm max-w-none contract-render" dangerouslySetInnerHTML={{ __html: cleanContractHtml(template.content) }} />
                                 </div>
                             </div>
                         </div>
@@ -242,7 +242,7 @@ export default function ContractTemplatesPage() {
                     <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">Không tìm thấy mẫu nào.</div>
+                <EmptyState icon={FileText} message="Không tìm thấy mẫu nào" />
             ) : (
                 <>
                     {totalPages > 1 && (

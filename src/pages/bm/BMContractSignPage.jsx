@@ -10,7 +10,7 @@ import {
   DownloadSimple,
 } from "@phosphor-icons/react";
 import { api, apiRequest } from "@/lib/apiClient";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cdnUrl, cleanContractHtml } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /* ── constants ──────────────────────────────────────────── */
@@ -34,11 +34,7 @@ const CONTRACT_STYLES = `
   }
 `;
 
-/** Hide raw {{placeholder}} text that hasn't been replaced yet */
-function cleanRenderedContent(html) {
-  if (!html) return "";
-  return html.replace(/\{\{manager_signature\}\}/g, "");
-}
+
 
 /* ── page ───────────────────────────────────────────────── */
 
@@ -267,7 +263,7 @@ export default function BMContractSignPage() {
         <div className="flex items-center gap-4">
           {contract.pdf_url && (
             <a
-              href={contract.pdf_url}
+              href={cdnUrl(contract.pdf_url)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
@@ -295,7 +291,7 @@ export default function BMContractSignPage() {
       <div ref={contractRef} className="rounded-xl border bg-white p-8 shadow-sm md:p-12">
         <div
           className="contract-render prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: cleanRenderedContent(contract.rendered_content) }}
+          dangerouslySetInnerHTML={{ __html: cleanContractHtml(contract.rendered_content) }}
         />
       </div>
 

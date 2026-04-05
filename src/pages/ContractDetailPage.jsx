@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, cdnUrl, cleanContractHtml } from "@/lib/utils";
 import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
 import TerminateContractDialog from "@/components/TerminateContractDialog";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -273,7 +273,7 @@ export default function ContractDetailPage() {
           )}
           {contract.pdf_url && (
             <Button className="gap-2" asChild>
-              <a href={contract.pdf_url} target="_blank" rel="noopener noreferrer">
+              <a href={cdnUrl(contract.pdf_url)} target="_blank" rel="noopener noreferrer">
                 <DownloadSimple className="size-4" /> Tải PDF
               </a>
             </Button>
@@ -334,7 +334,7 @@ export default function ContractDetailPage() {
             {contract.customer ? (
               <div className="flex items-start gap-3">
                 <img
-                  src={contract.customer.avatar_url || defaultUserImg}
+                  src={cdnUrl(contract.customer.avatar_url) || defaultUserImg}
                   alt=""
                   className="size-11 rounded-lg object-cover ring-1 ring-border shrink-0"
                   onError={(e) => { e.target.src = defaultUserImg; }}
@@ -382,13 +382,13 @@ export default function ContractDetailPage() {
           <SignatureCard
             label="Chữ ký khách hàng"
             signedAt={contract.customer_signed_at}
-            signatureUrl={contract.customer_signature_url}
+            signatureUrl={cdnUrl(contract.customer_signature_url)}
             name={customerName}
           />
           <SignatureCard
             label="Chữ ký quản lý"
             signedAt={contract.manager_signed_at}
-            signatureUrl={contract.manager_signature_url}
+            signatureUrl={cdnUrl(contract.manager_signature_url)}
             name={managerName}
           />
         </div>
@@ -538,7 +538,7 @@ export default function ContractDetailPage() {
           </DialogHeader>
           <div
             className="flex-1 overflow-y-auto prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: contract.rendered_content }}
+            dangerouslySetInnerHTML={{ __html: cleanContractHtml(contract.rendered_content) }}
           />
         </DialogContent>
       </Dialog>

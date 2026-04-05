@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, cdnUrl, cleanContractHtml } from "@/lib/utils";
 import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
 import TerminateContractDialog from "@/components/TerminateContractDialog";
 import defaultUserImg from "@/assets/default_user_img.jpg";
@@ -29,11 +29,6 @@ const fmtVND = (v) => {
   return Number(v).toLocaleString("vi-VN") + " đ";
 };
 
-/** Hide raw {{placeholder}} text that hasn't been replaced yet */
-function cleanRenderedContent(html) {
-  if (!html) return "";
-  return html.replace(/\{\{manager_signature\}\}/g, "");
-}
 
 const CONTRACT_STYLES = `
   .contract-render img[src*="cloudinary"] {
@@ -308,7 +303,7 @@ export default function BMContractDetailPage() {
           )}
           {contract.pdf_url && (
             <Button className="gap-2" asChild>
-              <a href={contract.pdf_url} target="_blank" rel="noopener noreferrer">
+              <a href={cdnUrl(contract.pdf_url)} target="_blank" rel="noopener noreferrer">
                 <DownloadSimple className="size-4" /> Tải PDF
               </a>
             </Button>
@@ -381,7 +376,7 @@ export default function BMContractDetailPage() {
             {contract.customer ? (
               <div className="flex items-start gap-3">
                 <img
-                  src={contract.customer.avatar_url || defaultUserImg}
+                  src={cdnUrl(contract.customer.avatar_url) || defaultUserImg}
                   alt=""
                   className="size-11 rounded-lg object-cover ring-1 ring-border shrink-0"
                   onError={(e) => { e.target.src = defaultUserImg; }}
@@ -429,13 +424,13 @@ export default function BMContractDetailPage() {
           <SignatureCard
             label="Chữ ký khách hàng"
             signedAt={contract.customer_signed_at}
-            signatureUrl={contract.customer_signature_url}
+            signatureUrl={cdnUrl(contract.customer_signature_url)}
             name={customerName}
           />
           <SignatureCard
             label="Chữ ký quản lý"
             signedAt={contract.manager_signed_at}
-            signatureUrl={contract.manager_signature_url}
+            signatureUrl={cdnUrl(contract.manager_signature_url)}
             name={managerName}
           />
         </div>
@@ -585,7 +580,7 @@ export default function BMContractDetailPage() {
           </DialogHeader>
           <div
             className="contract-render flex-1 overflow-y-auto prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: cleanRenderedContent(contract.rendered_content) }}
+            dangerouslySetInnerHTML={{ __html: cleanContractHtml(contract.rendered_content) }}
           />
         </DialogContent>
       </Dialog>
