@@ -1,7 +1,0 @@
-{
-  "github": {
-    "silent": true
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then exit 0; fi; git diff --quiet HEAD^ HEAD -- . ':!.gitignore' ':!README.md' ':!docs/**'"
-}
