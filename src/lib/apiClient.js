@@ -15,7 +15,10 @@ function getToken() {
 
 export async function apiRequest(path, options = {}) {
   const { method = "GET", body, headers: custom, withAuth = true, ...rest } = options;
-  const headers = { ...(custom || {}) };
+  const headers = {
+    "ngrok-skip-browser-warning": "true",
+    ...(custom || {}),
+  };
   const isFormData = body instanceof FormData;
 
   if (body && !isFormData && !headers["Content-Type"]) {
