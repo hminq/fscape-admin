@@ -97,7 +97,7 @@ export default function LoginPage() {
       navigate(ROLE_HOME[u.role] ?? "/");
     } catch (err) {
       if (!err.status) {
-        setError("Không thể kết nối đến máy chủ nội bộ. Bạn đã chạy backend chưa?");
+        setError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
       } else if (err.status >= 500) {
         setError("Lỗi hệ thống máy chủ. Vui lòng thử lại sau.");
       } else {
