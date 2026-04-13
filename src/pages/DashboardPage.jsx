@@ -1,83 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Briefcase,
-  Buildings,
+  Calendar,
   CalendarBlank,
-  CaretLeft,
-  CaretRight,
-  CheckCircle,
   CurrencyDollar,
   Door,
   Lock,
+  TrendDown,
   TrendUp,
 } from "@phosphor-icons/react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { api } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
-const ITEMS_PER_PAGE = 5;
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
 });
 
-function Pagination({ totalItems, itemsPerPage, currentPage, onPageChange }) {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className="flex items-center justify-between border-t px-6 py-4">
-      <p className="text-sm text-muted-foreground">
-        Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} -{" "}
-        {Math.min(currentPage * itemsPerPage, totalItems)} trong {totalItems}
-      </p>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          <CaretLeft weight="bold" />
-        </Button>
-        <span className="min-w-16 text-center text-sm font-medium text-foreground">
-          {currentPage} / {totalPages}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          <CaretRight weight="bold" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function StatCard({ title, value, description, icon: Icon }) {
-  const accentClasses = {
-    "Tổng số phòng": "border-chart-1/25 bg-chart-1/6 text-chart-1",
-    "Phòng đang thuê": "border-chart-4/25 bg-chart-4/8 text-chart-4",
-    "Tỉ lệ lấp đầy": "border-chart-2/25 bg-chart-2/8 text-chart-2",
-    "Doanh thu 30 ngày": "border-chart-5/30 bg-chart-5/14 text-chart-5",
-  };
-
   return (
     <Card className="gap-4">
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
@@ -85,32 +39,33 @@ function StatCard({ title, value, description, icon: Icon }) {
           <CardDescription>{title}</CardDescription>
           <CardTitle className="text-2xl">{value}</CardTitle>
         </div>
-        <div className={cn("rounded-lg border p-2", accentClasses[title] || "bg-muted text-muted-foreground")}>
+        <div className="rounded-lg border border-primary/20 bg-primary/8 p-2 text-primary">
           <Icon className="size-5" weight="duotone" />
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-xs leading-5 text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );
 }
 
-function EmptyState({ colSpan, message }) {
+function RevenueTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
   return (
-    <TableRow>
-      <TableCell colSpan={colSpan} className="h-32 text-center text-sm text-muted-foreground">
-        {message}
-      </TableCell>
-    </TableRow>
+    <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">
+        {CURRENCY_FORMATTER.format(Number(payload[0]?.value || 0))}
+      </p>
+    </div>
   );
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [bookingPage, setBookingPage] = useState(1);
-  const [roomTypePage, setRoomTypePage] = useState(1);
 
   useEffect(() => {
     api
@@ -130,9 +85,12 @@ export default function DashboardPage() {
   const totalRooms = Number(dashboard.total_rooms || 0);
   const occupiedRooms = Number(dashboard.occupied_rooms || 0);
   const recentRevenue = Number(dashboard.recent_revenue || 0);
-  const roomTypeDistribution = dashboard.room_type_distribution || [];
-  const roomTypesOverview = dashboard.room_types_overview || [];
-  const recentBookings = dashboard.recent_bookings || [];
+  const monthlyRevenue = dashboard.monthly_revenue || [];
+  const revenueTrend = dashboard.revenue_trend || {};
+  const monthlyBookings = dashboard.monthly_bookings || [];
+  const bookingTrend = dashboard.booking_trend || {};
+  const roomTypeBookingDistribution = dashboard.room_type_booking_distribution || [];
+  const topBookedRoomType = dashboard.top_booked_room_type || null;
   const employeeStats = dashboard.employee_stats || { total: 0, active: 0, inactive: 0 };
   const vacantRooms = Math.max(0, totalRooms - occupiedRooms);
   const occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
@@ -152,10 +110,10 @@ export default function DashboardPage() {
         icon: Lock,
       },
       {
-        title: "Tỉ lệ lấp đầy",
-        value: `${occupancyRate.toFixed(1)}%`,
-        description: "Tính trên tổng phòng đang được khai thác.",
-        icon: CheckCircle,
+        title: "Nhân sự nội bộ",
+        value: employeeStats.active.toLocaleString("vi-VN"),
+        description: `${employeeStats.active.toLocaleString("vi-VN")} nhân sự đang hoạt động trong hệ thống.`,
+        icon: Briefcase,
       },
       {
         title: "Doanh thu 30 ngày",
@@ -164,15 +122,33 @@ export default function DashboardPage() {
         icon: CurrencyDollar,
       },
     ],
-    [occupiedRooms, occupancyRate, recentRevenue, totalRooms, vacantRooms],
+    [employeeStats.active, employeeStats.inactive, employeeStats.total, occupiedRooms, recentRevenue, totalRooms, vacantRooms],
   );
-
-  const roomTypeBarData = useMemo(
+  const chartRevenueData = useMemo(
     () =>
-      roomTypeDistribution
-        .map((item) => ({ label: item.name, value: Number(item.count || 0) }))
-        .sort((a, b) => b.value - a.value),
-    [roomTypeDistribution],
+      monthlyRevenue.map((item) => ({
+        ...item,
+        short_amount: Number(item.amount || 0),
+      })),
+    [monthlyRevenue],
+  );
+  const chartBookingData = useMemo(
+    () =>
+      monthlyBookings.map((item) => ({
+        ...item,
+        booking_count: Number(item.count || 0),
+      })),
+    [monthlyBookings],
+  );
+  const chartRoomTypeBookingData = useMemo(
+    () =>
+      roomTypeBookingDistribution
+        .map((item) => ({
+          ...item,
+          booking_count: Number(item.booking_count || 0),
+        }))
+        .sort((a, b) => b.booking_count - a.booking_count),
+    [roomTypeBookingDistribution],
   );
 
   const occupancyDonutStyle = useMemo(() => {
@@ -182,15 +158,62 @@ export default function DashboardPage() {
     };
   }, [occupiedRooms, totalRooms]);
 
-  const paginatedBookings = recentBookings.slice(
-    (bookingPage - 1) * ITEMS_PER_PAGE,
-    bookingPage * ITEMS_PER_PAGE,
-  );
+  const revenueTrendMeta = useMemo(() => {
+    const direction = revenueTrend.direction || "flat";
+    if (direction === "up") {
+      return {
+        icon: TrendUp,
+        title: "Doanh thu đang tăng",
+        classes: "border-green-200 bg-green-50 text-green-700",
+        description: `Tăng ${revenueTrend.percent_change || 0}% so với ${revenueTrend.previous_month_label || "tháng trước"}.`,
+      };
+    }
 
-  const paginatedRoomTypes = roomTypesOverview.slice(
-    (roomTypePage - 1) * ITEMS_PER_PAGE,
-    roomTypePage * ITEMS_PER_PAGE,
-  );
+    if (direction === "down") {
+      return {
+        icon: TrendDown,
+        title: "Doanh thu đang giảm",
+        classes: "border-red-200 bg-red-50 text-red-700",
+        description: `Giảm ${revenueTrend.percent_change || 0}% so với ${revenueTrend.previous_month_label || "tháng trước"}.`,
+      };
+    }
+
+    return {
+      icon: Calendar,
+      title: "Doanh thu ổn định",
+      classes: "border-chart-2/20 bg-chart-2/8 text-chart-2",
+      description: "Doanh thu tháng này chưa có biến động đáng kể.",
+    };
+  }, [revenueTrend]);
+  const TrendIcon = revenueTrendMeta.icon;
+  const bookingTrendMeta = useMemo(() => {
+    const direction = bookingTrend.direction || "flat";
+    if (direction === "up") {
+      return {
+        icon: TrendUp,
+        title: "Lượng đặt phòng đang tăng",
+        classes: "border-green-200 bg-green-50 text-green-700",
+        description: `Tăng ${bookingTrend.percent_change || 0}% so với ${bookingTrend.previous_month_label || "tháng trước"}.`,
+      };
+    }
+
+    if (direction === "down") {
+      return {
+        icon: TrendDown,
+        title: "Lượng đặt phòng đang giảm",
+        classes: "border-red-200 bg-red-50 text-red-700",
+        description: `Giảm ${bookingTrend.percent_change || 0}% so với ${bookingTrend.previous_month_label || "tháng trước"}.`,
+      };
+    }
+
+    return {
+      icon: Calendar,
+      title: "Lượng đặt phòng ổn định",
+      classes: "border-chart-2/20 bg-chart-2/8 text-chart-2",
+      description: "Số lượng đặt phòng tháng này chưa có biến động đáng kể.",
+    };
+  }, [bookingTrend]);
+  const BookingTrendIcon = bookingTrendMeta.icon;
 
   if (loading) {
     return (
@@ -219,7 +242,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Tổng quan</h1>
         <p className="text-sm text-muted-foreground">
           Tổng quan vận hành, doanh thu và tình trạng khai thác phòng cho khu vực quản trị.
         </p>
@@ -238,10 +261,10 @@ export default function DashboardPage() {
             <CardDescription>Phân bổ số phòng đang thuê và còn trống.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div className="flex flex-col items-center gap-6">
               <div className="flex justify-center">
-                <div className="relative flex size-44 items-center justify-center rounded-full border bg-muted/20 p-3">
-                  <div className="size-full rounded-full" style={occupancyDonutStyle} />
+                <div className="relative flex size-44 items-center justify-center rounded-full border bg-muted/20">
+                  <div className="size-[calc(100%-1rem)] rounded-full" style={occupancyDonutStyle} />
                   <div className="absolute flex size-28 flex-col items-center justify-center rounded-full border bg-background">
                     <span className="text-3xl font-semibold">{occupancyRate.toFixed(1)}%</span>
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">Lấp đầy</span>
@@ -249,15 +272,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Tỉ lệ lấp đầy</span>
-                    <span className="font-medium">{occupancyRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={occupancyRate} className="h-2.5 bg-chart-2/20 [&_[data-slot=progress-indicator]]:bg-chart-4" />
-                </div>
-
+              <div className="w-full max-w-xl space-y-5">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-chart-4/20 bg-chart-4/8 p-4">
                     <p className="text-sm text-muted-foreground">Đã thuê</p>
@@ -269,20 +284,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md border bg-background p-2 text-chart-1">
-                      <Buildings className="size-4" weight="duotone" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">Nhân sự nội bộ</p>
-                      <p className="text-sm text-muted-foreground">
-                        Tổng {employeeStats.total} người, gồm {employeeStats.active} đang hoạt động và{" "}
-                        {employeeStats.inactive} tạm ngưng.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </CardContent>
@@ -290,47 +291,81 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Phân bổ loại phòng</CardTitle>
-            <CardDescription>Số lượng phòng theo từng hạng mục đang được cấu hình.</CardDescription>
+            <CardTitle>Doanh thu theo tháng</CardTitle>
+            <CardDescription>Biến động doanh thu trong 6 tháng gần nhất.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {roomTypeBarData.length > 0 ? (
-                roomTypeBarData.map((item) => {
-                  const percent = totalRooms > 0 ? (item.value / totalRooms) * 100 : 0;
-                  return (
-                    <div key={item.label} className="space-y-2">
-                      <div className="flex items-center justify-between gap-4 text-sm">
-                        <span className="truncate font-medium">{item.label}</span>
-                        <span className="shrink-0 text-muted-foreground">
-                          {item.value} phòng
-                        </span>
-                      </div>
-                      <Progress value={percent} className="h-2.5 bg-chart-2/16 [&_[data-slot=progress-indicator]]:bg-chart-1" />
-                    </div>
-                  );
-                })
+              {chartRevenueData.length > 0 ? (
+                <div className="h-72 rounded-lg border bg-muted/10 p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={chartRevenueData}
+                      margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.24} />
+                          <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.03} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={12}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={12}
+                        width={88}
+                        tickFormatter={(value) => `${Math.round(value / 1000000)}tr`}
+                      />
+                      <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "var(--color-border)", strokeDasharray: "4 4" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="short_amount"
+                        stroke="var(--color-primary)"
+                        strokeWidth={2.5}
+                        fill="url(#revenueFill)"
+                        activeDot={{ r: 4, fill: "var(--color-primary)", stroke: "var(--color-background)", strokeWidth: 2 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  Chưa có dữ liệu phân bổ loại phòng.
+                  Chưa có dữ liệu doanh thu theo tháng.
                 </div>
               )}
 
-              {roomTypeBarData.length > 0 && (
+              {chartRevenueData.length > 0 && (
                 <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-                  <div className="rounded-lg border border-chart-1/20 bg-chart-1/6 p-4">
-                    <div className="flex items-center gap-2 text-chart-1">
-                      <TrendUp className="size-4" weight="duotone" />
-                      <p className="text-sm font-medium">Loại phổ biến nhất</p>
+                  <div className={cn("rounded-lg border p-4", revenueTrendMeta.classes)}>
+                    <div className="flex items-center gap-2">
+                      <TrendIcon className="size-4" weight="duotone" />
+                      <p className="text-sm font-medium">{revenueTrendMeta.title}</p>
                     </div>
-                    <p className="mt-2 text-base font-semibold">{roomTypeBarData[0]?.label || "—"}</p>
+                    <p className="mt-2 text-base font-semibold">{revenueTrendMeta.description}</p>
                   </div>
-                  <div className="rounded-lg border border-chart-5/20 bg-chart-5/12 p-4">
-                    <div className="flex items-center gap-2 text-chart-5">
-                      <Briefcase className="size-4" weight="duotone" />
-                      <p className="text-sm font-medium">Số lượng hạng phòng</p>
+                  <div className="rounded-lg border border-primary/15 bg-primary/6 p-4">
+                    <div className="flex items-center gap-2 text-primary">
+                      <CalendarBlank className="size-4" weight="duotone" />
+                      <p className="text-sm font-medium">Tháng hiện tại</p>
                     </div>
-                    <p className="mt-2 text-base font-semibold">{roomTypeBarData.length} loại đang hiển thị</p>
+                    <p className="mt-2 text-base font-semibold">
+                      {CURRENCY_FORMATTER.format(Number(revenueTrend.current_month_amount || 0))}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      So với {revenueTrend.previous_month_label || "tháng trước"}:{" "}
+                      {CURRENCY_FORMATTER.format(Number(revenueTrend.previous_month_amount || 0))}
+                    </p>
                   </div>
                 </div>
               )}
@@ -339,124 +374,172 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <CardTitle>Booking gần đây</CardTitle>
-                <CardDescription>Danh sách booking mới nhất trên hệ thống.</CardDescription>
+                <CardTitle>Phân tích đặt phòng</CardTitle>
+                <CardDescription>
+                  Theo dõi xu hướng đặt phòng và loại phòng được chọn nhiều nhất.
+                </CardDescription>
               </div>
-              <Badge variant="secondary">
+              <Badge variant="outline" className="gap-1.5">
                 <CalendarBlank className="size-3.5" weight="duotone" />
-                {recentBookings.length} booking
+                {chartBookingData.length} tháng
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mã booking</TableHead>
-                    <TableHead>Khách hàng</TableHead>
-                    <TableHead>Phòng</TableHead>
-                    <TableHead className="text-right">Check-in</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedBookings.length > 0 ? (
-                    paginatedBookings.map((booking) => {
-                      let customerName = booking.customer || "Khách ẩn danh";
-
-                      if (customerName.startsWith("null null ")) {
-                        const match = customerName.match(/\((.*?)\)/);
-                        if (match) customerName = match[1];
-                      }
-
-                      return (
-                        <TableRow key={booking.id}>
-                          <TableCell className="font-medium">{booking.booking_number}</TableCell>
-                          <TableCell>{customerName}</TableCell>
-                          <TableCell>{booking.room}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {booking.check_in_date || "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <EmptyState colSpan={4} message="Không có booking gần đây." />
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            <Pagination
-              totalItems={recentBookings.length}
-              itemsPerPage={ITEMS_PER_PAGE}
-              currentPage={bookingPage}
-              onPageChange={setBookingPage}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle>Tổng quan hạng phòng</CardTitle>
-                <CardDescription>Mô tả ngắn, giá đề xuất và số lượng theo từng loại.</CardDescription>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-medium">Đặt phòng theo tháng</h3>
+                  <p className="text-xs text-muted-foreground">Nhu cầu đặt phòng trong 6 tháng gần nhất.</p>
+                </div>
+                {chartBookingData.length > 0 ? (
+                  <div className="h-72 rounded-lg border bg-muted/10 p-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartBookingData}
+                        margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="label"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          stroke="var(--color-muted-foreground)"
+                          fontSize={12}
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          stroke="var(--color-muted-foreground)"
+                          fontSize={12}
+                          width={48}
+                        />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            return (
+                              <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+                                <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground">
+                                  {Number(payload[0]?.value || 0)} lượt đặt
+                                </p>
+                              </div>
+                            );
+                          }}
+                          cursor={{ fill: "var(--color-muted)", opacity: 0.35 }}
+                        />
+                        <Bar
+                          dataKey="booking_count"
+                          radius={[6, 6, 0, 0]}
+                          fill="var(--color-chart-3)"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Chưa có dữ liệu đặt phòng theo tháng.
+                  </div>
+                )}
               </div>
-              <Badge variant="outline">{roomTypesOverview.length} loại</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Loại phòng</TableHead>
-                    <TableHead>Giá đề xuất</TableHead>
-                    <TableHead className="text-right">Số phòng</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedRoomTypes.length > 0 ? (
-                    paginatedRoomTypes.map((roomType) => (
-                      <TableRow key={roomType.id}>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <p className="font-medium">{roomType.name}</p>
-                            <p className="max-w-xs truncate text-sm text-muted-foreground">
-                              {roomType.description || "Không có mô tả"}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{CURRENCY_FORMATTER.format(Number(roomType.base_price || 0))}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge
-                            variant={Number(roomType.room_count) > 0 ? "default" : "secondary"}
-                            className={cn(Number(roomType.room_count) > 0 && "bg-chart-1/10 text-chart-1 hover:bg-chart-1/10")}
-                          >
-                            {roomType.room_count}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <EmptyState colSpan={3} message="Chưa có dữ liệu hạng phòng." />
-                  )}
-                </TableBody>
-              </Table>
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-medium">Đặt phòng theo loại phòng</h3>
+                  <p className="text-xs text-muted-foreground">Cho biết loại phòng nào đang được chọn nhiều nhất.</p>
+                </div>
+                {chartRoomTypeBookingData.length > 0 ? (
+                  <div className="h-72 rounded-lg border bg-muted/10 p-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartRoomTypeBookingData}
+                        layout="vertical"
+                        margin={{ top: 12, right: 12, left: 20, bottom: 0 }}
+                      >
+                        <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+                        <XAxis
+                          type="number"
+                          allowDecimals={false}
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          stroke="var(--color-muted-foreground)"
+                          fontSize={12}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tickLine={false}
+                          axisLine={false}
+                          width={110}
+                          stroke="var(--color-muted-foreground)"
+                          fontSize={12}
+                          tickFormatter={(value) => value.length > 16 ? `${value.slice(0, 16)}...` : value}
+                        />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            return (
+                              <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+                                <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground">
+                                  {Number(payload[0]?.value || 0)} lượt đặt
+                                </p>
+                              </div>
+                            );
+                          }}
+                          cursor={{ fill: "var(--color-muted)", opacity: 0.2 }}
+                        />
+                        <Bar dataKey="booking_count" radius={[0, 6, 6, 0]}>
+                          {chartRoomTypeBookingData.map((entry, index) => (
+                            <Cell
+                              key={entry.room_type_id || entry.name}
+                              fill={index === 0 ? "var(--color-primary)" : "var(--color-chart-2)"}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Chưa có dữ liệu đặt phòng theo loại phòng.
+                  </div>
+                )}
+              </div>
             </div>
 
-            <Pagination
-              totalItems={roomTypesOverview.length}
-              itemsPerPage={ITEMS_PER_PAGE}
-              currentPage={roomTypePage}
-              onPageChange={setRoomTypePage}
-            />
+            {(chartBookingData.length > 0 || chartRoomTypeBookingData.length > 0) && (
+              <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
+                <div className={cn("rounded-lg border p-4", bookingTrendMeta.classes)}>
+                  <div className="flex items-center gap-2">
+                    <BookingTrendIcon className="size-4" weight="duotone" />
+                    <p className="text-sm font-medium">{bookingTrendMeta.title}</p>
+                  </div>
+                  <p className="mt-2 text-base font-semibold">{bookingTrendMeta.description}</p>
+                </div>
+                <div className="rounded-lg border border-primary/15 bg-primary/6 p-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <CalendarBlank className="size-4" weight="duotone" />
+                    <p className="text-sm font-medium">Loại đặt nhiều nhất</p>
+                  </div>
+                  <p className="mt-2 text-base font-semibold">
+                    {topBookedRoomType?.name || "Chưa có dữ liệu"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {topBookedRoomType ? `${topBookedRoomType.booking_count} lượt đặt` : "Không có dữ liệu đặt phòng để thống kê."}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
