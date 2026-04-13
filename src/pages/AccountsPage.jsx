@@ -47,6 +47,8 @@ const ROLE_MAP = Object.fromEntries(
   ])
 );
 
+const RESETTABLE_ROLES = new Set(["BUILDING_MANAGER", "STAFF"]);
+
 const STATUS = {
   true: { label: "Hoạt động" },
   false: { label: "Vô hiệu hóa" },
@@ -330,11 +332,13 @@ function RoleSection({ role, search, filterActive, onToggle, onView, onReset, re
                             : <ToggleLeft className="size-5 text-muted-foreground" />}
                         </Button>
                       )}
-                      <Button size="icon" variant="ghost" className="size-8"
-                        title="Đặt lại mật khẩu"
-                        onClick={() => onReset(acc)}>
-                        <Key className="size-4 text-warning" />
-                      </Button>
+                      {RESETTABLE_ROLES.has(acc.role) && (
+                        <Button size="icon" variant="ghost" className="size-8"
+                          title="Đặt lại mật khẩu"
+                          onClick={() => onReset(acc)}>
+                          <Key className="size-4 text-warning" />
+                        </Button>
+                      )}
                       <Button size="icon" variant="ghost" className="size-8"
                         title="Chi tiết"
                         onClick={() => onView(acc)}>
