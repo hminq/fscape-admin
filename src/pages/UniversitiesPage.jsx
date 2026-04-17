@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, GraduationCap,
-  ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings,
+  ToggleLeft, ToggleRight, CircleNotch, Eye, Buildings, FloppyDisk,
   CaretLeft, CaretRight, CheckCircle
 } from "@phosphor-icons/react";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
@@ -176,7 +176,12 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
                   <Map center={[Number(uni.longitude), Number(uni.latitude)]} zoom={14}>
                     <MapMarker latitude={Number(uni.latitude)} longitude={Number(uni.longitude)}>
                       <MarkerContent>
-                        <MapPin className="size-6 text-white fill-primary -translate-y-1/2 drop-shadow-md" />
+                        <div className="flex items-center justify-center -translate-y-1/2">
+                          <span className="absolute size-6 animate-ping rounded-full bg-primary/30" />
+                          <span className="relative flex size-5 items-center justify-center rounded-full border-2 border-white bg-primary shadow-lg">
+                            <MapPin className="size-3 text-white" weight="fill" />
+                          </span>
+                        </div>
                       </MarkerContent>
                     </MapMarker>
                   </Map>
@@ -395,7 +400,7 @@ function UniFormDialog({ open, onOpenChange, mode, initialData, locations, onSav
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : (mode === 'create' ? <Plus className="size-4 mr-1.5" /> : <CheckCircle className="size-4 mr-1.5" />)}
+              {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : (mode === 'create' ? <Plus className="size-4 mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />)}
               {mode === "create" ? "Thêm trường" : "Lưu thay đổi"}
             </Button>
           </DialogFooter>

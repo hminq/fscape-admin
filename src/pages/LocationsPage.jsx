@@ -22,6 +22,7 @@ import { api } from "@/lib/apiClient";
 import { formatDate as fmt } from "@/lib/utils";
 
 const EMPTY_FORM = { name: "", is_active: "true" };
+const INACTIVE_LABEL = "Vô hiệu hóa";
 
 /* ── DonutChart ─────────────────────────────── */
 
@@ -126,6 +127,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = true;
+    else if (form.name.trim().length > 100) e.name = "Tên khu vực phải từ 1–100 ký tự";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -161,7 +163,9 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                   className={errors.name ? "border-destructive" : ""}
                 />
                 {errors.name && (
-                  <p className="text-[11px] text-destructive">Vui lòng nhập tên khu vực</p>
+                  <p className="text-[11px] text-destructive">
+                    {errors.name === true ? "Vui lòng nhập tên khu vực" : errors.name}
+                  </p>
                 )}
                 {errors.root && (
                   <p className="text-[11px] text-destructive font-medium bg-destructive/5 p-2 rounded-lg border border-destructive/10">{errors.root}</p>
@@ -173,7 +177,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true">Hoạt động</SelectItem>
-                    <SelectItem value="false">Không hoạt động</SelectItem>
+                    <SelectItem value="false">{INACTIVE_LABEL}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -215,7 +219,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold">
                   <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                   <span className={loc.is_active ? "text-success" : "text-muted-foreground"}>
-                    {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                    {loc.is_active ? "Hoạt động" : INACTIVE_LABEL}
                   </span>
                 </span>
               </DialogTitle>
@@ -306,6 +310,7 @@ function LocationCreateDialog({ open, onOpenChange, onSave, saving }) {
   const validate = () => {
     const e = {};
     if (!form.name?.trim()) e.name = "Vui lòng nhập tên khu vực";
+    else if (form.name.trim().length > 100) e.name = "Tên khu vực phải từ 1–100 ký tự";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -564,7 +569,7 @@ export default function LocationsPage() {
           {[
             { key: "all", label: "Tất cả" },
             { key: "active", label: "Hoạt động" },
-            { key: "inactive", label: "Không hoạt động" },
+            { key: "inactive", label: INACTIVE_LABEL },
           ].map((fl) => (
             <Button
               key={fl.key}
@@ -633,7 +638,7 @@ export default function LocationsPage() {
                         <div className="flex items-center gap-2 text-xs">
                           <span className={`size-2 rounded-full ${loc.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
                           <span className={loc.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                            {loc.is_active ? "Hoạt động" : "Vô hiệu hóa"}
+                            {loc.is_active ? "Hoạt động" : INACTIVE_LABEL}
                           </span>
                         </div>
                       </TableCell>

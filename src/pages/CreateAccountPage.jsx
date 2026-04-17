@@ -64,7 +64,11 @@ export default function CreateAccountPage() {
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
             errors.email = "Email không đúng định dạng";
         }
-        if (!form.phone.trim()) errors.phone = "Vui lòng nhập số điện thoại";
+        if (!form.phone.trim()) {
+            errors.phone = "Vui lòng nhập số điện thoại";
+        } else if (!/^[0-9]{8,15}$/.test(form.phone.trim())) {
+            errors.phone = "Số điện thoại phải gồm 8–15 chữ số";
+        }
         if (!form.password) errors.password = "Vui lòng nhập mật khẩu";
         if (form.password && form.password.length < 6) errors.password = "Mật khẩu phải có ít nhất 6 ký tự";
         if (!form.confirmPassword) errors.confirmPassword = "Vui lòng xác nhận mật khẩu";

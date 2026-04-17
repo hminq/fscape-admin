@@ -92,7 +92,7 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
       {parseError && (
         <p className="text-[11px] text-destructive">Không thể đọc tọa độ từ link này.</p>
       )}
-      <div className="h-[240px] rounded-lg overflow-hidden border border-border">
+      <div className="h-[200px] rounded-lg overflow-hidden border border-border">
         <Map center={center} zoom={zoom}>
           <MapClickListener onChange={onChange} />
           <MapControls position="bottom-right" showZoom />
@@ -115,7 +115,7 @@ export default function MapPicker({ latitude, longitude, onChange, className }) 
           )}
         </Map>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[10px] text-muted-foreground">
         Bấm vào bản đồ hoặc dán link Google Maps để chọn vị trí
       </p>
     </div>

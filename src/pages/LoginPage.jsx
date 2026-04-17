@@ -101,7 +101,6 @@ export default function LoginPage() {
       } else if (err.status >= 500) {
         setError("Lỗi hệ thống máy chủ. Vui lòng thử lại sau.");
       } else {
-        // Luôn hiện chung một lỗi cho mọi trường hợp sai thông tin đăng nhập
         setError("Tài khoản hoặc mật khẩu không chính xác.");
       }
     } finally {
@@ -197,7 +196,7 @@ export default function LoginPage() {
               maxWidth: 360,
             }}
           >
-            Nền tảng quản trị tập trung cho hệ thống đặt phòng học tập FScape — phân quyền, thống kê và vận hành theo thời gian thực.
+            Nền tảng quản trị tập trung cho hệ thống phòng ở chuyên biệt FScape - phân quyền, thống kê và vận hành theo thời gian thực.
           </p>
         </div>
 
@@ -447,7 +446,7 @@ export default function LoginPage() {
               opacity: 0.6,
             }}
           >
-            © 2025 FScape. Hệ thống dành riêng cho quản trị viên.
+            © 2026 FScape. Hệ thống dành riêng cho quản trị viên.
           </p>
         </div>
       </div>

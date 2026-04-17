@@ -69,7 +69,11 @@ export default function CreateAccountDialog({ open, onOpenChange, onSaved, force
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       e.email = "Email không đúng định dạng";
     }
-    if (!form.phone?.trim()) e.phone = "Vui lòng nhập số điện thoại";
+    if (!form.phone?.trim()) {
+      e.phone = "Vui lòng nhập số điện thoại";
+    } else if (!/^[0-9]{8,15}$/.test(form.phone.trim())) {
+      e.phone = "Số điện thoại phải gồm 8–15 chữ số";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };

@@ -5,11 +5,12 @@ import {
   Plus, MagnifyingGlass, PencilSimple, Trash, MapPin, Eye,
   ArrowLeft, Stack as Layers, CircleNotch,
   ImageSquare as ImagePlus, X, CaretLeft, CaretRight,
-  User as UserIcon, Phone, Envelope,
+  User as UserIcon,
   ToggleLeft, ToggleRight, FloppyDisk, Users, CheckCircle, Buildings
 } from "@phosphor-icons/react";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
+import BuildingStaffDialog from "@/components/BuildingStaffDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,6 @@ import { api, apiJson, apiRequest } from "@/lib/apiClient";
 import { cn, cdnUrl } from "@/lib/utils";
 import MapPicker from "@/components/MapPicker";
 import defaultBuildingImg from "@/assets/default_building_img.jpg";
-import defaultUserImg from "@/assets/default_user_img.jpg";
 import StatusBar from "@/components/StatusBar";
 
 /* ── global cache for buildings ────────────── */
@@ -262,7 +262,7 @@ function BuildingCard({ building, onView, onToggle, onStaff }) {
 
 /* ── BuildingDetail ────────────────────────── */
 
-function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpdateSuccess }) {
+function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpdateSuccess, onOpenStaff }) {
   const [building, setBuilding] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -307,10 +307,6 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
     fetchManagers();
   }, [fetchManagers]);
 
-  // Staff view state (read-only)
-  const [staffList, setStaffList] = useState([]);
-  const [staffLoading, setStaffLoading] = useState(false);
-
   const fetchBuilding = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -327,19 +323,6 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   useEffect(() => {
     fetchBuilding();
   }, [fetchBuilding]);
-
-  // Fetch staff assigned to this building (view-only)
-  const fetchStaff = useCallback(async () => {
-    setStaffLoading(true);
-    try {
-      const res = await apiJson(`/api/users?building_id=${buildingId}&limit=100`);
-      const users = res.data?.data || [];
-      setStaffList(users.filter(u => u.role === 'BUILDING_MANAGER' || u.role === 'STAFF'));
-    } catch { setStaffList([]); }
-    finally { setStaffLoading(false); }
-  }, [buildingId]);
-
-  useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
   const startEditing = () => {
     if (!building) return;
@@ -498,19 +481,19 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-20">
+    <div className="mx-auto max-w-4xl space-y-4 pb-20">
       {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         <button
           onClick={onBack}
-          className="mt-1 size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+          className="mt-0.5 size-8 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="size-4" />
         </button>
         <div className="flex-1">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight">
                 {isEditing ? `Chỉnh sửa: ${building.name}` : building.name}
               </h1>
               {!isEditing && (
@@ -524,10 +507,13 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             </div>
             {!isEditing && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-2 h-9" onClick={startEditing}>
+                <Button variant="outline" size="sm" className="gap-2 h-8 px-3" onClick={() => onOpenStaff?.(building)}>
+                  <Users className="size-4" /> Nhân sự
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 h-8 px-3" onClick={startEditing}>
                   <PencilSimple className="size-4" /> Chỉnh sửa
                 </Button>
-                <Button variant="destructive" size="sm" className="gap-2 h-9" onClick={() => setConfirmDel(true)}>
+                <Button variant="destructive" size="sm" className="gap-2 h-8 px-3" onClick={() => setConfirmDel(true)}>
                   <Trash className="size-4" /> Xóa
                 </Button>
               </div>
@@ -542,12 +528,12 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
       </div>
 
       {isEditing ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Thông tin cơ bản */}
-          <Card className="p-5 space-y-5 shadow-none border-border">
+          <Card className="gap-4 p-4 shadow-none border-border">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Thông tin cơ bản</h2>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-1.5" ref={nameRef}>
                 <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
                 <Input value={form.name || ""} 
@@ -572,10 +558,10 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
                 {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
               </div>
 
-              <div className="space-y-1.5 col-span-2 md:col-span-1">
+              <div className="space-y-1.5 md:col-span-1">
                 <Label className="text-muted-foreground">Người quản lý</Label>
-                <div className="flex flex-col gap-1 p-2 border border-border bg-muted/30 rounded-lg">
-                   <p className="text-sm font-medium">
+                <div className="flex min-h-11 flex-col justify-center gap-0.5 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                   <p className="text-sm font-medium leading-none">
                       {building.manager ? `${building.manager.first_name} ${building.manager.last_name}` : "Chưa có quản lý"}
                    </p>
                    <p className="text-[11px] text-muted-foreground italic">
@@ -585,7 +571,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-2" ref={addressRef}>
+            <div className="space-y-1.5" ref={addressRef}>
               <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -605,7 +591,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               }}
             />
 
-            <div className="grid grid-cols-3 gap-4 border-t border-border/50 pt-4 mt-2">
+            <div className="grid grid-cols-1 gap-3 border-t border-border/50 pt-3 md:grid-cols-3">
               <div className="space-y-1.5" ref={totalFloorsRef}>
                 <Label className={errors.total_floors ? "text-destructive" : ""}>Số tầng</Label>
                 <div className="relative">
@@ -628,20 +614,20 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           </Card>
 
           {/* Mô tả */}
-          <Card className="p-5 space-y-3 shadow-none border-border">
+          <Card className="gap-2.5 p-4 shadow-none border-border">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mô tả</h2>
-            <Textarea rows={4} value={form.description || ""}
+            <Textarea rows={3} value={form.description || ""}
               onChange={(e) => setFormField("description", e.target.value)}
               placeholder="Mô tả tòa nhà..."
               className="resize-none focus-visible:ring-1" />
           </Card>
 
           {/* Hình ảnh */}
-          <Card className="p-5 space-y-5 shadow-none border-border font-medium">
+          <Card className="gap-4 p-4 shadow-none border-border font-medium">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground text-foreground">Hình ảnh</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Thumbnail */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Ảnh đại diện</Label>
                 {thumbPreview ? (
                   <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted group ring-1 ring-border/50 shadow-sm">
@@ -668,7 +654,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               </div>
 
               {/* Gallery */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Thư viện ảnh ({galleryImages.length}/5)</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {galleryImages.map((img, idx) => (
@@ -702,7 +688,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
           </Card>
 
           {/* Tiện ích */}
-          <Card className="p-5 border-border shadow-none">
+          <Card className="p-4 border-border shadow-none">
             <EditFacilityPicker selectedIds={facilityIds} onChange={setFacilityIds} />
           </Card>
 
@@ -756,53 +742,6 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
               </div>
             </div>
           </Card>
-
-          {/* Nhân sự (view-only) */}
-          <section>
-            <h2 className="text-base font-bold mb-3">Nhân sự</h2>
-
-            {staffLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                <CircleNotch className="size-4 animate-spin" /> Đang tải...
-              </div>
-            ) : staffList.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Chưa có nhân sự nào được gán cho tòa nhà này.</p>
-            ) : (
-              <div className="space-y-5">
-                {[
-                  { role: 'BUILDING_MANAGER', label: 'Quản lý tòa nhà' },
-                  { role: 'STAFF', label: 'Nhân viên' },
-                ].map(({ role, label }) => {
-                  const members = staffList.filter(u => u.role === role);
-                  if (members.length === 0) return null;
-                  return (
-                    <div key={role} className="space-y-2">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</h3>
-                      {members.map(u => (
-                        <div key={u.id} className="flex items-center rounded-xl border border-border bg-card p-3">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={cdnUrl(u.avatar_url) || defaultUserImg}
-                              alt=""
-                              className="size-10 rounded-lg object-cover ring-1 ring-border"
-                              onError={e => { e.target.src = defaultUserImg; }}
-                            />
-                            <div>
-                              <span className="font-semibold text-sm">{u.first_name} {u.last_name}</span>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                                {u.email && <span className="flex items-center gap-1"><Envelope className="size-3" />{u.email}</span>}
-                                {u.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{u.phone}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
 
           {/* Gallery — equal size grid */}
           {gallery.length > 0 && (
@@ -1143,6 +1082,7 @@ export default function BuildingsPage() {
   /* dialogs */
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [staffDialogBuilding, setStaffDialogBuilding] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toggleError, setToggleError] = useState(null);
 
@@ -1166,18 +1106,30 @@ export default function BuildingsPage() {
 
   if (selectedId) {
     return (
-      <BuildingDetail
-        buildingId={selectedId}
-        onBack={() => setSelectedId(null)}
-        locations={locations}
-        onDeleteSuccess={() => {
-          setSelectedId(null);
-          // fetchStats(); // Update statistics
-        }}
-        onUpdateSuccess={() => {
-          refresh();
-        }}
-      />
+      <>
+        <BuildingDetail
+          buildingId={selectedId}
+          onBack={() => setSelectedId(null)}
+          locations={locations}
+          onDeleteSuccess={() => {
+            setSelectedId(null);
+            // fetchStats(); // Update statistics
+          }}
+          onUpdateSuccess={() => {
+            refresh();
+          }}
+          onOpenStaff={(building) => setStaffDialogBuilding(building)}
+        />
+        <BuildingStaffDialog
+          open={!!staffDialogBuilding}
+          onOpenChange={(open) => {
+            if (!open) setStaffDialogBuilding(null);
+          }}
+          buildingId={staffDialogBuilding?.id}
+          buildingName={staffDialogBuilding?.name}
+          onUpdated={refresh}
+        />
+      </>
     );
   }
 
@@ -1250,11 +1202,21 @@ export default function BuildingsPage() {
             filterActive={filterActive}
             onView={(b) => setSelectedId(b.id)}
             onToggle={setConfirmToggle}
-            onStaff={(b) => navigate(`/buildings/${b.id}/staff`)}
+            onStaff={(b) => setStaffDialogBuilding(b)}
             refreshKey={refreshKey}
           />
         ))}
       </div>
+
+      <BuildingStaffDialog
+        open={!!staffDialogBuilding}
+        onOpenChange={(open) => {
+          if (!open) setStaffDialogBuilding(null);
+        }}
+        buildingId={staffDialogBuilding?.id}
+        buildingName={staffDialogBuilding?.name}
+        onUpdated={refresh}
+      />
 
       {/* Confirm Toggle */}
       <Dialog open={!!confirmToggle} onOpenChange={(v) => { if (!v) { setConfirmToggle(null); setToggleError(null); } }}>

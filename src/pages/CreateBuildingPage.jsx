@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload, X, Plus, CircleNotch,
   MapPin, Stack as Layers, Image as ImageIcon,
-  CaretLeft,
+  ArrowLeft, Buildings, CheckCircle, Users,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { apiJson, apiRequest } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import MapPicker from "@/components/MapPicker";
-import CreateAccountDialog from "@/components/CreateAccountDialog";
+import BuildingStaffAssignmentPanel from "@/components/BuildingStaffAssignmentPanel";
 import { clearCache } from "./BuildingsPage";
 
 /* ── upload helper ─────────────────────────── */
@@ -204,13 +204,13 @@ export default function CreateBuildingPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState([]);
-  const [managers, setManagers] = useState([]);
+  const [step, setStep] = useState(1);
+  const [createdBuilding, setCreatedBuilding] = useState(null);
 
   const [form, setForm] = useState(() => {
     const defaultState = {
       name: "",
       location_id: "",
-      manager_id: "",
       address: "",
       latitude: "",
       longitude: "",
@@ -237,28 +237,20 @@ export default function CreateBuildingPage() {
   const [galleryImages, setGalleryImages] = useState([]);
 
   const [errors, setErrors] = useState({});
-  const [showAddManager, setShowAddManager] = useState(false);
 
   // Refs for auto-scrolling to errors
   const nameRef = useRef(null);
   const locationRef = useRef(null);
-  const managerRef = useRef(null);
   const addressRef = useRef(null);
+  const coordinatesRef = useRef(null);
   const totalFloorsRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const facilitiesRef = useRef(null);
   const scrollTo = (ref) => {
     if (ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
-
-  const fetchManagers = useCallback(async () => {
-    try {
-      const res = await apiJson("/api/users/available-managers");
-      setManagers(res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch managers:", err);
-    }
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -266,9 +258,8 @@ export default function CreateBuildingPage() {
         apiJson("/api/locations?limit=100&is_active=true"),
       ]);
       if (locResult.status === "fulfilled") setLocations(locResult.value.data || []);
-      fetchManagers();
     })();
-  }, [fetchManagers]);
+  }, []);
 
   useEffect(() => {
     if (Object.keys(form).length > 0) {
@@ -281,15 +272,35 @@ export default function CreateBuildingPage() {
     if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
   };
 
+  const setCoordinates = (lat, lng) => {
+    setForm((p) => ({ ...p, latitude: lat, longitude: lng }));
+    setErrors((prev) => ({
+      ...prev,
+      latitude: undefined,
+      longitude: undefined,
+    }));
+  };
+
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Tên tòa nhà là bắt buộc";
+    if (!form.name.trim()) e.name = "Tên không được để trống";
+    else if (form.name.trim().length > 255) e.name = "Tên phải từ 1–255 ký tự";
     if (!form.location_id) e.location_id = "Vui lòng chọn khu vực";
-    if (!form.manager_id) e.manager_id = "Vui lòng chọn quản lý";
-    if (!form.address.trim()) e.address = "Địa chỉ là bắt buộc";
-    if (!form.total_floors) e.total_floors = "Số tầng là bắt buộc";
-    else if (Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
+    if (!form.address.trim()) e.address = "Địa chỉ không được để trống";
+    else if (form.address.trim().length > 500) e.address = "Địa chỉ tối đa 500 ký tự";
+
+    const latitude = Number(form.latitude);
+    const longitude = Number(form.longitude);
+    if (form.latitude === "" || form.latitude == null) e.latitude = "Vĩ độ không được để trống";
+    else if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) e.latitude = "Vĩ độ phải từ -90 đến 90";
+    if (form.longitude === "" || form.longitude == null) e.longitude = "Kinh độ không được để trống";
+    else if (Number.isNaN(longitude) || longitude < -180 || longitude > 180) e.longitude = "Kinh độ phải từ -180 đến 180";
+
+    if (!form.total_floors) e.total_floors = "Số tầng không được để trống";
+    else if (!Number.isInteger(Number(form.total_floors)) || Number(form.total_floors) < 1 || Number(form.total_floors) > 99)
       e.total_floors = "Số tầng phải từ 1 đến 99";
+    if (form.description.trim().length > 2000) e.description = "Mô tả tối đa 2000 ký tự";
+    if (form.facilities.length > 20) e.facilities = "Tối đa 20 tiện ích";
     setErrors(e);
     
     // Auto-scroll to first error - use timeout to ensure render
@@ -297,9 +308,11 @@ export default function CreateBuildingPage() {
       setTimeout(() => {
         if (e.name) scrollTo(nameRef);
         else if (e.location_id) scrollTo(locationRef);
-        else if (e.manager_id) scrollTo(managerRef);
         else if (e.address) scrollTo(addressRef);
+        else if (e.latitude || e.longitude) scrollTo(coordinatesRef);
         else if (e.total_floors) scrollTo(totalFloorsRef);
+        else if (e.description) scrollTo(descriptionRef);
+        else if (e.facilities) scrollTo(facilitiesRef);
       }, 50);
     }
 
@@ -324,31 +337,22 @@ export default function CreateBuildingPage() {
       /* 1. Upload thumbnail */
       let thumbnail_url = undefined;
       if (thumbFile) {
-        console.log("[CreateBuilding] Uploading thumbnail...", thumbFile.name);
         const res = await uploadFiles("building_thumbnail", [thumbFile]);
-        console.log("[CreateBuilding] Thumbnail upload response:", res);
         thumbnail_url = res.urls?.[0] || undefined;
-      } else {
-        console.log("[CreateBuilding] No thumbnail file selected");
       }
 
       /* 2. Upload gallery */
       let images = [];
       const galleryFiles = galleryImages.filter((g) => g.file).map((g) => g.file);
       if (galleryFiles.length > 0) {
-        console.log("[CreateBuilding] Uploading gallery...", galleryFiles.length, "files");
         const res = await uploadFiles("building_gallery", galleryFiles);
-        console.log("[CreateBuilding] Gallery upload response:", res);
         images = res.urls || [];
-      } else {
-        console.log("[CreateBuilding] No gallery files selected");
       }
 
       /* 3. Create building */
       const payload = {
         name: form.name.trim(),
         location_id: form.location_id,
-        manager_id: form.manager_id,
         address: form.address.trim(),
         description: form.description.trim() || undefined,
         total_floors: form.total_floors ? Number(form.total_floors) : undefined,
@@ -360,14 +364,35 @@ export default function CreateBuildingPage() {
         facilities: form.facilities.length > 0 ? form.facilities : undefined,
       };
 
-      console.log("[CreateBuilding] Final payload:", JSON.stringify(payload, null, 2));
-
-      await apiJson("/api/buildings", { method: "POST", body: payload });
-      localStorage.removeItem("building_draft"); // Xóa bản nháp sau khi lưu thành công
-      clearCache(); // Làm mới cache của trang danh sách
-      navigate("/buildings");
+      const res = await apiJson("/api/buildings", { method: "POST", body: payload });
+      const building = res.data || res;
+      localStorage.removeItem("building_draft");
+      clearCache();
+      setCreatedBuilding(building);
+      setStep(2);
+      toast.success(building?.name ? `Đã tạo tòa nhà "${building.name}"` : "Đã tạo tòa nhà thành công");
     } catch (err) {
-      toast.error(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
+      if (err.data?.errors && Array.isArray(err.data.errors)) {
+        const backendErrors = {};
+        err.data.errors.forEach((item) => {
+          if (item.path) backendErrors[item.path] = item.msg;
+        });
+        setErrors((prev) => ({ ...prev, ...backendErrors }));
+        setTimeout(() => {
+          if (backendErrors.name) scrollTo(nameRef);
+          else if (backendErrors.location_id) scrollTo(locationRef);
+          else if (backendErrors.address) scrollTo(addressRef);
+          else if (backendErrors.latitude || backendErrors.longitude) scrollTo(coordinatesRef);
+          else if (backendErrors.total_floors) scrollTo(totalFloorsRef);
+          else if (backendErrors.description) scrollTo(descriptionRef);
+          else if (backendErrors.facilities) scrollTo(facilitiesRef);
+        }, 50);
+      } else if (err.status === 409) {
+        setErrors((prev) => ({ ...prev, name: err.message || "Tên tòa nhà đã tồn tại" }));
+        setTimeout(() => scrollTo(nameRef), 50);
+      } else {
+        toast.error(err.message || "Đã xảy ra lỗi khi tạo tòa nhà.");
+      }
     } finally {
       setSaving(false);
     }
@@ -375,190 +400,258 @@ export default function CreateBuildingPage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-12 pt-2">
-      {/* Header */}
       <div className="mb-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="p-0 h-auto hover:bg-transparent text-muted-foreground hover:text-foreground mb-3 gap-1 -translate-x-1"
-          onClick={() => navigate("/buildings")}
-        >
-          <CaretLeft className="size-4" />
-          <span>Quay lại danh sách</span>
-        </Button>
+        <div className="mb-3 flex items-center gap-3">
+          <button
+            onClick={() => navigate("/buildings")}
+            className="size-9 rounded-full border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Quay lại danh sách</p>
+          </div>
+        </div>
         <h1 className="text-2xl font-bold tracking-tight">Thêm tòa nhà mới</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Điền thông tin để khởi tạo tòa nhà FScape mới.</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {[
+            {
+              index: 1,
+              title: "Tạo tòa nhà",
+              description: "Nhập thông tin cơ bản và vị trí.",
+              icon: Buildings,
+            },
+            {
+              index: 2,
+              title: "Thiết lập nhân sự",
+              description: "Gán quản lý và nhân viên cho tòa nhà.",
+              icon: Users,
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = step === item.index;
+            const isDone = step > item.index;
+
+            return (
+              <div
+                key={item.index}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors",
+                  isDone
+                    ? "border-success/25 bg-success/5"
+                    : isActive
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-border bg-card",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex size-9 shrink-0 items-center justify-center rounded-full border",
+                    isDone
+                      ? "border-success/20 bg-success text-success-foreground"
+                      : isActive
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-border bg-muted text-muted-foreground",
+                  )}
+                >
+                  {isDone ? <CheckCircle className="size-4" /> : <Icon className="size-4" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Bước {item.index}/2
+                  </p>
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {/* ─ Thông tin cơ bản ─ */}
-        <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Thông tin cơ bản</h2>
+      {step === 1 ? (
+        <div className="space-y-6">
+          <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Thông tin cơ bản</h2>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5" ref={nameRef}>
-              <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
-              <Input
-                placeholder="VD: FScape Cầu Giấy"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                className={errors.name ? "border-destructive" : ""}
-              />
-              {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
-            </div>
-            <div className="space-y-1.5" ref={locationRef}>
-              <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
-              <Select value={form.location_id ? String(form.location_id) : ""} onValueChange={(v) => set("location_id", v)}>
-                <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Chọn khu vực" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
-            </div>
-            <div className="space-y-1.5 col-span-2 md:col-span-1" ref={managerRef}>
-              <Label className={errors.manager_id ? "text-destructive" : ""}>Người quản lý *</Label>
-              <Select value={form.manager_id ? String(form.manager_id) : ""} onValueChange={(v) => set("manager_id", v)}>
-                <SelectTrigger className={errors.manager_id ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Chọn quản lý tòa nhà" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map((m) => (
-                    <SelectItem key={m.id} value={String(m.id)}>
-                      {m.first_name} {m.last_name} ({m.email})
-                    </SelectItem>
-                  ))}
-                  <div className="p-1 border-t border-border mt-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 h-8 text-primary hover:text-primary hover:bg-primary/5 text-xs"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowAddManager(true);
-                      }}
-                    >
-                      <Plus className="size-3.5" />
-                      Thêm quản lý mới
-                    </Button>
-                  </div>
-                </SelectContent>
-              </Select>
-              {errors.manager_id && <p className="text-[11px] text-destructive">{errors.manager_id}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-1.5" ref={addressRef}>
-            <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                value={form.address}
-                onChange={(e) => set("address", e.target.value)}
-                className={cn("pl-9", errors.address && "border-destructive")}
-              />
-            </div>
-            {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
-          </div>
-
-          <MapPicker
-            latitude={form.latitude}
-            longitude={form.longitude}
-            onChange={(lat, lng) => {
-              set("latitude", lat);
-              setForm((p) => ({ ...p, longitude: lng }));
-            }}
-          />
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5" ref={totalFloorsRef}>
-              <Label>Số tầng</Label>
-              <div className="relative">
-                <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5" ref={nameRef}>
+                <Label className={errors.name ? "text-destructive" : ""}>Tên tòa nhà *</Label>
                 <Input
-                  type="number" min="1" max="99" placeholder="VD: 8"
-                  value={form.total_floors}
-                  onChange={(e) => set("total_floors", e.target.value)}
-                  className="pl-9"
+                  placeholder="VD: FScape Cầu Giấy"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  className={errors.name ? "border-destructive" : ""}
+                />
+                {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
+              </div>
+              <div className="space-y-1.5" ref={locationRef}>
+                <Label className={errors.location_id ? "text-destructive" : ""}>Khu vực *</Label>
+                <Select value={form.location_id ? String(form.location_id) : ""} onValueChange={(v) => set("location_id", v)}>
+                  <SelectTrigger className={errors.location_id ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Chọn khu vực" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.location_id && <p className="text-[11px] text-destructive">{errors.location_id}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1.5" ref={addressRef}>
+              <Label className={errors.address ? "text-destructive" : ""}>Địa chỉ *</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="VD: 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                  value={form.address}
+                  onChange={(e) => set("address", e.target.value)}
+                  className={cn("pl-9", errors.address && "border-destructive")}
                 />
               </div>
-              {errors.total_floors && <p className="text-sm text-destructive">{errors.total_floors}</p>}
+              {errors.address && <p className="text-[11px] text-destructive">{errors.address}</p>}
             </div>
-            <div className="space-y-1.5">
-              <Label>Vĩ độ</Label>
-              <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+
+            <div className="space-y-1.5" ref={coordinatesRef}>
+              <MapPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={setCoordinates}
+              />
+              {(errors.latitude || errors.longitude) && (
+                <p className="text-[11px] text-destructive">
+                  {errors.latitude || errors.longitude}
+                </p>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Kinh độ</Label>
-              <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5" ref={totalFloorsRef}>
+                <Label className={errors.total_floors ? "text-destructive" : ""}>Số tầng *</Label>
+                <div className="relative">
+                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    min="1"
+                    max="99"
+                    placeholder="VD: 8"
+                    value={form.total_floors}
+                    onChange={(e) => set("total_floors", e.target.value)}
+                    className={cn("pl-9", errors.total_floors && "border-destructive")}
+                  />
+                </div>
+                {errors.total_floors && <p className="text-[11px] text-destructive">{errors.total_floors}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Vĩ độ</Label>
+                <Input value={form.latitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Kinh độ</Label>
+                <Input value={form.longitude ?? ""} readOnly placeholder="—" className="bg-muted/50" />
+              </div>
             </div>
-          </div>
+          </section>
 
-        </section>
-
-        {/* ─ Mô tả ─ */}
-        <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mô tả</h2>
-          <Textarea
-            placeholder="Giới thiệu về tòa nhà, tiện ích nổi bật, quy định chung..."
-            rows={4}
-            value={form.description}
-            onChange={(e) => set("description", e.target.value)}
-            className="resize-none"
-          />
-        </section>
-
-        {/* ─ Hình ảnh ─ */}
-        <section className="rounded-xl border border-border bg-card p-5 space-y-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Hình ảnh</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ThumbnailUploader
-              file={thumbFile}
-              preview={thumbPreview}
-              onSelect={handleSelectThumb}
-              onRemove={handleRemoveThumb}
+          <section className="space-y-3 rounded-xl border border-border bg-card p-5" ref={descriptionRef}>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Mô tả</h2>
+            <Textarea
+              placeholder="Giới thiệu về tòa nhà, tiện ích nổi bật, quy định chung..."
+              rows={4}
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              className={cn("resize-none", errors.description && "border-destructive")}
             />
-            <GalleryUploader
-              images={galleryImages}
-              onChange={setGalleryImages}
+            {errors.description && <p className="text-[11px] text-destructive">{errors.description}</p>}
+          </section>
+
+          <section className="space-y-5 rounded-xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Hình ảnh</h2>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <ThumbnailUploader
+                file={thumbFile}
+                preview={thumbPreview}
+                onSelect={handleSelectThumb}
+                onRemove={handleRemoveThumb}
+              />
+              <GalleryUploader
+                images={galleryImages}
+                onChange={setGalleryImages}
+              />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-border bg-card p-5" ref={facilitiesRef}>
+            <FacilityPicker
+              selected={form.facilities}
+              onChange={(v) => set("facilities", v)}
             />
-          </div>
-        </section>
+            {errors.facilities && <p className="mt-2 text-[11px] text-destructive">{errors.facilities}</p>}
+          </section>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <section className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Tóm tắt tòa nhà
+                </h2>
+                <p className="mt-2 text-lg font-semibold text-foreground">{createdBuilding?.name}</p>
+              </div>
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                Bước 2/2: Thiết lập nhân sự
+              </span>
+            </div>
 
-        {/* ─ Tiện ích ─ */}
-        <section className="rounded-xl border border-border bg-card p-5">
-          <FacilityPicker
-            selected={form.facilities}
-            onChange={(v) => set("facilities", v)}
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Khu vực</p>
+                <p className="mt-1 text-sm font-medium">
+                  {locations.find((loc) => loc.id === createdBuilding?.location_id)?.name || "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 sm:col-span-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Địa chỉ</p>
+                <p className="mt-1 text-sm font-medium">{createdBuilding?.address || "—"}</p>
+              </div>
+            </div>
+          </section>
+
+          <BuildingStaffAssignmentPanel
+            buildingId={createdBuilding?.id}
+            onUpdated={clearCache}
           />
-        </section>
+        </div>
+      )}
 
+      <div className="fixed bottom-0 left-56 right-0 z-50 flex items-center justify-end gap-3 border-t border-border bg-background/95 p-4 px-8 backdrop-blur-md">
+        {step === 1 ? (
+          <>
+            <Button variant="outline" onClick={() => navigate("/buildings")} disabled={saving} className="bg-background">
+              Hủy
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <CircleNotch className="mr-1.5 size-4 animate-spin" /> : <Plus className="mr-1.5 size-4" />}
+              Tạo tòa nhà và tiếp tục
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => navigate("/buildings")} className="bg-background">
+              Để sau
+            </Button>
+            <Button onClick={() => navigate("/buildings")}>
+              Hoàn tất
+            </Button>
+          </>
+        )}
       </div>
-
-      {/* Sticky Action Bar */}
-      <div className="fixed bottom-0 right-0 left-56 bg-background/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-end gap-3 z-50 px-8">
-        <Button variant="outline" onClick={() => navigate("/buildings")} disabled={saving} className="bg-background">Hủy</Button>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />}
-          Tạo tòa nhà
-        </Button>
-      </div>
-
-      <CreateAccountDialog
-        open={showAddManager}
-        onOpenChange={setShowAddManager}
-        onSaved={() => {
-          fetchManagers();
-          setShowAddManager(false);
-        }}
-      />
     </div>
   );
 }

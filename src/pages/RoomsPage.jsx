@@ -20,32 +20,93 @@ import {
 import { cdnUrl } from "@/lib/utils";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 
-/* ── Status Bar ──────────────────────────────────── */
+/* ── Donut Summary ───────────────────────────────── */
 
-function StatusBar({ byStatus, total = 0 }) {
+function RoomStatusDonut({ byStatus, total = 0, size = 72 }) {
+  const available = byStatus?.available || 0;
+  const occupied = byStatus?.occupied || 0;
+  const locked = byStatus?.locked || 0;
+  const segments = [
+    { count: available, color: "var(--color-success)" },
+    { count: occupied, color: "var(--color-primary)" },
+    { count: locked, color: "var(--color-destructive)" },
+  ].filter((segment) => segment.count > 0);
+
+  const r = 36;
+  const stroke = 10;
+  const circ = 2 * Math.PI * r;
+  let offset = 0;
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth={stroke} className="stroke-muted" />
+        {segments.map((segment, index) => {
+          const length = total > 0 ? (segment.count / total) * circ : 0;
+          const dashOffset = -offset;
+          offset += length;
+          return (
+            <circle
+              key={index}
+              cx="50"
+              cy="50"
+              r={r}
+              fill="none"
+              strokeWidth={stroke}
+              stroke={segment.color}
+              strokeDasharray={`${length} ${circ - length}`}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              className="transition-all duration-500"
+            />
+          );
+        })}
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[10px] font-bold leading-none">{total > 0 ? total : 0}</span>
+      </div>
+    </div>
+  );
+}
+
+function RoomSummary({ byStatus, total = 0 }) {
   const hasData = byStatus != null;
   const available = byStatus?.available || 0;
   const occupied = byStatus?.occupied || 0;
   const locked = byStatus?.locked || 0;
-
-  const pAvail = total > 0 ? (available / total) * 100 : 0;
-  const pOcc = total > 0 ? (occupied / total) * 100 : 0;
-  const pLock = total > 0 ? (locked / total) * 100 : 0;
+  const pAvail = total > 0 ? Math.round((available / total) * 100) : 0;
+  const pOcc = total > 0 ? Math.round((occupied / total) * 100) : 0;
+  const pLock = total > 0 ? Math.round((locked / total) * 100) : 0;
 
   return (
-    <div className="space-y-2.5">
-      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-        <div className="h-full bg-success transition-all duration-500" style={{ width: `${pAvail}%` }} />
-        <div className="h-full bg-primary transition-all duration-500" style={{ width: `${pOcc}%` }} />
-        <div className="h-full bg-destructive transition-all duration-500" style={{ width: `${pLock}%` }} />
+    <div className="flex items-center gap-4">
+      <div className="space-y-2">
+        {!hasData && (
+          <div className="text-xs text-muted-foreground">Đang chờ dữ liệu...</div>
+        )}
+        {hasData && total === 0 && (
+          <div className="text-xs text-muted-foreground">0 phòng</div>
+        )}
+        {available > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-success shrink-0" />
+            <span className="text-xs text-muted-foreground">{pAvail}% Còn trống</span>
+          </div>
+        )}
+        {occupied > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-primary shrink-0" />
+            <span className="text-xs text-muted-foreground">{pOcc}% Đã thuê</span>
+          </div>
+        )}
+        {locked > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-destructive shrink-0" />
+            <span className="text-xs text-muted-foreground">{pLock}% Khóa</span>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-4 text-[11px] text-muted-foreground flex-wrap">
-        {!hasData && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> Đang chờ dữ liệu...</span>}
-        {hasData && total === 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-muted-foreground/30" /> 0 phòng</span>}
-        {available > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> {Math.round(pAvail)}% Còn trống ({available})</span>}
-        {occupied > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary" /> {Math.round(pOcc)}% Đã thuê ({occupied})</span>}
-        {locked > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-destructive" /> {Math.round(pLock)}% Khóa ({locked})</span>}
-      </div>
+      <RoomStatusDonut byStatus={byStatus} total={total} size={64} />
     </div>
   );
 }
@@ -333,9 +394,9 @@ export default function RoomsPage() {
               {/* Divider */}
               <div className="w-px h-14 bg-border shrink-0" />
 
-              {/* Right: Status Bar */}
-              <div className="flex-1 min-w-[200px]">
-                <StatusBar byStatus={filteredStatus} total={filteredTotal} />
+              {/* Right: Donut Summary */}
+              <div className="ml-auto min-w-[200px]">
+                <RoomSummary byStatus={filteredStatus} total={filteredTotal} />
               </div>
             </div>
           </div>

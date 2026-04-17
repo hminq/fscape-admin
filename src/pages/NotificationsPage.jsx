@@ -44,14 +44,21 @@ const TYPE_FILTERS = [
   { key: "SYSTEM", label: "Hệ thống" },
 ];
 
+const TARGET_TYPE_LABELS = {
+  BUILDING: "Tòa nhà",
+  ROOM: "Phòng",
+  USER: "Người dùng",
+  REQUEST: "Yêu cầu",
+};
+
 /* ── Detail Dialog ─────────────────────────────────────── */
 
 function NotificationDetailDialog({ open, onOpenChange, notification }) {
   if (!notification) return null;
   const n = notification;
   const creatorName = n.creator
-    ? `${n.creator.last_name || ""} ${n.creator.first_name || ""}`.trim()
-    : null;
+    ? `${n.creator.last_name || ""} ${n.creator.first_name || ""}`.trim() || "Người dùng chưa cập nhật tên"
+    : "-";
   const recipientCount = n.recipients?.length || 0;
   const readCount = n.recipients?.filter((r) => r.is_read).length || 0;
 
@@ -82,18 +89,16 @@ function NotificationDetailDialog({ open, onOpenChange, notification }) {
           </div>
 
           {/* Creator */}
-          {creatorName && (
-            <div className="flex items-center gap-2 text-sm">
-              <User className="size-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Người gửi:</span>
-              <span className="font-medium">{creatorName}</span>
-              {n.creator?.role && (
-                <span className="text-xs text-muted-foreground">
-                  ({ROLE_LABELS[n.creator.role] || n.creator.role})
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            <User className="size-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Người gửi:</span>
+            <span className="font-medium">{creatorName}</span>
+            {n.creator?.role && (
+              <span className="text-xs text-muted-foreground">
+                ({ROLE_LABELS[n.creator.role] || n.creator.role})
+              </span>
+            )}
+          </div>
 
           {/* Recipients summary */}
           <div className="flex items-center gap-2 text-sm">
@@ -111,7 +116,7 @@ function NotificationDetailDialog({ open, onOpenChange, notification }) {
               <Bell className="size-4 text-muted-foreground" />
               <span className="text-muted-foreground">Đối tượng:</span>
               <span className="font-medium">
-                {n.target_type === "BUILDING" ? "Tòa nhà" : n.target_type === "ROOM" ? "Phòng" : n.target_type}
+                {TARGET_TYPE_LABELS[n.target_type] || n.target_type}
               </span>
             </div>
           )}
@@ -260,8 +265,8 @@ export default function NotificationsPage() {
               <TableBody>
                 {notifications.map((n, idx) => {
                   const creatorName = n.creator
-                    ? `${n.creator.last_name || ""} ${n.creator.first_name || ""}`.trim()
-                    : "Hệ thống";
+                    ? `${n.creator.last_name || ""} ${n.creator.first_name || ""}`.trim() || "Người dùng chưa cập nhật tên"
+                    : "-";
                   const recipientCount = n.recipients?.length || 0;
 
                   return (
