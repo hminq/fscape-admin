@@ -143,8 +143,8 @@ export default function BookingListTable({ buildingId, isBM }) {
               <TableBody>
                 {allBookings.map((b, idx) => {
                   const customerName = b.customer
-                    ? `${b.customer.last_name || ""} ${b.customer.first_name || ""}`.trim()
-                    : "—";
+                    ? `${b.customer.last_name || ""} ${b.customer.first_name || ""}`.trim() || "-"
+                    : "-";
                   
                   return (
                     <TableRow key={b.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`${isBM ? "/building-manager" : ""}/bookings/${b.id}`)}>

@@ -33,7 +33,10 @@ export default function AssignStaffDialog({
     setLoading(true);
     api.get(`/api/buildings/${buildingId}/staffs`)
       .then((res) => setStaffList(Array.isArray(res) ? res : res.data || []))
-      .catch(() => setStaffList([]))
+      .catch((err) => {
+        setStaffList([]);
+        setError(err?.message || "Không thể tải danh sách nhân viên.");
+      })
       .finally(() => setLoading(false));
   }, [open, buildingId]);
 
@@ -89,7 +92,7 @@ export default function AssignStaffDialog({
                   <SelectContent>
                     {staffList.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.last_name} {s.first_name} — {s.email}
+                        {s.last_name} {s.first_name} - {s.email}
                       </SelectItem>
                     ))}
                   </SelectContent>

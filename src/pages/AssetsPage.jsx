@@ -781,6 +781,7 @@ function BuildingAssetSection({ building, onDetail, onQR }) {
 /* ── Main Page ─────────────────────────────── */
 
 export default function AssetsPage() {
+  const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [stats, setStats] = useState(null);
   const [loadingInit, setLoadingInit] = useState(true);
@@ -826,9 +827,11 @@ export default function AssetsPage() {
 
   useEffect(() => {
     Promise.all([
+      api.get("/api/buildings?limit=1000"),
       api.get("/api/rooms?limit=1000"),
       api.get("/api/assets/stats"),
-    ]).then(([rRes, sRes]) => {
+    ]).then(([bRes, rRes, sRes]) => {
+      setBuildings(bRes.data || bRes);
       setRooms(rRes.data || rRes);
       setStats(sRes.data || sRes);
     }).catch(console.error)
@@ -939,7 +942,7 @@ export default function AssetsPage() {
       <BatchCreateDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        buildings={assetGroups.map((b) => ({ id: b.building_id, name: b.name }))}
+        buildings={buildings}
         onSaved={handleBatchCreated}
       />
 

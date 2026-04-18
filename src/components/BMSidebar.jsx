@@ -33,6 +33,12 @@ const navItems = [
     to: `${BM_PREFIX}/residents`,
   },
   {
+    label: "Đặt phòng",
+    icon: CalendarCheck,
+    to: `${BM_PREFIX}/bookings`,
+    children: [{ label: "Danh sách", to: `${BM_PREFIX}/bookings` }],
+  },
+  {
     label: "Yêu cầu",
     icon: ChatCircleText,
     to: `${BM_PREFIX}/requests`,
@@ -59,12 +65,6 @@ const navItems = [
     label: "Tài sản",
     icon: Package,
     to: `${BM_PREFIX}/assets`,
-  },
-  {
-    label: "Đặt phòng",
-    icon: CalendarCheck,
-    to: `${BM_PREFIX}/bookings`,
-    children: [{ label: "Danh sách", to: `${BM_PREFIX}/bookings` }],
   },
 ];
 
