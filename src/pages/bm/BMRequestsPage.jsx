@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ChatCircleText,
   MagnifyingGlass,
   Eye,
+  ChatCircleText,
 } from "@phosphor-icons/react";
-import { api } from "@/lib/apiClient";
-import { formatDate } from "@/lib/utils";
-import { REQUEST_TYPE_LABELS, REQUEST_STATUS_MAP } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
 import SectionHeader from "@/components/SectionHeader";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,16 +19,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import StatusDot from "@/components/StatusDot";
+import { api } from "@/lib/apiClient";
+import { REQUEST_TYPE_LABELS, REQUEST_STATUS_MAP } from "@/lib/constants";
+import { formatDate } from "@/lib/utils";
 import StatusDonut from "@/components/StatusDonut";
 import StatusBar from "@/components/StatusBar";
-
-const PER_PAGE = 10;
-const FETCH_LIMIT = 999;
+import StatusDot from "@/components/StatusDot";
 
 const STATUS_MAP = REQUEST_STATUS_MAP;
+const PER_PAGE = 10;
 
 const STATUS_CHART = [
   { key: "PENDING", stroke: "stroke-chart-4", dot: "bg-chart-4" },
@@ -44,20 +42,27 @@ const ACTIVE_STATUSES = ["PENDING", "ASSIGNED", "PRICE_PROPOSED", "APPROVED", "I
 
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả" },
-  { key: "active", label: "Đang xử lý", match: ACTIVE_STATUSES },
-  { key: "done", label: "Hoàn thành", match: ["DONE", "COMPLETED"] },
-  { key: "other", label: "Khác", match: ["REVIEWED", "REFUNDED", "CANCELLED"] },
+  { key: "active", label: "Đang xử lý", statuses: ACTIVE_STATUSES.join(",") },
+  { key: "done", label: "Hoàn thành", statuses: "DONE,COMPLETED" },
+  { key: "other", label: "Khác", statuses: "REVIEWED,REFUNDED,CANCELLED" },
 ];
 
-const FILTER_MATCH = Object.fromEntries(
-  STATUS_FILTERS.filter((f) => f.match).map((f) => [f.key, f.match])
-);
+function normalizeStatusCounts(stats) {
+  const byStatus = stats?.by_status || {};
+  return STATUS_CHART.reduce((acc, item) => {
+    acc[item.key] = byStatus[item.key.toLowerCase()] || 0;
+    return acc;
+  }, {});
+}
 
-
-function RequestSummary({ statusCounts }) {
-  const activeCount = ACTIVE_STATUSES.reduce((s, k) => s + (statusCounts[k] || 0), 0);
-  const totalCount = Object.values(statusCounts).reduce((s, v) => s + v, 0);
-  const donutEntries = STATUS_CHART.map((s) => ({ ...s, count: statusCounts[s.key] || 0 }));
+function RequestSummary({ stats }) {
+  const statusCounts = useMemo(() => normalizeStatusCounts(stats), [stats]);
+  const activeCount = ACTIVE_STATUSES.reduce((sum, key) => sum + (statusCounts[key] || 0), 0);
+  const totalCount = stats?.total || 0;
+  const donutEntries = STATUS_CHART.map((item) => ({
+    ...item,
+    count: statusCounts[item.key] || 0,
+  }));
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -65,11 +70,13 @@ function RequestSummary({ statusCounts }) {
         <div className="flex items-center gap-5">
           <StatusDonut entries={donutEntries} size={76} />
           <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
-            {STATUS_CHART.map((s) => (
-              <div key={s.key} className="flex items-center gap-2">
-                <span className={`size-2 rounded-full ${s.dot} shrink-0`} />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{STATUS_MAP[s.key]?.label}</span>
-                <span className="text-xs font-semibold">{statusCounts[s.key] || 0}</span>
+            {STATUS_CHART.map((item) => (
+              <div key={item.key} className="flex items-center gap-2">
+                <span className={`size-2 rounded-full ${item.dot} shrink-0`} />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {STATUS_MAP[item.key]?.label}
+                </span>
+                <span className="text-xs font-semibold">{statusCounts[item.key] || 0}</span>
               </div>
             ))}
           </div>
@@ -83,62 +90,66 @@ function RequestSummary({ statusCounts }) {
   );
 }
 
+const fullName = (user) => {
+  if (!user) return "-";
+  const name = `${user.last_name || ""} ${user.first_name || ""}`.trim();
+  return name || user.email || "-";
+};
+
 export default function BMRequestsPage() {
   const navigate = useNavigate();
-  const [allRequests, setAllRequests] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [page, setPage] = useState(0);
 
-  const fetchAll = useCallback(async () => {
+  useEffect(() => {
+    api.get("/api/requests/stats")
+      .then((res) => setStats(res.data || res))
+      .catch(() => null);
+  }, []);
+
+  const fetchPage = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get(`/api/requests?limit=${FETCH_LIMIT}`);
-      setAllRequests(res.data || []);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PER_PAGE),
+      });
+
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+
+      const statusFilter = STATUS_FILTERS.find((item) => item.key === filterStatus);
+      if (statusFilter?.statuses) {
+        params.set("status", statusFilter.statuses);
+      }
+
+      const res = await api.get(`/api/requests?${params}`);
+      setRequests(res.data || []);
+      setTotalPages(res.totalPages || 1);
+      setTotal(res.total || 0);
     } catch {
       setError("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterStatus, page, search]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
 
-  const statusCounts = useMemo(() => {
-    const c = {};
-    STATUS_CHART.forEach((s) => { c[s.key] = 0; });
-    allRequests.forEach((r) => {
-      if (c[r.status] !== undefined) c[r.status]++;
-    });
-    return c;
-  }, [allRequests]);
-
-  const filtered = useMemo(() => {
-    const matchList = FILTER_MATCH[filterStatus];
-    const q = search.trim().toLowerCase();
-    return allRequests.filter((r) => {
-      if (matchList && !matchList.includes(r.status)) return false;
-      if (q) {
-        const residentName = `${r.resident?.last_name || ""} ${r.resident?.first_name || ""}`.toLowerCase();
-        if (
-          !r.request_number?.toLowerCase().includes(q) &&
-          !r.title?.toLowerCase().includes(q) &&
-          !residentName.includes(q) &&
-          !r.room?.room_number?.toLowerCase().includes(q)
-        ) return false;
-      }
-      return true;
-    });
-  }, [allRequests, filterStatus, search]);
-
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-
-  useEffect(() => { setPage(0); }, [filterStatus, search]);
+  useEffect(() => {
+    setPage(1);
+  }, [filterStatus, search]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -147,7 +158,7 @@ export default function BMRequestsPage() {
         <p className="text-sm text-muted-foreground">Quản lý yêu cầu bảo trì và dịch vụ</p>
       </div>
 
-      {!loading && !error && <RequestSummary statusCounts={statusCounts} />}
+      <RequestSummary stats={stats} />
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
@@ -155,16 +166,19 @@ export default function BMRequestsPage() {
           <Input
             placeholder="Tìm theo mã, tiêu đề, cư dân, phòng..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             className="pl-9"
           />
         </div>
         <div className="flex gap-1.5">
-          {STATUS_FILTERS.map((f) => (
-            <Button key={f.key} size="sm"
-              variant={filterStatus === f.key ? "default" : "outline"}
-              onClick={() => setFilterStatus(f.key)}>
-              {f.label}
+          {STATUS_FILTERS.map((filter) => (
+            <Button
+              key={filter.key}
+              size="sm"
+              variant={filterStatus === filter.key ? "default" : "outline"}
+              onClick={() => setFilterStatus(filter.key)}
+            >
+              {filter.label}
             </Button>
           ))}
         </div>
@@ -175,16 +189,21 @@ export default function BMRequestsPage() {
       ) : error ? (
         <div className="py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchPage}>
+            Thử lại
+          </Button>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : requests.length === 0 ? (
         <EmptyState icon={ChatCircleText} message="Không tìm thấy yêu cầu nào" />
       ) : (
         <>
-          <SectionHeader icon={ChatCircleText} count={filtered.length} countUnit="kết quả">
-            <Pagination page={page + 1} totalPages={totalPages}
-              onPrev={() => setPage((p) => Math.max(0, p - 1))}
-              onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))} />
+          <SectionHeader icon={ChatCircleText} count={total} countUnit="kết quả">
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPrev={() => setPage((current) => current - 1)}
+              onNext={() => setPage((current) => current + 1)}
+            />
           </SectionHeader>
 
           <Card className="overflow-hidden py-0 gap-0">
@@ -203,23 +222,31 @@ export default function BMRequestsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((r, idx) => (
-                  <TableRow key={r.id}>
+                {requests.map((request, index) => (
+                  <TableRow key={request.id}>
                     <TableCell className="pl-4 text-muted-foreground text-xs">
-                      {page * PER_PAGE + idx + 1}
+                      {(page - 1) * PER_PAGE + index + 1}
                     </TableCell>
-                    <TableCell className="font-medium">{r.request_number}</TableCell>
-                    <TableCell className="max-w-[180px] truncate">{r.title}</TableCell>
+                    <TableCell className="font-medium">{request.request_number}</TableCell>
+                    <TableCell className="max-w-[180px] truncate">{request.title}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {REQUEST_TYPE_LABELS[r.request_type] || r.request_type}
+                      {REQUEST_TYPE_LABELS[request.request_type] || request.request_type}
                     </TableCell>
-                    <TableCell>{r.room?.room_number}</TableCell>
-                    <TableCell>{r.resident?.last_name} {r.resident?.first_name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at)}</TableCell>
-                    <TableCell><StatusDot status={r.status} statusMap={STATUS_MAP} /></TableCell>
+                    <TableCell>{request.room?.room_number || "-"}</TableCell>
+                    <TableCell>{fullName(request.resident)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDate(request.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusDot status={request.status} statusMap={STATUS_MAP} />
+                    </TableCell>
                     <TableCell className="pr-4 text-right">
-                      <Button variant="ghost" size="icon" className="size-8"
-                        onClick={() => navigate(`/building-manager/requests/${r.id}`)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => navigate(`/building-manager/requests/${request.id}`)}
+                      >
                         <Eye className="size-4" />
                       </Button>
                     </TableCell>

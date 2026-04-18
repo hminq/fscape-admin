@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   UserPlus,
   MagnifyingGlass,
-  CircleNotch,
-  CaretLeft,
-  CaretRight,
   ClipboardText,
   CheckCircle,
 } from "@phosphor-icons/react";
@@ -23,23 +20,29 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Pagination from "@/components/Pagination";
+import SectionHeader from "@/components/SectionHeader";
+import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import AssignStaffDialog from "@/components/AssignStaffDialog";
-
 import { REQUEST_TYPE_LABELS } from "@/lib/constants";
 
 const PER_PAGE = 10;
-const FETCH_LIMIT = 999;
+
+const fullName = (user) => {
+  if (!user) return "-";
+  const name = `${user.last_name || ""} ${user.first_name || ""}`.trim();
+  return name || user.email || "-";
+};
 
 export default function BMRequestAssignPage() {
   const { user } = useAuth();
-
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
-
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
@@ -47,35 +50,34 @@ export default function BMRequestAssignPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get(`/api/requests?status=PENDING&limit=${FETCH_LIMIT}`);
+      const params = new URLSearchParams({
+        status: "PENDING",
+        page: String(page),
+        limit: String(PER_PAGE),
+      });
+
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+
+      const res = await api.get(`/api/requests?${params}`);
       setPendingRequests(res.data || []);
+      setTotalPages(res.totalPages || 1);
+      setTotal(res.total || 0);
     } catch {
       setError("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return pendingRequests;
-    const q = search.trim().toLowerCase();
-    return pendingRequests.filter((r) => {
-      const residentName = `${r.resident?.last_name || ""} ${r.resident?.first_name || ""}`.toLowerCase();
-      return (
-        r.request_number?.toLowerCase().includes(q) ||
-        r.title?.toLowerCase().includes(q) ||
-        residentName.includes(q) ||
-        r.room?.room_number?.toLowerCase().includes(q)
-      );
-    });
-  }, [pendingRequests, search]);
-
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-
-  useEffect(() => { setPage(0); }, [search]);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const openAssignDialog = (request) => {
     setSelectedRequest(request);
@@ -83,8 +85,13 @@ export default function BMRequestAssignPage() {
   };
 
   const handleAssigned = () => {
-    setPendingRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
+    setAssignOpen(false);
     setSelectedRequest(null);
+    if (pendingRequests.length === 1 && page > 1) {
+      setPage((current) => current - 1);
+      return;
+    }
+    fetchData();
   };
 
   return (
@@ -101,7 +108,7 @@ export default function BMRequestAssignPage() {
               <ClipboardText className="size-6 text-chart-4" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{pendingRequests.length}</p>
+              <p className="text-2xl font-bold">{total}</p>
               <p className="text-sm text-muted-foreground">yêu cầu đang chờ phân công</p>
             </div>
           </div>
@@ -113,50 +120,32 @@ export default function BMRequestAssignPage() {
         <Input
           placeholder="Tìm theo mã, tiêu đề, cư dân, phòng..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           className="pl-9"
         />
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <CircleNotch className="size-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : error ? (
         <div className="py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={fetchData}>Thử lại</Button>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchData}>
+            Thử lại
+          </Button>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
-          <CheckCircle className="size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Không có yêu cầu nào đang chờ phân công</p>
-        </div>
+      ) : pendingRequests.length === 0 ? (
+        <EmptyState icon={CheckCircle} message="Không có yêu cầu nào đang chờ phân công" />
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-                <ClipboardText className="size-3.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">{filtered.length} kết quả</span>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{page + 1}/{totalPages}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="size-8" disabled={page === 0}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                    <CaretLeft className="size-4" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
-                    <CaretRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SectionHeader icon={ClipboardText} count={total} countUnit="kết quả">
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPrev={() => setPage((current) => current - 1)}
+              onNext={() => setPage((current) => current + 1)}
+            />
+          </SectionHeader>
 
           <Card className="overflow-hidden py-0 gap-0">
             <Table>
@@ -173,24 +162,25 @@ export default function BMRequestAssignPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((r, idx) => (
-                  <TableRow key={r.id}>
+                {pendingRequests.map((request, index) => (
+                  <TableRow key={request.id}>
                     <TableCell className="pl-4 text-muted-foreground text-xs">
-                      {page * PER_PAGE + idx + 1}
+                      {(page - 1) * PER_PAGE + index + 1}
                     </TableCell>
-                    <TableCell className="font-medium">{r.request_number}</TableCell>
-                    <TableCell className="max-w-[180px] truncate">{r.title}</TableCell>
+                    <TableCell className="font-medium">{request.request_number}</TableCell>
+                    <TableCell className="max-w-[180px] truncate">{request.title}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs font-normal">
-                        {REQUEST_TYPE_LABELS[r.request_type] || r.request_type}
+                        {REQUEST_TYPE_LABELS[request.request_type] || request.request_type}
                       </Badge>
                     </TableCell>
-                    <TableCell>{r.room?.room_number}</TableCell>
-                    <TableCell>{r.resident?.last_name} {r.resident?.first_name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                    <TableCell>{request.room?.room_number || "-"}</TableCell>
+                    <TableCell>{fullName(request.resident)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDate(request.created_at)}
+                    </TableCell>
                     <TableCell className="pr-4 text-right">
-                      <Button size="sm" variant="default" className="gap-1.5"
-                        onClick={() => openAssignDialog(r)}>
+                      <Button size="sm" variant="default" className="gap-1.5" onClick={() => openAssignDialog(request)}>
                         <UserPlus className="size-3.5" />
                         Phân công
                       </Button>
@@ -203,7 +193,6 @@ export default function BMRequestAssignPage() {
         </>
       )}
 
-      {/* ── Assign Dialog (reusable) ── */}
       <AssignStaffDialog
         buildingId={user.building_id}
         requestId={selectedRequest?.id}
@@ -215,4 +204,3 @@ export default function BMRequestAssignPage() {
     </div>
   );
 }
-
