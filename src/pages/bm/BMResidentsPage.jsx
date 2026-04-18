@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Users, MagnifyingGlass, Eye, Envelope, Phone,
-  Door, FileText, Calendar, CurrencyDollar,
+  Door, FileText, Calendar, CurrencyDollar, Buildings, Stack as Layers,
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
-} from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -31,6 +27,11 @@ const CONTRACT_STATUS_LABELS = Object.fromEntries(
 
 const fullName = (u) =>
   [u.last_name, u.first_name].filter(Boolean).join(" ") || "—";
+
+const floorLabel = (floor) => {
+  if (floor === null || floor === undefined || floor === "") return "Chưa xác định tầng";
+  return `Tầng ${floor}`;
+};
 
 /* ── Detail Dialog ──────────────────────────────────────── */
 
@@ -72,6 +73,33 @@ function ContractCard({ contract }) {
           {CONTRACT_STATUS_LABELS[contract.status] || contract.status}
         </span>
       </div>
+    </div>
+  );
+}
+
+function ResidentChip({ resident }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-3">
+        <img
+          src={cdnUrl(resident.avatar_url) || defaultUserImg}
+          alt={fullName(resident)}
+          className="size-9 rounded-full object-cover ring-1 ring-border shrink-0"
+        />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">{fullName(resident)}</p>
+          <p className="truncate text-xs text-muted-foreground">{resident.email}</p>
+        </div>
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-8 shrink-0"
+        title="Xem chi tiết"
+        onClick={() => resident.onDetail?.(resident)}
+      >
+        <Eye className="size-4" />
+      </Button>
     </div>
   );
 }
@@ -129,6 +157,29 @@ function ResidentDetailDialog({ open, onOpenChange, resident, contracts }) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RoomResidentSection({ roomGroup, onDetail }) {
+  const resident = roomGroup.residents[0];
+  if (!resident) return null;
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+      <div className="flex items-center gap-2.5 border-b border-border/60 bg-muted/20 px-4 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary/8">
+            <Door className="size-3.5 text-primary" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-foreground">Phòng {roomGroup.room.room_number}</h4>
+          </div>
+        </div>
+      </div>
+      <div className="p-3">
+        <ResidentChip resident={{ ...resident, onDetail }} />
+      </div>
+    </div>
   );
 }
 
@@ -204,6 +255,65 @@ export default function BMResidentsPage() {
 
   const visible = allResidents;
 
+  const groupedResidents = useMemo(() => {
+    const buildingMap = new Map();
+
+    visible.forEach((resident) => {
+      const contracts = contractMap[resident.id] || [];
+      contracts.forEach((contract) => {
+        const building = contract.room?.building;
+        const room = contract.room;
+        if (!building?.id || !room?.id) return;
+
+        if (!buildingMap.has(building.id)) {
+          buildingMap.set(building.id, {
+            building,
+            floors: new Map(),
+          });
+        }
+
+        const buildingGroup = buildingMap.get(building.id);
+        const floorKey = room.floor ?? "__unknown__";
+        if (!buildingGroup.floors.has(floorKey)) {
+          buildingGroup.floors.set(floorKey, {
+            floor: room.floor,
+            rooms: new Map(),
+          });
+        }
+
+        const floorGroup = buildingGroup.floors.get(floorKey);
+        const roomKey = room.id;
+        if (!floorGroup.rooms.has(roomKey)) {
+          floorGroup.rooms.set(roomKey, {
+            room,
+            residents: [],
+          });
+        }
+
+        floorGroup.rooms.get(roomKey).residents.push(resident);
+      });
+    });
+
+    return [...buildingMap.values()].map((buildingGroup) => ({
+      building: buildingGroup.building,
+      floors: [...buildingGroup.floors.values()]
+        .sort((a, b) => {
+          const fa = a.floor ?? Number.POSITIVE_INFINITY;
+          const fb = b.floor ?? Number.POSITIVE_INFINITY;
+          return fa - fb;
+        })
+        .map((floorGroup) => ({
+          floor: floorGroup.floor,
+          rooms: [...floorGroup.rooms.values()].sort((a, b) => {
+            const an = Number.parseInt(a.room.room_number, 10);
+            const bn = Number.parseInt(b.room.room_number, 10);
+            if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+            return String(a.room.room_number).localeCompare(String(b.room.room_number), "vi");
+          }),
+        })),
+    })).sort((a, b) => String(a.building.name).localeCompare(String(b.building.name), "vi"));
+  }, [visible, contractMap]);
+
   useEffect(() => { setPage(1); }, [filterActive, search]);
 
   /* ── render ───────────────────────────────────────────── */
@@ -267,7 +377,7 @@ export default function BMResidentsPage() {
           <p className="text-sm text-destructive">{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={fetchAll}>Thử lại</Button>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState icon={Users} message="Không tìm thấy cư dân nào" />
       ) : (
         <>
@@ -277,80 +387,46 @@ export default function BMResidentsPage() {
               onNext={() => setPage((p) => Math.min(totalPages, p + 1))} />
           </SectionHeader>
 
-          <Card className="overflow-hidden py-0 gap-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10 pl-4">#</TableHead>
-                  <TableHead>Cư dân</TableHead>
-                  <TableHead>Phòng</TableHead>
-                  <TableHead>Liên hệ</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right pr-4 w-20">Xem</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((r, idx) => {
-                  const rContracts = contractMap[r.id] || [];
-                  const rooms = [...new Set(rContracts.map((c) => c.room?.room_number).filter(Boolean))];
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="pl-4 text-muted-foreground text-xs">
-                        {(page - 1) * PER_PAGE + idx + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={cdnUrl(r.avatar_url) || defaultUserImg}
-                            alt={fullName(r)}
-                            className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
+          <div className="space-y-4">
+            {groupedResidents.map((group) => (
+              <Card key={group.building.id} className="overflow-hidden py-0 gap-0">
+                <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-primary/8">
+                      <Buildings className="size-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{group.building.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {group.floors.reduce((sum, floor) => sum + floor.rooms.length, 0)} phòng có cư dân
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4">
+                  {group.floors.map((floorGroup) => (
+                    <div key={`${group.building.id}-${floorGroup.floor ?? "unknown"}`} className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                        <Layers className="size-4 text-primary" />
+                        {floorLabel(floorGroup.floor)}
+                      </div>
+
+                      <div className="space-y-3">
+                        {floorGroup.rooms.map((roomGroup) => (
+                          <RoomResidentSection
+                            key={roomGroup.room.id}
+                            roomGroup={roomGroup}
+                            onDetail={setDetailResident}
                           />
-                          <span className="font-medium text-sm">{fullName(r)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {rooms.length > 0
-                          ? <span className="font-medium">
-                              Phòng {rooms[0]}
-                              {rooms.length > 1 && (
-                                <span className="ml-1 text-xs text-muted-foreground">+{rooms.length - 1}</span>
-                              )}
-                            </span>
-                          : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Envelope className="size-3" /> {r.email}
-                          </span>
-                          {r.phone && (
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Phone className="size-3" /> {r.phone}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className={`size-2 rounded-full ${r.is_active ? "bg-success" : "bg-muted-foreground/30"}`} />
-                          <span className={r.is_active ? "text-success font-medium" : "text-muted-foreground"}>
-                            {r.is_active ? "Hoạt động" : "Vô hiệu"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="pr-4 text-right">
-                        <Button size="icon" variant="ghost" className="size-8"
-                          title="Chi tiết"
-                          onClick={() => setDetailResident(r)}>
-                          <Eye className="size-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
         </>
       )}
 
