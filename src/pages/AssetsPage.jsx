@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus, MagnifyingGlass, Package, Trash, CircleNotch, PencilSimple, QrCode,
-  Buildings, CaretLeft, CaretRight, DownloadSimple, Printer,
-  Door, Eye, CheckCircle
+  Buildings, DownloadSimple, Printer,
+  Door, Eye, CheckCircle, Stack as Layers, Warehouse, CaretDown, CaretLeft, CaretRight
 } from "@phosphor-icons/react";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
 import { toast } from "sonner";
@@ -29,6 +29,8 @@ import { ASSET_STATUS_MAP } from "@/lib/constants";
 
 const STATUS_MAP = ASSET_STATUS_MAP;
 
+const getFloorLabel = (floorKey) => (floorKey === "storage" ? "Kho" : `Tầng ${floorKey}`);
+
 /* ── Status Bar (straight bar, filter-reactive) ── */
 
 function AssetStatusBar({ byStatus, total = 0, filter = "all" }) {
@@ -37,8 +39,10 @@ function AssetStatusBar({ byStatus, total = 0, filter = "all" }) {
   const inUse = filter === "all" ? (byStatus?.in_use || 0) : filter === "IN_USE" ? (byStatus?.in_use || 0) : 0;
   const filteredTotal = filter === "all" ? total : filter === "AVAILABLE" ? (byStatus?.available || 0) : (byStatus?.in_use || 0);
 
-  const pAvail = filteredTotal > 0 ? (available / filteredTotal) * 100 : 0;
-  const pInUse = filteredTotal > 0 ? (inUse / filteredTotal) * 100 : 0;
+  const pAvailRaw = filteredTotal > 0 ? (available / filteredTotal) * 100 : 0;
+  const pInUseRaw = filteredTotal > 0 ? (inUse / filteredTotal) * 100 : 0;
+  const pAvail = available > 0 ? Math.max(1, Math.round(pAvailRaw)) : 0;
+  const pInUse = inUse > 0 ? Math.max(1, Math.round(pInUseRaw)) : 0;
 
   return (
     <div className="flex-1 min-w-[180px] space-y-2.5">
@@ -82,6 +86,138 @@ function AssetSummary({ stats, filterStatus }) {
         <div className="w-px h-14 bg-border shrink-0" />
         <AssetStatusBar byStatus={byStatus} total={total} filter={filterStatus} />
       </div>
+    </div>
+  );
+}
+
+function AssetRowTable({ assets, onDetail, onQR }) {
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30">
+            <TableHead className="w-10 pl-4">#</TableHead>
+            <TableHead>Tài sản</TableHead>
+            <TableHead>Trạng thái</TableHead>
+            <TableHead>Phòng</TableHead>
+            <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {assets.map((asset, idx) => {
+            const st = STATUS_MAP[asset.status] || STATUS_MAP.AVAILABLE;
+            return (
+              <TableRow key={asset.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onDetail(asset)}>
+                <TableCell className="pl-4 text-muted-foreground text-xs">
+                  {idx + 1}
+                </TableCell>
+                <TableCell>
+                  <span className="font-medium text-sm">{asset.name}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`size-2 rounded-full ${st.dot}`} />
+                    <span className={`font-medium ${st.text}`}>{st.label}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {asset.room ? (
+                    <span className="flex items-center gap-1"><Door className="size-3" /> {asset.room.room_number}</span>
+                  ) : "Kho"}
+                </TableCell>
+                <TableCell className="pr-4">
+                  <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button size="icon" variant="ghost" className="size-8 text-primary hover:bg-primary/10"
+                      title="Xem QR" onClick={() => onQR(asset)}>
+                      <QrCode className="size-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="size-8"
+                      title="Chi tiết" onClick={() => onDetail(asset)}>
+                      <Eye className="size-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function StorageStackCard({ stack, onDetail, onQR }) {
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+
+  const totalPages = Math.max(1, Math.ceil(stack.assets.length / perPage));
+  const pagedAssets = stack.assets.slice((page - 1) * perPage, page * perPage);
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+        onClick={() => {
+          setOpen((v) => !v);
+          if (page > totalPages) setPage(1);
+        }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
+            <Package className="size-3.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold truncate">{stack.asset_type_name}</h4>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-medium text-muted-foreground bg-muted/70 px-2 py-0.5 rounded-full">
+            {stack.count}
+          </span>
+          <span className="text-xs font-medium text-muted-foreground">{open ? "Ẩn" : "Xem"}</span>
+          <CaretDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+      {open && (
+        <>
+          <AssetRowTable assets={pagedAssets} onDetail={onDetail} onQR={onQR} />
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 border-t px-4 py-3 bg-muted/10">
+              <span className="text-xs text-muted-foreground">
+                {page}/{totalPages}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 rounded-lg"
+                  disabled={page <= 1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPage((p) => p - 1);
+                  }}
+                >
+                  <CaretLeft className="size-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 rounded-lg"
+                  disabled={page >= totalPages}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPage((p) => p + 1);
+                  }}
+                >
+                  <CaretRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -482,7 +618,7 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
               </SelectTrigger>
               <SelectContent>
                 {buildings.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  <SelectItem key={b.building_id || b.id} value={b.building_id || b.id}>{b.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -491,10 +627,14 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
 
           <div className="space-y-1.5">
             <Label className={errors.quantity ? "text-destructive" : ""}>Số lượng *</Label>
-            <Input type="number" min="1" max="100"
+            <Input
+              type="number"
+              min="1"
+              max="100"
+              className={`max-w-[180px] ${errors.quantity ? "border-destructive" : ""}`}
               value={form.quantity}
               onChange={(e) => set("quantity", e.target.value)}
-              className={errors.quantity ? "border-destructive" : ""} />
+            />
             {errors.quantity && <p className="text-[10px] text-destructive font-medium">{errors.quantity}</p>}
           </div>
 
@@ -522,149 +662,118 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
   );
 }
 
-/* ── Per-building asset section with independent pagination ── */
+/* ── Per-building asset section grouped by floor ── */
 
-const PER_SECTION = 8;
-
-function BuildingAssetSection({ building, search, statusFilter, onDetail, onQR, refreshKey }) {
-  const [assets, setAssets] = useState([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-
-  const fetchAssets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page,
-        limit: PER_SECTION,
-        building_id: building.id,
-      });
-      if (search.trim()) params.set("search", search.trim());
-      if (statusFilter !== "all") params.set("status", statusFilter);
-
-      const res = await api.get(`/api/assets?${params}`);
-      setAssets(res.data || []);
-      setTotal(res.total || 0);
-      setTotalPages(res.total_pages || res.totalPages || 1);
-    } catch {
-      setAssets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [building.id, page, search, statusFilter, refreshKey]);
-
-  useEffect(() => { fetchAssets(); }, [fetchAssets]);
-  useEffect(() => { setPage(1); }, [search, statusFilter]);
-
-  useEffect(() => {
-    const handleUpdate = (e) => {
-      const { id, updates } = e.detail;
-      setAssets((prev) => prev.map(a => String(a.id) === String(id) ? { ...a, ...updates, updated_at: new Date().toISOString() } : a));
-    };
-    const handleDelete = (e) => {
-      const { id } = e.detail;
-      setAssets((prev) => prev.filter(a => String(a.id) !== String(id)));
-    };
-    const handleCreate = () => {
-      if (page === 1) fetchAssets();
-    };
-
-    window.addEventListener("asset-updated", handleUpdate);
-    window.addEventListener("asset-deleted", handleDelete);
-    window.addEventListener("asset-created", handleCreate);
-    return () => {
-      window.removeEventListener("asset-updated", handleUpdate);
-      window.removeEventListener("asset-deleted", handleDelete);
-      window.removeEventListener("asset-created", handleCreate);
-    };
-  }, [fetchAssets, page]);
-
-  if (!loading && assets.length === 0) return null;
-
+function RoomAssetSection({ room, onDetail, onQR }) {
   return (
-    <section>
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-muted/20">
         <div className="flex items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
-            <Buildings className="size-3.5 text-primary" />
+            <Door className="size-3.5 text-primary" />
           </div>
-          <h2 className="text-[15px] font-semibold">{building.name}</h2>
-          <span className="text-sm font-medium text-muted-foreground">{total} tài sản</span>
+          <div>
+            <h4 className="text-sm font-semibold">Phòng {room.room_number}</h4>
+            <p className="text-[11px] text-muted-foreground">{room.assets.length} tài sản</p>
+          </div>
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-sm font-medium">{page}/{totalPages}</span>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <CaretLeft className="size-4" />
-              </Button>
-              <Button size="icon" variant="outline" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <CaretRight className="size-4" />
-              </Button>
-            </div>
-          </div>
+      </div>
+      <AssetRowTable assets={room.assets} onDetail={onDetail} onQR={onQR} />
+    </div>
+  );
+}
+
+function BuildingAssetSection({ building, onDetail, onQR }) {
+  const [storagePage, setStoragePage] = useState(1);
+  const storagePerPage = 10;
+
+  const storageStacks = building.floors.find((floor) => floor.floor_key === "storage")?.storage_stacks || [];
+  const totalStoragePages = Math.max(1, Math.ceil(storageStacks.length / storagePerPage));
+  const pagedStorageStacks = storageStacks.slice((storagePage - 1) * storagePerPage, storagePage * storagePerPage);
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-lg font-bold flex items-center gap-2.5 text-foreground">
+          <Buildings className="size-[18px] text-primary" />
+          {building.name}
+          <span className="text-xs font-bold text-muted-foreground bg-muted/80 px-2.5 py-0.5 rounded-md">
+            {building.total_assets} tài sản
+          </span>
+        </h2>
+        {building.storage_total > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">
+            {building.storage_total} tài sản trong kho
+          </span>
         )}
       </div>
 
-      {loading ? (
-        <LoadingState className="py-10" />
-      ) : assets.length === 0 ? (
-        <EmptyState icon={Package} message="Không tìm thấy tài sản nào" />
-      ) : (
-        <Card className="overflow-hidden py-0 gap-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="w-10 pl-4">#</TableHead>
-                <TableHead>Tài sản</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Phòng</TableHead>
-                <TableHead className="text-right pr-4 w-24">Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assets.map((asset, idx) => {
-                const st = STATUS_MAP[asset.status] || STATUS_MAP.AVAILABLE;
-                return (
-                  <TableRow key={asset.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onDetail(asset)}>
-                    <TableCell className="pl-4 text-muted-foreground text-xs">
-                      {(page - 1) * PER_SECTION + idx + 1}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-sm">{asset.name}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className={`size-2 rounded-full ${st.dot}`} />
-                        <span className={`font-medium ${st.text}`}>{st.label}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {asset.room ? (
-                        <span className="flex items-center gap-1"><Door className="size-3" /> {asset.room.room_number}</span>
-                      ) : "Kho"}
-                    </TableCell>
-                    <TableCell className="pr-4">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button size="icon" variant="ghost" className="size-8 text-primary hover:bg-primary/10"
-                          title="Xem QR" onClick={() => onQR(asset)}>
-                          <QrCode className="size-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="size-8"
-                          title="Chi tiết" onClick={() => onDetail(asset)}>
-                          <Eye className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
+      <div className="space-y-4">
+          {building.floors.map((floor) => (
+          floor.floor_key === "storage" ? (
+            <div key="storage" className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Warehouse className="size-4 text-primary" />
+                Kho
+              </div>
+              <div className="grid gap-3">
+                {pagedStorageStacks.map((stack) => (
+                  <StorageStackCard
+                    key={stack.asset_type_id}
+                    stack={stack}
+                    onDetail={onDetail}
+                    onQR={onQR}
+                  />
+                ))}
+              </div>
+              {totalStoragePages > 1 && (
+                <div className="flex items-center justify-end gap-3 pt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {storagePage}/{totalStoragePages}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="size-8 rounded-lg"
+                      disabled={storagePage <= 1}
+                      onClick={() => setStoragePage((p) => p - 1)}
+                    >
+                      <CaretLeft className="size-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="size-8 rounded-lg"
+                      disabled={storagePage >= totalStoragePages}
+                      onClick={() => setStoragePage((p) => p + 1)}
+                    >
+                      <CaretRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div key={floor.floor_key} className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Layers className="size-4 text-primary" />
+                {getFloorLabel(floor.floor_key)}
+              </div>
+              <div className="space-y-3">
+                {floor.rooms.map((room) => (
+                  <RoomAssetSection
+                    key={room.room_id}
+                    room={room}
+                    onDetail={onDetail}
+                    onQR={onQR}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        ))}
+      </div>
     </section>
   );
 }
@@ -672,10 +781,14 @@ function BuildingAssetSection({ building, search, statusFilter, onDetail, onQR, 
 /* ── Main Page ─────────────────────────────── */
 
 export default function AssetsPage() {
-  const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [stats, setStats] = useState(null);
   const [loadingInit, setLoadingInit] = useState(true);
+  const [loadingAssets, setLoadingAssets] = useState(true);
+  const [assetGroups, setAssetGroups] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_LIMIT = 4;
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -684,42 +797,72 @@ export default function AssetsPage() {
   const [detailAsset, setDetailAsset] = useState(null);
   const [qrAsset, setQrAsset] = useState(null);
 
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const fetchStats = () => {
     api.get("/api/assets/stats")
       .then(res => setStats(res.data || res))
       .catch(console.error);
   };
 
+  const fetchAssets = useCallback(async () => {
+    setLoadingAssets(true);
+    try {
+      const params = new URLSearchParams({
+        grouped: "true",
+        page,
+        limit: PAGE_LIMIT,
+      });
+      if (search.trim()) params.set("search", search.trim());
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      const res = await api.get(`/api/assets?${params}`);
+      setAssetGroups(res.data || []);
+      setTotalPages(res.total_pages || res.totalPages || 1);
+    } catch {
+      setAssetGroups([]);
+      setTotalPages(1);
+    } finally {
+      setLoadingAssets(false);
+    }
+  }, [page, search, filterStatus]);
+
   useEffect(() => {
     Promise.all([
-      api.get("/api/buildings?limit=100"),
       api.get("/api/rooms?limit=1000"),
       api.get("/api/assets/stats"),
-    ]).then(([bRes, rRes, sRes]) => {
-      setBuildings(bRes.data || bRes);
+    ]).then(([rRes, sRes]) => {
       setRooms(rRes.data || rRes);
       setStats(sRes.data || sRes);
     }).catch(console.error)
       .finally(() => setLoadingInit(false));
   }, []);
 
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
+
+  useEffect(() => {
+    const handleAssetChange = () => fetchAssets();
+    window.addEventListener("asset-created", handleAssetChange);
+    window.addEventListener("asset-updated", handleAssetChange);
+    window.addEventListener("asset-deleted", handleAssetChange);
+    return () => {
+      window.removeEventListener("asset-created", handleAssetChange);
+      window.removeEventListener("asset-updated", handleAssetChange);
+      window.removeEventListener("asset-deleted", handleAssetChange);
+    };
+  }, [fetchAssets]);
+
   const handleSaved = () => {
     setDetailAsset(null);
     fetchStats();
-    setRefreshKey(k => k + 1);
   };
 
   const handleDeleted = () => {
     setDetailAsset(null);
     fetchStats();
-    setRefreshKey(k => k + 1);
   };
 
   const handleBatchCreated = () => {
     fetchStats();
-    setRefreshKey(k => k + 1);
   };
 
   return (
@@ -743,7 +886,7 @@ export default function AssetsPage() {
         <div className="relative flex-1 min-w-[200px]">
           <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm tài sản..." value={search}
-            onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
         <div className="flex gap-1.5">
           {[
@@ -753,7 +896,7 @@ export default function AssetsPage() {
           ].map((f) => (
             <Button key={f.key} size="sm"
               variant={filterStatus === f.key ? "default" : "outline"}
-              onClick={() => setFilterStatus(f.key)}>
+              onClick={() => { setFilterStatus(f.key); setPage(1); }}>
               {f.label}
             </Button>
           ))}
@@ -761,23 +904,34 @@ export default function AssetsPage() {
       </div>
 
       {/* Content — per-building sections */}
-      {loadingInit ? (
+      {loadingInit || loadingAssets ? (
         <LoadingState className="py-20" />
-      ) : buildings.length === 0 ? (
+      ) : assetGroups.length === 0 ? (
         <EmptyState icon={Buildings} message="Không tìm thấy tòa nhà nào" />
       ) : (
         <div className="space-y-8">
-          {buildings.map((b) => (
+          {assetGroups.map((b) => (
             <BuildingAssetSection
-              key={b.id}
+              key={b.building_id || b.id}
               building={b}
-              search={search}
-              statusFilter={filterStatus}
               onDetail={setDetailAsset}
               onQR={setQrAsset}
-              refreshKey={refreshKey}
             />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-3">
+          <span className="text-sm text-muted-foreground">Trang {page} / {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Trước
+            </Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              Sau
+            </Button>
+          </div>
         </div>
       )}
 
@@ -785,7 +939,7 @@ export default function AssetsPage() {
       <BatchCreateDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        buildings={buildings}
+        buildings={assetGroups.map((b) => ({ id: b.building_id, name: b.name }))}
         onSaved={handleBatchCreated}
       />
 
@@ -794,7 +948,6 @@ export default function AssetsPage() {
         open={!!detailAsset}
         onOpenChange={(v) => !v && setDetailAsset(null)}
         asset={detailAsset}
-        buildings={buildings}
         rooms={rooms}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
