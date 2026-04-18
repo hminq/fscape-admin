@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, CircleNotch, CalendarCheck,
   User as UserIcon, Envelope, Phone, House,
@@ -42,6 +42,11 @@ function InfoCell({ icon: Icon, label, value, sub }) {
 export default function BookingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBM = location.pathname.startsWith("/building-manager");
+  const bookingsBasePath = isBM ? "/building-manager/bookings" : "/bookings";
+  const roomsBasePath = isBM ? "/building-manager/rooms" : "/rooms";
+  const contractsBasePath = isBM ? "/building-manager/contracts" : "/contracts";
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,9 +78,9 @@ export default function BookingDetailPage() {
   /* ── error ─────────────────────────────────────────── */
   if (error || !booking) {
     return (
-      <div className="text-center py-20 space-y-4">
-        <p className="text-sm text-destructive">{error || "Không tìm thấy đơn đặt phòng."}</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/bookings")}>
+        <div className="text-center py-20 space-y-4">
+          <p className="text-sm text-destructive">{error || "Không tìm thấy đơn đặt phòng."}</p>
+        <Button variant="outline" size="sm" onClick={() => navigate(bookingsBasePath)}>
           Quay lại
         </Button>
       </div>
@@ -253,7 +258,7 @@ export default function BookingDetailPage() {
                   <Button
                     variant="link" size="sm"
                     className="px-0 h-auto text-xs"
-                    onClick={() => navigate(`/rooms/${booking.room.id}`)}
+                    onClick={() => navigate(`${roomsBasePath}/${booking.room.id}`)}
                   >
                     Xem chi tiết phòng →
                   </Button>
@@ -262,7 +267,7 @@ export default function BookingDetailPage() {
                   <Button
                     variant="link" size="sm"
                     className="px-0 h-auto text-xs"
-                    onClick={() => navigate(`/contracts/${booking.contract_id}`)}
+                    onClick={() => navigate(`${contractsBasePath}/${booking.contract_id}`)}
                   >
                     Xem hợp đồng →
                   </Button>

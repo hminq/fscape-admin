@@ -510,6 +510,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
 
 function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
   const [assetTypes, setAssetTypes] = useState([]);
+  const [assetTypeSearch, setAssetTypeSearch] = useState("");
   const [form, setForm] = useState({ asset_type_id: "", building_id: "", quantity: "1" });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -517,6 +518,7 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
 
   useEffect(() => {
     if (!open) return;
+    setAssetTypeSearch("");
     setForm({ asset_type_id: "", building_id: "", quantity: "1" });
     setErrors({});
     setResult(null);
@@ -531,6 +533,9 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
   };
 
   const selectedType = assetTypes.find((t) => t.id === form.asset_type_id);
+  const filteredAssetTypes = assetTypes.filter((type) =>
+    type.name?.toLowerCase().includes(assetTypeSearch.trim().toLowerCase())
+  );
 
   const validate = () => {
     const e = {};
@@ -592,14 +597,24 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Loại tài sản *</Label>
+            <Input
+              value={assetTypeSearch}
+              onChange={(e) => setAssetTypeSearch(e.target.value)}
+              placeholder="Tìm loại tài sản..."
+            />
             <Select value={form.asset_type_id || undefined} onValueChange={(v) => set("asset_type_id", v)}>
               <SelectTrigger className={errors.asset_type_id ? "border-destructive" : ""}>
                 <SelectValue placeholder="Chọn loại tài sản" />
               </SelectTrigger>
-              <SelectContent>
-                {assetTypes.map((at) => (
+              <SelectContent position="popper" className="max-h-72 w-[var(--radix-select-trigger-width)]">
+                {filteredAssetTypes.map((at) => (
                   <SelectItem key={at.id} value={at.id}>{at.name}</SelectItem>
                 ))}
+                {filteredAssetTypes.length === 0 && (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    Không tìm thấy loại tài sản phù hợp
+                  </div>
+                )}
               </SelectContent>
             </Select>
             {selectedType && (
