@@ -1,7 +1,7 @@
-import { Component, useState, Suspense } from "react";
+import { Component, Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Environment, Center } from "@react-three/drei";
-import { Cube, ArrowsOutCardinal as ArrowsMove } from "@phosphor-icons/react";
+import { Cube, ArrowsOutCardinal as ArrowsMove, CircleNotch } from "@phosphor-icons/react";
 
 /* ── Internal: loads GLB/GLTF via useGLTF ── */
 function Model({ url }) {
@@ -49,7 +49,57 @@ class ModelErrorBoundary extends Component {
  */
 export default function ModelViewer({ url, height = "h-80", className = "" }) {
     const [failedUrl, setFailedUrl] = useState(null);
-    const loadError = failedUrl === url;
+    const [viewerState, setViewerState] = useState({ url: null, status: "idle" });
+    const loadError = failedUrl === url || (viewerState.url === url && viewerState.status === "error");
+
+    useEffect(() => {
+        if (!url) {
+            return undefined;
+        }
+
+        let ignore = false;
+        const controller = new AbortController();
+
+        const checkModelUrl = async () => {
+            setViewerState({ url, status: "checking" });
+
+            const attempt = async (method) => {
+                const response = await fetch(url, {
+                    method,
+                    mode: "cors",
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Không thể tải mô hình 3D (${response.status})`);
+                }
+            };
+
+            try {
+                try {
+                    await attempt("HEAD");
+                } catch {
+                    await attempt("GET");
+                }
+
+                if (!ignore) {
+                    setViewerState({ url, status: "ready" });
+                }
+            } catch {
+                if (!ignore && !controller.signal.aborted) {
+                    setFailedUrl(url);
+                    setViewerState({ url, status: "error" });
+                }
+            }
+        };
+
+        checkModelUrl();
+
+        return () => {
+            ignore = true;
+            controller.abort();
+        };
+    }, [url]);
 
     if (!url) return null;
 
@@ -59,6 +109,15 @@ export default function ModelViewer({ url, height = "h-80", className = "" }) {
                 <Cube className="size-8" />
                 <p className="text-sm">Không thể tải mô hình 3D</p>
                 <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Tải file về</a>
+            </div>
+        );
+    }
+
+    if (viewerState.url !== url || viewerState.status === "checking") {
+        return (
+            <div className={`w-full ${height} rounded-xl border border-border bg-muted/50 flex flex-col items-center justify-center gap-2 text-muted-foreground ${className}`}>
+                <CircleNotch className="size-6 animate-spin" />
+                <p className="text-sm">Đang tải mô hình 3D</p>
             </div>
         );
     }
