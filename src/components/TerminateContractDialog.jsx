@@ -92,9 +92,7 @@ export default function TerminateContractDialog({
             <Warning className="size-5" /> Chấm dứt hợp đồng
           </DialogTitle>
           <DialogDescription>
-            {isActive
-              ? "Hợp đồng đang hoạt động — hệ thống sẽ tạo yêu cầu checkout cho nhân viên thực hiện trả phòng."
-              : "Hợp đồng sẽ bị chấm dứt ngay lập tức và phòng sẽ được giải phóng."}
+            Hành động này không thể hoàn tác.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +103,7 @@ export default function TerminateContractDialog({
             <p className="text-sm font-semibold">{contract?.contract_number}</p>
             <p className="text-xs text-muted-foreground">
               {contract?.room?.room_number}
-              {contract?.room?.building?.name ? ` — ${contract.room.building.name}` : ""}
+              {contract?.room?.building?.name ? ` - ${contract.room.building.name}` : ""}
             </p>
           </div>
 
