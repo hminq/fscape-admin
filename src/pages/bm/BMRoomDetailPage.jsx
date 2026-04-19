@@ -9,9 +9,10 @@ import { Card } from "@/components/ui/card";
 import { api } from "@/lib/apiClient";
 import { formatDate, cdnUrl } from "@/lib/utils";
 import { ROOM_STATUS_MAP, CONTRACT_STATUS_MAP, BOOKING_STATUS_MAP, TERM_TYPE_LABELS } from "@/lib/constants";
-import ModelViewer, { is3DFile } from "@/components/ModelViewer";
+import ModelViewer from "@/components/ModelViewer";
 import defaultRoomImg from "@/assets/default_building_img.jpg";
 import defaultUserImg from "@/assets/default_user_img.jpg";
+import { is3DFile } from "@/lib/modelViewer";
 
 /* ── constants ──────────────────────────────────────────── */
 

@@ -1,14 +1,7 @@
-import { useState, Suspense } from "react";
+import { Component, useState, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Environment, Center } from "@react-three/drei";
 import { Cube, ArrowsOutCardinal as ArrowsMove } from "@phosphor-icons/react";
-
-/**
- * Check if URL points to a loadable 3D file (GLB/GLTF).
- * Also matches Cloudinary raw upload URLs with /3d/ in path.
- */
-export const is3DFile = (url) =>
-    url && (/\.(glb|gltf)$/i.test(url) || /\/raw\/upload\/.*\/3d\//i.test(url));
 
 /* ── Internal: loads GLB/GLTF via useGLTF ── */
 function Model({ url }) {
@@ -20,6 +13,32 @@ function Model({ url }) {
     );
 }
 
+class ModelErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidCatch() {
+        this.props.onError?.();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+            this.setState({ hasError: false });
+        }
+    }
+
+    render() {
+        if (this.state.hasError) return null;
+        return this.props.children;
+    }
+}
+
 /**
  * Reusable 3D model viewer component.
  *
@@ -29,7 +48,8 @@ function Model({ url }) {
  *  - className (string) — extra classes on the wrapper
  */
 export default function ModelViewer({ url, height = "h-80", className = "" }) {
-    const [loadError, setLoadError] = useState(false);
+    const [failedUrl, setFailedUrl] = useState(null);
+    const loadError = failedUrl === url;
 
     if (!url) return null;
 
@@ -45,12 +65,14 @@ export default function ModelViewer({ url, height = "h-80", className = "" }) {
 
     return (
         <div className={`w-full ${height} rounded-xl border border-border bg-muted/50 overflow-hidden relative ${className}`}>
-            <Canvas camera={{ position: [0, 1.5, 3], fov: 50 }} onError={() => setLoadError(true)}>
+            <Canvas camera={{ position: [0, 1.5, 3], fov: 50 }} onError={() => setFailedUrl(url)}>
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <Suspense fallback={null}>
-                    <Model url={url} />
-                    <Environment preset="city" />
+                    <ModelErrorBoundary resetKey={url} onError={() => setFailedUrl(url)}>
+                        <Model url={url} />
+                        <Environment preset="city" />
+                    </ModelErrorBoundary>
                 </Suspense>
                 <OrbitControls
                     enablePan
