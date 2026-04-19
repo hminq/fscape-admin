@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus, MagnifyingGlass, Package, Trash, CircleNotch, PencilSimple, QrCode,
-  Buildings, DownloadSimple, Printer,
+  Buildings, DownloadSimple, Printer, FloppyDisk,
   Door, Eye, CheckCircle, Stack as Layers, Warehouse, CaretDown, CaretLeft, CaretRight
 } from "@phosphor-icons/react";
 import { LoadingState, EmptyState } from "@/components/StateDisplay";
@@ -259,7 +259,7 @@ function QRDialog({ open, onOpenChange, asset }) {
 
 /* ── Asset Detail Dialog (view / edit / delete) ── */
 
-function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSaved, onDeleted }) {
+function AssetDetailDialog({ open, onOpenChange, asset, buildings, onSaved, onDeleted }) {
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [form, setForm] = useState({});
@@ -270,12 +270,12 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
     if (open) { setEditing(false); setConfirmDel(false); }
   }, [open]);
 
+  const canChangeBuilding = !asset?.current_room_id && asset?.status !== "IN_USE";
+
   const startEdit = () => {
     setForm({
       name: asset.name || "",
       building_id: asset.building_id || "",
-      current_room_id: asset.current_room_id || "",
-      status: asset.status || "AVAILABLE",
       notes: asset.notes || "",
     });
     setErrors({});
@@ -286,11 +286,6 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
     setForm((p) => ({ ...p, [k]: v }));
     if (errors[k]) setErrors((p) => ({ ...p, [k]: undefined }));
   };
-
-  const filteredRooms = useMemo(() => {
-    if (!form.building_id) return [];
-    return rooms.filter((r) => r.building_id === form.building_id);
-  }, [rooms, form.building_id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -306,8 +301,6 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
       const body = {
         name: form.name.trim(),
         building_id: form.building_id,
-        current_room_id: form.current_room_id || null,
-        status: form.status,
         notes: form.notes?.trim() || undefined,
       };
       await apiJson(`/api/assets/${asset.id}`, {
@@ -360,7 +353,11 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className={errors.building_id ? "text-destructive" : ""}>Tòa nhà *</Label>
-                  <Select value={form.building_id || undefined} onValueChange={(v) => { set("building_id", v); setForm((p) => ({ ...p, current_room_id: "" })); }}>
+                  <Select
+                    value={form.building_id || undefined}
+                    onValueChange={(v) => set("building_id", v)}
+                    disabled={!canChangeBuilding}
+                  >
                     <SelectTrigger className={errors.building_id ? "border-destructive" : ""}>
                       <SelectValue placeholder="Chọn tòa nhà" />
                     </SelectTrigger>
@@ -371,33 +368,16 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
                     </SelectContent>
                   </Select>
                   {errors.building_id && <p className="text-[10px] text-destructive font-medium">{errors.building_id}</p>}
+                  <p className="text-[10px] text-muted-foreground">
+                    {canChangeBuilding
+                      ? "Chỉ đổi tòa nhà khi tài sản đang ở kho. Tài sản sẽ được giữ tại kho của tòa nhà mới."
+                      : "Chỉ có thể đổi tòa nhà khi tài sản đang ở kho và không ở trạng thái đang sử dụng."}
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Phòng</Label>
-                  <Select value={form.current_room_id || "__none__"} onValueChange={(v) => set("current_room_id", v === "__none__" ? "" : v)}
-                    disabled={!form.building_id}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn phòng" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Kho (không gán phòng)</SelectItem>
-                      {filteredRooms.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>Phòng {r.room_number}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input value={asset.room ? `Phòng ${asset.room.room_number}` : "Kho"} disabled />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Trạng thái</Label>
-                <Select value={form.status || "AVAILABLE"} onValueChange={(v) => set("status", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="AVAILABLE">Sẵn sàng</SelectItem>
-                    <SelectItem value="IN_USE">Đang sử dụng</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -414,7 +394,7 @@ function AssetDetailDialog({ open, onOpenChange, asset, buildings, rooms, onSave
               <DialogFooter className="pt-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)}>Hủy</Button>
                 <Button type="submit" disabled={saving}>
-                  {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <CheckCircle className="size-4 mr-1.5" />}
+                  {saving ? <CircleNotch className="size-4 animate-spin mr-1.5" /> : <FloppyDisk className="size-4 mr-1.5" />}
                   Lưu thay đổi
                 </Button>
               </DialogFooter>
@@ -797,7 +777,6 @@ function BuildingAssetSection({ building, onDetail, onQR }) {
 
 export default function AssetsPage() {
   const [buildings, setBuildings] = useState([]);
-  const [rooms, setRooms] = useState([]);
   const [stats, setStats] = useState(null);
   const [loadingInit, setLoadingInit] = useState(true);
   const [loadingAssets, setLoadingAssets] = useState(true);
@@ -843,11 +822,9 @@ export default function AssetsPage() {
   useEffect(() => {
     Promise.all([
       api.get("/api/buildings?limit=1000"),
-      api.get("/api/rooms?limit=1000"),
       api.get("/api/assets/stats"),
-    ]).then(([bRes, rRes, sRes]) => {
+    ]).then(([bRes, sRes]) => {
       setBuildings(bRes.data || bRes);
-      setRooms(rRes.data || rRes);
       setStats(sRes.data || sRes);
     }).catch(console.error)
       .finally(() => setLoadingInit(false));
@@ -966,7 +943,7 @@ export default function AssetsPage() {
         open={!!detailAsset}
         onOpenChange={(v) => !v && setDetailAsset(null)}
         asset={detailAsset}
-        rooms={rooms}
+        buildings={buildings}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
       />
