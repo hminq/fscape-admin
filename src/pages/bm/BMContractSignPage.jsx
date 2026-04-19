@@ -313,7 +313,7 @@ export default function BMContractSignPage() {
             <h2 className="text-lg font-bold">Ký xác nhận hợp đồng</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Vui lòng ký tên vào ô bên dưới để kích hoạt hợp đồng cho cư dân.
+            Vui lòng ký xác nhận trong ô bên dưới để tiếp tục.
           </p>
 
           {/* Canvas */}

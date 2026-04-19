@@ -155,7 +155,12 @@ export default function RoomTypeAssetConfigPanel({
   };
 
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-5", isDialog && "p-4")}>
+    <section
+      className={cn(
+        "rounded-xl border border-border bg-card p-5",
+        isDialog && "flex max-h-[75vh] min-h-0 flex-col p-4"
+      )}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -171,7 +176,7 @@ export default function RoomTypeAssetConfigPanel({
         </span>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className={cn("mt-5 space-y-4", isDialog && "min-h-0 flex-1 overflow-y-auto pr-1")}>
         {loading ? (
           <div className="flex justify-center py-10">
             <CircleNotch className="size-6 animate-spin text-muted-foreground" />
