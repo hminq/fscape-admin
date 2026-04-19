@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { api, apiJson, apiRequest } from "@/lib/apiClient";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, cdnUrl } from "@/lib/utils";
 
 /* ── Upload constraints ─────────────────────────────────────── */
 const UPLOAD_CFG = {
@@ -189,14 +189,14 @@ export default function EditRoomPage() {
                     status: r.status || "AVAILABLE",
                 });
 
-                if (r.thumbnail_url) setThumbPreview(r.thumbnail_url);
-                if (r.image_3d_url) setImg3dPreview(r.image_3d_url);
-                if (r.blueprint_url) setBlueprintPreview(r.blueprint_url);
+                if (r.thumbnail_url) setThumbPreview(cdnUrl(r.thumbnail_url));
+                if (r.image_3d_url) setImg3dPreview(cdnUrl(r.image_3d_url));
+                if (r.blueprint_url) setBlueprintPreview(cdnUrl(r.blueprint_url));
 
                 if (Array.isArray(r.images) && r.images.length > 0) {
                     setGalleryImages(r.images.map(img => {
                         const url = typeof img === 'string' ? img : img?.image_url;
-                        return { url, name: "Existing", existing: true };
+                        return { url: cdnUrl(url), name: "Existing", existing: true };
                     }));
                 }
 
