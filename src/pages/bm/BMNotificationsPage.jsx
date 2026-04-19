@@ -279,7 +279,7 @@ export default function BMNotificationsPage() {
 
       {/* Detail dialog */}
       <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="size-5 text-primary" />

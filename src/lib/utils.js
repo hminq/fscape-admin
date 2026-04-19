@@ -39,7 +39,7 @@ export const cleanContractHtml = (html) => {
  * Supports formats like:
  *   https://www.google.com/maps/place/.../@10.873,106.804,17z/...
  *   https://maps.google.com/?q=10.873,106.804
- *   https://goo.gl/maps/... (after redirect — same @lat,lng pattern)
+ *   https://goo.gl/maps/... (after redirect - same @lat,lng pattern)
  *
  * @param {string} url
  * @returns {{ lat: number, lng: number } | null}

@@ -176,7 +176,7 @@ function BuildingSummary({ active, inactive, locationCounts, filterActive }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-8 flex-wrap">
-        {/* Left — location donut + legend */}
+        {/* Left - location donut + legend */}
         <div className="flex items-center gap-5">
           <LocationDonut locationCounts={locationCounts} size={76} />
           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
@@ -712,7 +712,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Main info card — thumbnail only */}
+          {/* Main info card - thumbnail only */}
           <Card className="overflow-hidden py-0 gap-0">
             <div className="flex flex-col md:flex-row">
               <div className="relative md:w-64 shrink-0 bg-muted h-48 md:h-auto md:min-h-48 overflow-hidden">
@@ -743,7 +743,7 @@ function BuildingDetail({ buildingId, onBack, locations, onDeleteSuccess, onUpda
             </div>
           </Card>
 
-          {/* Gallery — equal size grid */}
+          {/* Gallery - equal size grid */}
           {gallery.length > 0 && (
             <section>
               <h2 className="text-base font-bold mb-3">Hình ảnh ({gallery.length})</h2>
@@ -1072,7 +1072,7 @@ export default function BuildingsPage() {
     return () => clearTimeout(id);
   }, [search]);
 
-  /* which locations to render sections for — driven by stats (locations that have buildings) */
+  /* which locations to render sections for - driven by stats (locations that have buildings) */
   const visibleLocations = useMemo(() => {
     const locs = stats.by_location.map((l) => ({ id: l.location_id, name: l.name }));
     if (filterLocation !== "all") return locs.filter((l) => l.id === filterLocation);
@@ -1191,7 +1191,7 @@ export default function BuildingsPage() {
         </div>
       </div>
 
-      {/* Building list — one LocationSection per visible location */}
+      {/* Building list - one LocationSection per visible location */}
       <div className="space-y-10">
         {visibleLocations.map((loc) => (
           <LocationSection

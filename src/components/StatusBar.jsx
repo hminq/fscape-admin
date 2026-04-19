@@ -3,10 +3,10 @@
  * Displays a progress bar that adapts based on the current filter.
  *
  * Props:
- *   active   — count of active items
- *   inactive — count of inactive items
- *   filter   — "all" | "active" | "inactive"
- *   label    — entity label for count mode, e.g. "tòa nhà" or "tài khoản"
+ *   active   - count of active items
+ *   inactive - count of inactive items
+ *   filter   - "all" | "active" | "inactive"
+ *   label    - entity label for count mode, e.g. "tòa nhà" or "tài khoản"
  */
 export default function StatusBar({ active, inactive, filter, label = "" }) {
     const total = active + inactive;

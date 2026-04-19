@@ -188,7 +188,7 @@ function UniDetailDialog({ open, onOpenChange, uniId, onEdit, onDelete }) {
                 </div>
               )}
 
-              {/* Nearby buildings — compact, max 3 */}
+              {/* Nearby buildings - compact, max 3 */}
               {(() => {
                 const buildings = uni.nearby_buildings || [];
                 const shown = buildings.slice(0, 3);

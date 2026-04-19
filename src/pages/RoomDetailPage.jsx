@@ -155,7 +155,7 @@ export default function RoomDetailPage() {
                     </Button>
                     {isLocked && (
                         <span className="text-xs text-amber-600 font-medium">
-                            Phòng đang được sử dụng — không thể chỉnh sửa
+                            Phòng đang được sử dụng - không thể chỉnh sửa
                         </span>
                     )}
                 </div>
@@ -193,7 +193,7 @@ export default function RoomDetailPage() {
                 </div>
             </Card>
 
-            {/* Gallery — right after the main info card */}
+            {/* Gallery - right after the main info card */}
             {gallery.length > 0 && (
                 <section>
                     <h2 className="text-base font-bold mb-3">Hình ảnh ({gallery.length})</h2>

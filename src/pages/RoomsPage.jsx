@@ -134,12 +134,12 @@ function RoomCard({ room, onView, onToggle }) {
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-shadow hover:shadow-md flex flex-row h-[140px] group">
-      {/* Image — left side, fixed width */}
+      {/* Image - left side, fixed width */}
       <div className="w-36 shrink-0 overflow-hidden bg-muted">
         <img src={imageUrl} alt={room.room_number} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" onError={e => e.target.src = defaultRoomImg} />
       </div>
 
-      {/* Info — right side */}
+      {/* Info - right side */}
       <div className="p-3 flex flex-col flex-1 min-w-0 gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold text-[13px] truncate">Phòng {room.room_number}</h3>
@@ -446,7 +446,7 @@ export default function RoomsPage() {
         </div>
       </div>
 
-      {/* Content — per-building sections */}
+      {/* Content - per-building sections */}
       {loadingInit ? (
         <LoadingState className="py-24" />
       ) : visibleBuildings.length === 0 ? (

@@ -218,7 +218,7 @@ export default function RoomTypeAssetConfigPanel({
                           <SelectTrigger className="w-full min-w-0">
                             <SelectValue placeholder="Chọn loại tài sản" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60">
                             {assetTypes.map((assetType) => (
                               <SelectItem
                                 key={assetType.id}

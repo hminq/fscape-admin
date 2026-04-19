@@ -76,7 +76,7 @@ export default function BuildingManagerHomePage() {
       {/* Header */}
       <div className="pt-1">
         <h1 className="text-2xl font-bold tracking-tight">Tổng quan tòa nhà</h1>
-        <p className="text-sm text-muted-foreground">FScape Hòa Lạc 3 — Khu vực Hà Nội</p>
+        <p className="text-sm text-muted-foreground">FScape Hòa Lạc 3 - Khu vực Hà Nội</p>
       </div>
 
       {/* Stats */}

@@ -124,7 +124,7 @@ export default function TerminateContractDialog({
             <p className="text-[11px] text-muted-foreground text-right">{reason.length}/1000</p>
           </div>
 
-          {/* Staff selection — only for active contracts */}
+          {/* Staff selection - only for active contracts */}
           {isActive && (
             <div className="space-y-2">
               <Label>
@@ -145,7 +145,7 @@ export default function TerminateContractDialog({
                     <SelectContent>
                       {staffList.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.last_name} {s.first_name} — {s.email}
+                          {s.last_name} {s.first_name} - {s.email}
                         </SelectItem>
                       ))}
                     </SelectContent>

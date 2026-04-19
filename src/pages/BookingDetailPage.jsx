@@ -93,7 +93,7 @@ export default function BookingDetailPage() {
     : "—";
 
   const roomLabel = booking.room
-    ? `Phòng ${booking.room.room_number || ""}${booking.room.building?.name ? " — " + booking.room.building.name : ""}`
+    ? `Phòng ${booking.room.room_number || ""}${booking.room.building?.name ? " - " + booking.room.building.name : ""}`
     : "—";
 
   /* ── render ────────────────────────────────────────── */
@@ -250,7 +250,7 @@ export default function BookingDetailPage() {
               {booking.room?.room_type?.name && (
                 <p className="text-xs text-muted-foreground">
                   Loại: {booking.room.room_type.name}
-                  {booking.room.room_type.area_sqm && ` — ${booking.room.room_type.area_sqm} m²`}
+                  {booking.room.room_type.area_sqm && ` - ${booking.room.room_type.area_sqm} m²`}
                 </p>
               )}
               <div className="flex items-center gap-3">

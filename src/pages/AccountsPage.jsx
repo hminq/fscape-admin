@@ -492,7 +492,7 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {/* List — one section per role */}
+      {/* List - one section per role */}
       <div className="space-y-8">
         {ROLE_ORDER.map((role) => (
           <RoleSection
@@ -584,7 +584,7 @@ export default function AccountsPage() {
                 <div>
                   <p className="text-lg font-semibold">Đặt lại mật khẩu thành công</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {fullName(confirmReset)} — {confirmReset.email}
+                    {fullName(confirmReset)} - {confirmReset.email}
                   </p>
                 </div>
 

@@ -254,7 +254,7 @@ export default function BMContractSignPage() {
         </div>
       </div>
 
-      {/* Contract info bar — only contract number + period */}
+      {/* Contract info bar - only contract number + period */}
       <div className="flex items-center justify-between rounded-xl border bg-card p-5 shadow-sm">
         <div>
           <p className="text-xs text-muted-foreground">Mã hợp đồng</p>

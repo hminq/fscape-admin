@@ -303,7 +303,7 @@ const DEFAULT_HTML = `<div style="font-family: 'Times New Roman', serif; max-wid
     CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
   </h1>
   <p style="text-align: center; font-size: 14px; margin-bottom: 30px;">
-    Độc lập — Tự do — Hạnh phúc
+    Độc lập - Tự do - Hạnh phúc
   </p>
 
   <h2 style="text-align: center; font-size: 18px; margin-bottom: 30px;">
@@ -324,7 +324,7 @@ const DEFAULT_HTML = `<div style="font-family: 'Times New Roman', serif; max-wid
   <p>Số điện thoại: {{customer_phone}}</p>
   <p>Email: {{customer_email}}</p>
   <p>Địa chỉ thường trú: {{customer_permanent_address}}</p>
-  <p>Liên hệ khẩn cấp: {{customer_emergency_contact_name}} — {{customer_emergency_contact_phone}}</p>
+  <p>Liên hệ khẩn cấp: {{customer_emergency_contact_name}} - {{customer_emergency_contact_phone}}</p>
 
   <h3 style="margin-top: 20px;">ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG</h3>
   <p>Bên A đồng ý cho Bên B thuê phòng <strong>{{room_number}}</strong> (loại: {{room_type}}) tại tòa nhà {{building_name}}.</p>

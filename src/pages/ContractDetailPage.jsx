@@ -183,7 +183,7 @@ export default function ContractDetailPage() {
         const res = await api.get(`/api/inspections?room_id=${contract.room.id}`);
         setInspections(res.data || res || []);
       } catch {
-        /* silent — inspections are supplementary */
+        /* silent - inspections are supplementary */
       } finally {
         setInspLoading(false);
       }
@@ -199,7 +199,7 @@ export default function ContractDetailPage() {
         const res = await api.get(`/api/settlements/contract/${id}`);
         setSettlement(res.data || null);
       } catch {
-        /* silent — settlement may not exist yet */
+        /* silent - settlement may not exist yet */
       } finally {
         setSettlementLoading(false);
       }
@@ -237,7 +237,7 @@ export default function ContractDetailPage() {
     : null;
 
   const roomLabel = contract.room
-    ? `${contract.room.room_number || ""}${contract.room.building?.name ? " — " + contract.room.building.name : ""}`
+    ? `${contract.room.room_number || ""}${contract.room.building?.name ? " - " + contract.room.building.name : ""}`
     : "—";
 
   return (
@@ -534,7 +534,7 @@ export default function ContractDetailPage() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Xem hợp đồng — {contract.contract_number}</DialogTitle>
+            <DialogTitle>Xem hợp đồng - {contract.contract_number}</DialogTitle>
           </DialogHeader>
           <div
             className="flex-1 overflow-y-auto prose prose-sm max-w-none"

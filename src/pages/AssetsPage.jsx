@@ -898,7 +898,7 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      {/* Content — per-building sections */}
+      {/* Content - per-building sections */}
       {loadingInit || loadingAssets ? (
         <LoadingState className="py-20" />
       ) : assetGroups.length === 0 ? (

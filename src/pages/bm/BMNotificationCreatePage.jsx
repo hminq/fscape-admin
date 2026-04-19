@@ -63,7 +63,7 @@ function RoomPicker({ rooms, loadingRooms, roomId, onSelect, search, onSearch })
           <Door className="size-4 text-primary shrink-0" />
           <span className="font-medium">
             Phòng {selectedRoom.room_number}
-            {selectedRoom.room_type?.name && ` — ${selectedRoom.room_type.name}`}
+            {selectedRoom.room_type?.name && ` - ${selectedRoom.room_type.name}`}
           </span>
           <button type="button" className="ml-auto text-xs text-muted-foreground hover:text-foreground"
             onClick={() => { onSelect(""); onSearch(""); }}>

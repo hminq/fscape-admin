@@ -97,7 +97,7 @@ export default function InvoiceDetailPage() {
     : "—";
 
   const roomLabel = invoice.contract?.room
-    ? `${invoice.contract.room.room_number || ""}${invoice.contract.room.building?.name ? " — " + invoice.contract.room.building.name : ""}`
+    ? `${invoice.contract.room.room_number || ""}${invoice.contract.room.building?.name ? " - " + invoice.contract.room.building.name : ""}`
     : "—";
 
   const items = invoice.items || [];
@@ -155,7 +155,7 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* Status banner — visually distinct inside the card */}
+        {/* Status banner - visually distinct inside the card */}
         {invoice.status === "PAID" && (
           <div className="border-t border-success/30 bg-success/10 px-5 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -103,7 +103,7 @@ function SidebarItem({ item }) {
     item.children?.some((child) => location.pathname === child.to);
   const [open, setOpen] = useState(isActive);
 
-  // Direct link — no children
+  // Direct link - no children
   if (!hasChildren) {
     return (
       <NavLink

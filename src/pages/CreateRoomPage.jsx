@@ -374,7 +374,7 @@ function BatchForm({ buildings, roomTypes, saving, onSave, onCancel }) {
         </div>
       </FormSection>
 
-      {/* Images — shared across all batch rooms */}
+      {/* Images - shared across all batch rooms */}
       <FormSection title="Hình ảnh (áp dụng cho tất cả phòng)">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SingleImageUploader
@@ -428,7 +428,7 @@ function BatchForm({ buildings, roomTypes, saving, onSave, onCancel }) {
 
       {/* Preview */}
       {preview.length > 0 && (
-        <FormSection title={`Xem trước — ${preview.length} phòng sẽ được tạo`}>
+        <FormSection title={`Xem trước - ${preview.length} phòng sẽ được tạo`}>
           {loadingPreview ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
               <CircleNotch className="size-4 animate-spin" /> Đang kiểm tra

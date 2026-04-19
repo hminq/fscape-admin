@@ -43,9 +43,9 @@ class ModelErrorBoundary extends Component {
  * Reusable 3D model viewer component.
  *
  * Props:
- *  - url (string, required) — URL to .glb / .gltf file
- *  - height (string) — Tailwind height class, default "h-80"
- *  - className (string) — extra classes on the wrapper
+ *  - url (string, required) - URL to .glb / .gltf file
+ *  - height (string) - Tailwind height class, default "h-80"
+ *  - className (string) - extra classes on the wrapper
  */
 export default function ModelViewer({ url, height = "h-80", className = "" }) {
     const [failedUrl, setFailedUrl] = useState(null);

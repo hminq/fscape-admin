@@ -251,7 +251,7 @@ function LocationDetailDialog({ open, onOpenChange, location, onSave, onDelete, 
                 ) : buildings.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Chưa có tòa nhà nào.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                     {buildings.map((b) => (
                       <div key={b.id} className="flex items-center justify-between text-sm">
                         <span className="font-medium">{b.name}</span>

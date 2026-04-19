@@ -136,7 +136,7 @@ export default function CreateAccountDialog({ open, onOpenChange, onSaved, force
             <div>
               <p className="text-lg font-semibold">Tạo tài khoản thành công</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {fullName(result)} — {result.email}
+                {fullName(result)} - {result.email}
               </p>
             </div>
             <div className="w-full rounded-xl border border-border bg-muted/30 p-4 space-y-3">

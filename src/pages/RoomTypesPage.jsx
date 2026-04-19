@@ -520,7 +520,7 @@ function RoomTypeDetailDialog({ open, onOpenChange, roomType, onSave, onDelete, 
 function AssetAssignmentDialog({ open, onOpenChange, roomType, onUpdated }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Định mức tài sản - {roomType?.name}</DialogTitle>
                 </DialogHeader>

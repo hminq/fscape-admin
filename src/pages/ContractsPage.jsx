@@ -289,7 +289,7 @@ export default function ContractsPage() {
                       <TableCell>
                         {c.room?.room_number}
                         {c.room?.building?.name && (
-                          <span className="text-muted-foreground"> — {c.room.building.name}</span>
+                          <span className="text-muted-foreground"> - {c.room.building.name}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">

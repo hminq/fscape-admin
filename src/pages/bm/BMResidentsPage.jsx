@@ -53,7 +53,7 @@ function ContractCard({ contract }) {
       <InfoRow icon={FileText} label="Mã HĐ" value={contract.contract_number} />
       <InfoRow icon={Calendar} label="Thời hạn"
         value={contract.start_date && contract.end_date
-          ? `${formatDate(contract.start_date)} — ${formatDate(contract.end_date)}`
+          ? `${formatDate(contract.start_date)} - ${formatDate(contract.end_date)}`
           : null}
       />
       <InfoRow icon={CurrencyDollar} label="Tiền thuê"
