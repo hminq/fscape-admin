@@ -53,6 +53,7 @@ import BookingDetailPage from "./pages/BookingDetailPage";
 import BMBookingsPage from "./pages/bm/BMBookingsPage";
 import BMSettlementsPage from "./pages/bm/BMSettlementsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import TriggerJobsPage from "./pages/TriggerJobsPage";
 
 export default function App() {
   return (
@@ -122,6 +123,7 @@ export default function App() {
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="logs/system" element={<SystemLogsPage />} />
+              <Route path="trigger-jobs" element={<TriggerJobsPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>

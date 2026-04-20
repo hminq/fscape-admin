@@ -12,6 +12,7 @@ import {
   Scroll,
   CaretDown,
   CalendarCheck,
+  Lightning,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
@@ -92,6 +93,11 @@ const navItems = [
       { label: "Hoạt động", to: "/logs" },
       { label: "Hệ thống", to: "/logs/system" },
     ],
+  },
+  {
+    label: "Cron Jobs",
+    icon: Lightning,
+    to: "/trigger-jobs",
   },
 ];
 
