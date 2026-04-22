@@ -13,6 +13,7 @@ import {
   CaretDown,
   CalendarCheck,
   Lightning,
+  Scales,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import fscapeLogo from "@/assets/fscape-logo.svg";
@@ -72,6 +73,12 @@ const navItems = [
     icon: Receipt,
     to: "/invoices",
     children: [{ label: "Danh sách", to: "/invoices" }],
+  },
+  {
+    label: "Quyết toán",
+    icon: Scales,
+    to: "/settlements",
+    children: [{ label: "Danh sách", to: "/settlements" }],
   },
   {
     label: "Đặt phòng",

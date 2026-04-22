@@ -42,7 +42,7 @@ const fmtVND = (v) => {
 
 /* ── main component ─────────────────────────────────────── */
 
-export default function BMSettlementsPage() {
+export default function SettlementsPage() {
   const navigate = useNavigate();
 
   const [settlements, setSettlements] = useState([]);
@@ -195,7 +195,7 @@ export default function BMSettlementsPage() {
                           variant="ghost"
                           size="icon"
                           className="size-8"
-                          onClick={() => navigate(`/building-manager/contracts/${s.contract?.id}?scrollTo=settlement`)}
+                          onClick={() => navigate(`/contracts/${s.contract?.id}?scrollTo=settlement`)}
                         >
                           <Eye className="size-4" />
                         </Button>

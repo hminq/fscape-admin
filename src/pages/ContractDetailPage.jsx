@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, CircleNotch, FileText, DownloadSimple, FilePdf,
   User as UserIcon, Envelope, House, CalendarDots,
   CurrencyDollar, ClockCountdown, PencilSimple,
-  ClipboardText, CaretDown, CaretUp, Scales, Prohibit,
+  ClipboardText, CaretDown, CaretUp, Scales, Prohibit, CheckCircle,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
 import { formatDate, formatDateTime, cdnUrl, cleanContractHtml } from "@/lib/utils";
 import { CONTRACT_STATUS_MAP, BILLING_CYCLE_LABELS, INSPECTION_STATUS_MAP, ASSET_CONDITION_MAP, SETTLEMENT_STATUS_MAP } from "@/lib/constants";
@@ -158,6 +159,11 @@ export default function ContractDetailPage() {
   const [settlement, setSettlement] = useState(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
   const [terminateOpen, setTerminateOpen] = useState(false);
+  const [closeSettlementOpen, setCloseSettlementOpen] = useState(false);
+  const [closeSettlementLoading, setCloseSettlementLoading] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const settlementRef = useRef(null);
 
   const fetchContract = async () => {
     setLoading(true);
@@ -206,6 +212,14 @@ export default function ContractDetailPage() {
     };
     fetchSettlement();
   }, [id]);
+
+  useEffect(() => {
+    if (!settlementLoading && settlement && searchParams.get("scrollTo") === "settlement") {
+      setTimeout(() => {
+        settlementRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [settlementLoading, settlement, searchParams]);
 
   if (loading) {
     return (
@@ -430,7 +444,7 @@ export default function ContractDetailPage() {
       </section>
 
       {/* Settlement */}
-      <section>
+      <section ref={settlementRef}>
         <h2 className="text-base font-bold mb-3 flex items-center gap-2">
           <Scales className="size-4 text-primary" /> Quyết toán
         </h2>
@@ -449,9 +463,16 @@ export default function ContractDetailPage() {
                     {SETTLEMENT_STATUS_MAP[settlement.status]?.label || settlement.status}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {formatDateTime(settlement.finalized_at)}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateTime(settlement.finalized_at)}
+                  </span>
+                  {settlement.status === "FINALIZED" && (
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => setCloseSettlementOpen(true)}>
+                      <CheckCircle className="size-4" /> Đóng quyết toán
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Amount summary */}
@@ -542,6 +563,47 @@ export default function ContractDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Close settlement dialog */}
+      {settlement && (
+        <Dialog open={closeSettlementOpen} onOpenChange={setCloseSettlementOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Xác nhận đóng quyết toán</DialogTitle>
+              <DialogDescription>
+                Hành động này đánh dấu việc thu/chi bù trừ tiền nong với khách hàng đã được hoàn tất ở ngoài thực tế. Bạn có chắc chắn muốn đóng quyết toán này không? Quá trình này không thể hoàn tác.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-2">
+              <Button variant="outline" onClick={() => setCloseSettlementOpen(false)} disabled={closeSettlementLoading}>
+                Hủy
+              </Button>
+              <Button
+                className="gap-2"
+                disabled={closeSettlementLoading}
+                onClick={async () => {
+                  setCloseSettlementLoading(true);
+                  try {
+                    await api.patch(`/api/settlements/${settlement.id}/close`);
+                    toast.success("Đã đóng quyết toán thành công.");
+                    setCloseSettlementOpen(false);
+                    // refresh settlement inline
+                    const res = await api.get(`/api/settlements/contract/${id}`);
+                    setSettlement(res.data);
+                  } catch (err) {
+                    toast.error(err?.message || "Không thể đóng quyết toán. Vui lòng thử lại.");
+                  } finally {
+                    setCloseSettlementLoading(false);
+                  }
+                }}
+              >
+                {closeSettlementLoading && <CircleNotch className="size-4 animate-spin" />}
+                Xác nhận đóng
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Terminate contract dialog */}
       {canTerminate && (

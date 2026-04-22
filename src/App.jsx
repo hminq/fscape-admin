@@ -53,6 +53,7 @@ import BookingDetailPage from "./pages/BookingDetailPage";
 import BMBookingsPage from "./pages/bm/BMBookingsPage";
 import BMSettlementsPage from "./pages/bm/BMSettlementsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import SettlementsPage from "./pages/SettlementsPage";
 import TriggerJobsPage from "./pages/TriggerJobsPage";
 
 export default function App() {
@@ -114,6 +115,7 @@ export default function App() {
               <Route path="contracts/templates" element={<ContractTemplatesPage />} />
               <Route path="contracts/templates/create" element={<ContractTemplateEditorPage />} />
               <Route path="contracts/templates/:id/edit" element={<ContractTemplateEditorPage />} />
+              <Route path="settlements" element={<SettlementsPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
               <Route path="invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="bookings" element={<BookingsPage />} />
