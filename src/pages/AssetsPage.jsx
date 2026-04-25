@@ -660,9 +660,15 @@ function BatchCreateDialog({ open, onOpenChange, buildings, onSaved }) {
 /* ── Per-building asset section grouped by floor ── */
 
 function RoomAssetSection({ room, onDetail, onQR }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-muted/20">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/20"
+        onClick={() => setOpen((value) => !value)}
+      >
         <div className="flex items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary/8 flex items-center justify-center">
             <Door className="size-3.5 text-primary" />
@@ -672,13 +678,19 @@ function RoomAssetSection({ room, onDetail, onQR }) {
             <p className="text-[11px] text-muted-foreground">{room.assets.length} tài sản</p>
           </div>
         </div>
-      </div>
-      <AssetRowTable assets={room.assets} onDetail={onDetail} onQR={onQR} />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs font-medium text-muted-foreground">{open ? "Ẩn" : "Xem"}</span>
+          <CaretDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+      {open && <AssetRowTable assets={room.assets} onDetail={onDetail} onQR={onQR} />}
     </div>
   );
 }
 
 function BuildingAssetSection({ building, onDetail, onQR }) {
+  const [open, setOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
   const [storagePage, setStoragePage] = useState(1);
   const storagePerPage = 10;
 
@@ -687,88 +699,112 @@ function BuildingAssetSection({ building, onDetail, onQR }) {
   const pagedStorageStacks = storageStacks.slice((storagePage - 1) * storagePerPage, storagePage * storagePerPage);
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-bold flex items-center gap-2.5 text-foreground">
-          <Buildings className="size-[18px] text-primary" />
-          {building.name}
-          <span className="text-xs font-bold text-muted-foreground bg-muted/80 px-2.5 py-0.5 rounded-md">
+    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/20"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Buildings className="size-[18px] shrink-0 text-primary" />
+          <h2 className="truncate text-lg font-bold text-foreground">{building.name}</h2>
+          <span className="rounded-md bg-muted/80 px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
             {building.total_assets} tài sản
           </span>
-        </h2>
-        {building.storage_total > 0 && (
-          <span className="text-xs font-medium text-muted-foreground">
-            {building.storage_total} tài sản trong kho
-          </span>
-        )}
-      </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {building.storage_total > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {building.storage_total} tài sản trong kho
+            </span>
+          )}
+          <span className="text-xs font-medium text-muted-foreground">{open ? "Ẩn" : "Xem"}</span>
+          <CaretDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
 
-      <div className="space-y-4">
+      {open && (
+        <div className="space-y-4 border-t border-border/60 px-4 py-4">
           {building.floors.map((floor) => (
-          floor.floor_key === "storage" ? (
-            <div key="storage" className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Warehouse className="size-4 text-primary" />
-                Kho
-              </div>
-              <div className="grid gap-3">
-                {pagedStorageStacks.map((stack) => (
-                  <StorageStackCard
-                    key={stack.asset_type_id}
-                    stack={stack}
-                    onDetail={onDetail}
-                    onQR={onQR}
-                  />
-                ))}
-              </div>
-              {totalStoragePages > 1 && (
-                <div className="flex items-center justify-end gap-3 pt-1">
-                  <span className="text-xs text-muted-foreground">
-                    {storagePage}/{totalStoragePages}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="size-8 rounded-lg"
-                      disabled={storagePage <= 1}
-                      onClick={() => setStoragePage((p) => p - 1)}
-                    >
-                      <CaretLeft className="size-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="size-8 rounded-lg"
-                      disabled={storagePage >= totalStoragePages}
-                      onClick={() => setStoragePage((p) => p + 1)}
-                    >
-                      <CaretRight className="size-4" />
-                    </Button>
+            floor.floor_key === "storage" ? (
+              <div key="storage" className="space-y-3">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                  onClick={() => setStorageOpen((value) => !value)}
+                >
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <Warehouse className="size-4 text-primary" />
+                    Kho
                   </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-medium text-muted-foreground">{storageOpen ? "Ẩn" : "Xem"}</span>
+                    <CaretDown className={`size-4 text-muted-foreground transition-transform ${storageOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {storageOpen && (
+                  <>
+                    <div className="grid gap-3">
+                      {pagedStorageStacks.map((stack) => (
+                        <StorageStackCard
+                          key={stack.asset_type_id}
+                          stack={stack}
+                          onDetail={onDetail}
+                          onQR={onQR}
+                        />
+                      ))}
+                    </div>
+                    {totalStoragePages > 1 && (
+                      <div className="flex items-center justify-end gap-3 pt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {storagePage}/{totalStoragePages}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="size-8 rounded-lg"
+                            disabled={storagePage <= 1}
+                            onClick={() => setStoragePage((p) => p - 1)}
+                          >
+                            <CaretLeft className="size-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="size-8 rounded-lg"
+                            disabled={storagePage >= totalStoragePages}
+                            onClick={() => setStoragePage((p) => p + 1)}
+                          >
+                            <CaretRight className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              <div key={floor.floor_key} className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <Layers className="size-4 text-primary" />
+                  {getFloorLabel(floor.floor_key)}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div key={floor.floor_key} className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Layers className="size-4 text-primary" />
-                {getFloorLabel(floor.floor_key)}
+                <div className="space-y-3">
+                  {floor.rooms.map((room) => (
+                    <RoomAssetSection
+                      key={room.room_id}
+                      room={room}
+                      onDetail={onDetail}
+                      onQR={onQR}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-3">
-                {floor.rooms.map((room) => (
-                  <RoomAssetSection
-                    key={room.room_id}
-                    room={room}
-                    onDetail={onDetail}
-                    onQR={onQR}
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        ))}
-      </div>
+            )
+          ))}
+        </div>
+      )}
     </section>
   );
 }
