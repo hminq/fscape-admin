@@ -17,7 +17,6 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ROOM_STATUS_META = {
@@ -278,13 +277,15 @@ export default function BuildingManagerHomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 font-sans">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Tổng quan</h1>
-        <p className="text-sm text-muted-foreground">
-          Theo dõi vận hành theo phạm vi tòa nhà bạn đang quản lý.
+      <div className="flex flex-col gap-3 rounded-2xl border bg-muted/15 px-5 py-4 sm:px-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Bảng điều hành tòa nhà
         </p>
-        <div className="pt-1">
-          <Badge variant="outline" className="text-sm">{buildingName}</Badge>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{buildingName}</h1>
+          <p className="text-sm text-muted-foreground">
+            Theo dõi vận hành theo phạm vi tòa nhà bạn đang quản lý.
+          </p>
         </div>
       </div>
 
@@ -372,13 +373,13 @@ export default function BuildingManagerHomePage() {
 
       <div className="grid items-stretch gap-6 xl:grid-cols-[1.3fr_0.9fr]">
         <Card className="flex h-full flex-col">
-          <CardHeader>
+          <CardHeader className="pb-4">
             <CardTitle>Tiến độ xử lý yêu cầu</CardTitle>
             <CardDescription>Phân bố các yêu cầu cư dân theo trạng thái xử lý hiện tại.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1">
             {requestChartData.length > 0 ? (
-              <div className="h-full min-h-[24rem] w-full rounded-lg border bg-muted/10 p-3">
+              <div className="h-full min-h-[20rem] w-full rounded-lg border bg-muted/10 p-2.5">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={requestChartData} layout="vertical" margin={{ top: 12, right: 12, left: 24, bottom: 0 }}>
                     <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeDasharray="3 3" />
