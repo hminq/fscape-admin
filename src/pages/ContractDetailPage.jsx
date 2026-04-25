@@ -182,11 +182,11 @@ export default function ContractDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!contract?.room?.id) return;
+    if (!contract?.room?.id || !contract?.id) return;
     const fetchInspections = async () => {
       setInspLoading(true);
       try {
-        const res = await api.get(`/api/inspections?room_id=${contract.room.id}`);
+        const res = await api.get(`/api/inspections?room_id=${contract.room.id}&contract_id=${contract.id}`);
         setInspections(res.data || res || []);
       } catch {
         /* silent - inspections are supplementary */
@@ -195,7 +195,7 @@ export default function ContractDetailPage() {
       }
     };
     fetchInspections();
-  }, [contract?.room?.id]);
+  }, [contract?.room?.id, contract?.id]);
 
   useEffect(() => {
     if (!id) return;
